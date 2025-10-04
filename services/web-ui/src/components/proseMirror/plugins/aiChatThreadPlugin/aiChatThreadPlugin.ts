@@ -19,12 +19,13 @@ import { aiResponseMessageNodeType, aiResponseMessageNodeView } from './aiRespon
 import SegmentsReceiver from '../../../../services/segmentsReceiver-service.js'
 import { documentStore } from '../../../../stores/documentStore.js'
 import { aiModelsStore } from '../../../../stores/aiModelsStore.js'
+import type { AiModelId } from '@lixpi/constants'
 
 const IS_RECEIVING_TEMP_DEBUG_STATE = false    // For debug purposes only
 
 // ========== TYPE DEFINITIONS ==========
 
-type AiChatCallback = (data: { messages: Array<{ role: string; content: string }>; aiModel: string }) => void
+type AiChatCallback = (data: { messages: Array<{ role: string; content: string }>; aiModel: AiModelId }) => void
 type PlaceholderOptions = { titlePlaceholder: string; paragraphPlaceholder: string }
 type StreamStatus = 'START_STREAM' | 'STREAMING' | 'END_STREAM'
 type SegmentEvent = {

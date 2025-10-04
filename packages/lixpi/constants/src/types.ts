@@ -131,6 +131,8 @@ export type EventMeta = {
     documentId: string
 }
 
+export type AiModelId = `${string}:${string}`
+
 export type TokensUsage = {
     eventMeta: EventMeta
     aiModelMetaInfo: AiModel
@@ -153,7 +155,7 @@ export type TokensUsage = {
 
 export type TokensUsageEvent = {
     eventMeta: EventMeta
-    aiModel: `${string}:${string}`
+    aiModel: AiModelId
     aiVendorRequestId: string
     aiRequestReceivedAt: number
     aiRequestFinishedAt: number

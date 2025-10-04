@@ -4,7 +4,7 @@ import chalk from 'chalk'
 
 import NATS_Service from '@lixpi/nats-service'
 import { log, info, infoStr, warn, err } from '@lixpi/debug-tools'
-import { AI_CHAT_SUBJECTS } from '@lixpi/constants'
+import { AI_CHAT_SUBJECTS, type AiModelId } from '@lixpi/constants'
 
 import AiModel from '../../models/ai-model.ts'
 
@@ -39,9 +39,9 @@ export const aiChatSubjects = [
                 documentId,
                 chatContent,
                 organizationId
-            } = data
+            } = data as { user: { userId: string; stripeCustomerId: string }; aiModel: AiModelId; documentId: string; chatContent: any; organizationId: string }
 
-            const [provider, model] = aiModel.split(':')
+            const [provider, model] = (aiModel as string).split(':')
             const natsService = await NATS_Service.getInstance();
 
             // Fetch AI model meta info

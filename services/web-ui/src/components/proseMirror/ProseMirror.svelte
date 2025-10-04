@@ -20,6 +20,7 @@
 
     import {
         LoadingStatus,
+        type AiModelId
     } from '@lixpi/constants'
 
     import Spinner from `$src/components/spinner.svelte`
@@ -48,7 +49,7 @@
     const documentService = new DocumentService()
 
 
-    const onAiChatSubmit = ({ messages, aiModel }) => {
+    const onAiChatSubmit = ({ messages, aiModel }: { messages: any; aiModel: AiModelId }) => {
         // console.log('onAiChatSubmit', {messages, aiModel, aiChatInstance})
 
         if (!aiChatInstance) {

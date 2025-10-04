@@ -1,6 +1,7 @@
 'use strict'
 
 import { AI_CHAT_SUBJECTS } from '@lixpi/constants'
+import type { AiModelId } from '@lixpi/constants'
 
 import AuthService from './auth0-service.ts'
 import SegmentsReceiver from '$src/services/segmentsReceiver-service.js'
@@ -47,7 +48,7 @@ export default class ChatService {
         this.segmentsReceiver.receiveSegment(data.content);
     }
 
-    async sendMessage(chatContent, aiModel) {
+    async sendMessage(chatContent: any, aiModel: AiModelId) {
         console.log('[AI_DBG][SERVICE.sendMessage] called', { aiModel, chatContentPreview: (chatContent||'').slice(0,120), length: chatContent?.length })
         const organizationId = organizationStore.getData('organizationId')
 
