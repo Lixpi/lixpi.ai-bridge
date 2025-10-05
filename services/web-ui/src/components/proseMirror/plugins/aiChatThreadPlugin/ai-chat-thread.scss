@@ -133,10 +133,27 @@
 
     // ===== AI SUBMIT BUTTON =====
     .ai-submit-button {
+        position: relative; // ensure absolutely positioned state layers anchor here
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px; // prevent flex shrink causing horizontal shift
         border-radius: 50%;
         opacity: 0.8;
         transition: hoverTransition(all, 400ms);
         cursor: pointer;
+        // NO BORDER (per requirement). To keep layout stable, we simply never add one.
+        border: none;
+        box-sizing: border-box;
+
+        // Prevent icon swap jitter
+        .send-icon svg,
+        .stop-icon svg {
+            width: 22px;
+            height: 22px;
+        }
 
         // Button state containers
         .button-default,
@@ -145,8 +162,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 32px;
-            height: 32px;
+            width: 100%;
+            height: 100%;
             transition: hoverTransition(all, 250ms);
         }
 
@@ -161,9 +178,7 @@
         .button-hover,
         .button-receiving {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            inset: 0; // shorthand for top/left/right/bottom 0
             opacity: 0;
             pointer-events: none;
         }
@@ -228,8 +243,9 @@
     // Submit button hover (when not receiving)
     &:not(.receiving) .ai-submit-button:hover {
         opacity: 1;
-        border-color: rgba($steelBlue, 0.3);
-        transition: hoverTransition(all, 250ms);
+        // Removed border-color to satisfy requirement: no visible border on hover
+        // Keep transition for opacity only to avoid layout shift
+        transition: hoverTransition(opacity, 250ms);
 
         .button-default { opacity: 0; pointer-events: none; }
         .button-hover { opacity: 1; pointer-events: auto; }
@@ -245,7 +261,6 @@
     // ===== RECEIVING STATE =====
     &.receiving {
         .ai-submit-button {
-            border-color: $redPink;
             background-color: white;
             transition: hoverTransition(background, 300ms);
 
