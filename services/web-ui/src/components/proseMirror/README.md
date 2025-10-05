@@ -35,12 +35,28 @@ Base schema is defined in `components/schema.ts` (extended CommonMark-like schem
 Custom nodes (in `customNodes/`):
 
 - `documentTitleNode` (`documentTitle`): h1 title, non-selectable, defining.
-- `aiUserInputNode` (`aiUserInput`): a block container for user’s AI prompt and inline control buttons (Stop, Regenerate, Close). Spec provides DOM structure; nodeView is provided by the aiUserInput plugin.
-- `aiChatThreadNode` (`aiChatThread`): the single chat container that holds the conversation. Current content expression: `(aiResponseMessage | paragraph)+`. New code does not insert `aiUserMessage` here.
+- `aiUserInputNode` (`aiUserInput`, deprecated): a block container for user's AI prompt and inline control buttons (Stop, Regenerate, Close). Marked for removal; kept for backward compatibility in old documents.
+- `aiChatThreadNode` (`aiChatThread`): the single chat container that holds the conversation. Current content expression: `(paragraph | code_block | aiResponseMessage | dropdown)+`. New code does not insert `aiUserMessage` here.
 - `aiResponseMessageNode` (`aiResponseMessage`): assistant message with provider avatar, animation controls, and a contentDOM placeholder; `aiResponseMessageNodeView` manages Claude animation frames using node attrs (`isInitialRenderAnimation`, `isReceivingAnimation`, `currentFrame`). Content expression: `(paragraph | block)*` so it can start empty and be filled by streaming.
 - `aiUserMessageNode` (`aiUserMessage`, legacy): styled bubble with user avatar; kept for backward compatibility in old documents. New flows do not create this node.
 - `code_block` override (`codeBlockNode`): prosemirror spec extended with `theme` attr and DOM `data-theme`. Rendering and interaction are delegated to a CodeMirror 6 node view (plugin).
+- `dropdown` (`dropdownNode`): reusable dropdown primitive for inline menus and selectors. Used by AI Chat Thread plugin for model selection. Supports theming, custom positioning, and decoration-driven open/close states. See `plugins/primitives/dropdown/README.md` for full documentation.
 - `taskRowNode` exists but currently a placeholder without DOM hooks; kept for future Svelte component rendering.
+
+```mermaid
+flowchart TD
+  A[doc] --> B[documentTitle]
+  A --> T[aiChatThread]
+  T --> P[paragraph]
+  T --> CB[code_block]
+  T --> R[aiResponseMessage]
+  T --> D[dropdown]
+  R --> RP["(paragraph | block)*"]
+```
+
+Notes
+- Groups: Custom nodes belong to `block` and integrate seamlessly with base block nodes.
+- NodeViews: `aiResponseMessageNodeView` is exposed from `customNodes/index.js` and plugged-in by `aiChatPlugin`; `aiUserMessageNodeView` remains for legacy docs but is not used in new flows; `code_block` node view is provided by the codeBlock plugin; `dropdown` node view is provided by the dropdown primitive plugin.
 
 ```mermaid
 flowchart TD
