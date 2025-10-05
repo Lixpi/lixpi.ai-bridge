@@ -104,8 +104,15 @@ class ContentExtractor {
         return text
     }
 
-    // Find the active aiChatThread containing the cursor
-    static getActiveThreadContent(state: EditorState): ThreadContent[] {
+    // Find the active aiChatThread containing the cursor and extract content
+    // If threadContext is 'Document', extract from ALL threads in the document
+    static getActiveThreadContent(state: EditorState, threadContext: string = 'Thread'): ThreadContent[] {
+        if (threadContext === 'Document') {
+            // Extract content from ALL threads in the document
+            return ContentExtractor.getAllThreadsContent(state)
+        }
+
+        // Default behavior: extract from active thread only
         const { $from } = state.selection
         let thread: PMNode | null = null
 
@@ -156,6 +163,55 @@ class ContentExtractor {
 
         console.log('Final extracted content:', content)
         return content
+    }
+
+    // Extract content from ALL aiChatThread nodes in the document
+    static getAllThreadsContent(state: EditorState): ThreadContent[] {
+        const allThreadsContent: ThreadContent[] = []
+        let threadCount = 0
+
+        state.doc.descendants((node, pos) => {
+            if (node.type.name === aiChatThreadNodeType) {
+                threadCount++
+                
+                // Add a thread separator if not the first thread
+                if (threadCount > 1) {
+                    allThreadsContent.push({
+                        nodeType: 'thread_separator',
+                        textContent: '\n--- Thread Separator ---\n'
+                    })
+                }
+
+                // Extract content from this thread
+                node.forEach(block => {
+                    // Skip dropdown nodes
+                    if (block.type.name === 'dropdown') {
+                        return
+                    }
+
+                    const formattedText = ContentExtractor.collectFormattedText(block)
+                    const simpleText = ContentExtractor.collectText(block)
+
+                    // Include blocks that have any text content
+                    if (block.textContent || formattedText) {
+                        let textContent = formattedText || block.textContent
+
+                        // For top-level code blocks, format with triple backticks (if not already formatted)
+                        if (block.type.name === 'code_block' && !textContent.includes('```')) {
+                            textContent = `\`\`\`\n${textContent}\n\`\`\``
+                        }
+
+                        allThreadsContent.push({
+                            nodeType: block.type.name,
+                            textContent: textContent
+                        })
+                    }
+                })
+            }
+        })
+
+        console.log('Extracted content from all threads:', { threadCount, contentItems: allThreadsContent.length })
+        return allThreadsContent
     }
 
     // Transform thread content into AI message format
@@ -606,10 +662,7 @@ class AiChatThreadPluginClass {
     }
 
     private handleChatRequest(newState: EditorState): void {
-        const threadContent = ContentExtractor.getActiveThreadContent(newState)
-        const messages = ContentExtractor.toMessages(threadContent)
-
-        // Extract aiModel from the active thread
+        // Extract aiModel and threadContext from the active thread
         const { selection } = newState
         const $from = selection.$from
 
@@ -623,9 +676,21 @@ class AiChatThreadPluginClass {
             }
         }
 
-    // Use thread node's aiModel; if empty, backend will reject so we ensure NodeView assigns first available model earlier
-    const aiModel = threadNode?.attrs?.aiModel || ''
-        console.log('[AI_DBG][SUBMIT] handleChatRequest', { aiModel, threadHasNode: !!threadNode, threadAttrs: threadNode?.attrs, messagesCount: messages.length })
+        // Use thread node's aiModel and threadContext
+        const aiModel = threadNode?.attrs?.aiModel || ''
+        const threadContext = threadNode?.attrs?.threadContext || 'Thread'
+        
+        // Extract content based on thread context
+        const threadContent = ContentExtractor.getActiveThreadContent(newState, threadContext)
+        const messages = ContentExtractor.toMessages(threadContent)
+
+        console.log('[AI_DBG][SUBMIT] handleChatRequest', { 
+            aiModel, 
+            threadContext,
+            threadHasNode: !!threadNode, 
+            threadAttrs: threadNode?.attrs, 
+            messagesCount: messages.length 
+        })
         this.callback({ messages, aiModel })
     }
 
@@ -672,7 +737,11 @@ class AiChatThreadPluginClass {
                     // Handle dropdown option selection
                     const dropdownSelection = tr.getMeta('dropdownOptionSelected')
                     if (dropdownSelection && dropdownSelection.dropdownId?.startsWith('ai-model-dropdown-')) {
-                        console.log('[AI_DBG][PLUGIN.apply] dropdownSelection meta received (deferring attr update to appendTransaction)', { dropdownSelection })
+                        console.log('[AI_DBG][PLUGIN.apply] aiModel dropdownSelection meta received (deferring attr update to appendTransaction)', { dropdownSelection })
+                        // We intentionally DO NOT mutate tr/doc here; appendTransaction will perform attr update
+                    }
+                    if (dropdownSelection && dropdownSelection.dropdownId?.startsWith('thread-context-dropdown-')) {
+                        console.log('[AI_DBG][PLUGIN.apply] threadContext dropdownSelection meta received (deferring attr update to appendTransaction)', { dropdownSelection })
                         // We intentionally DO NOT mutate tr/doc here; appendTransaction will perform attr update
                     }
 
@@ -700,49 +769,86 @@ class AiChatThreadPluginClass {
                     return this.handleInsertThread(insertTransaction, newState)
                 }
 
-                // Handle deferred aiModel attr update after dropdown selection
+                // Handle deferred dropdown attr updates after dropdown selection
                 const dropdownTx = transactions.find(tr => tr.getMeta('dropdownOptionSelected'))
                 if (dropdownTx) {
                     const dropdownSelection = dropdownTx.getMeta('dropdownOptionSelected')
-                    const { option, nodePos } = dropdownSelection || {}
-                    let provider = option?.provider
-                    let model = option?.model
-                    if ((!provider || !model) && option?.title) {
-                        const allModels = aiModelsStore.getData()
-                        const found = allModels.find(m => m.title === option.title)
-                        if (found) {
-                            provider = provider || found.provider
-                            model = model || found.model
+                    const { option, nodePos, dropdownId } = dropdownSelection || {}
+                    
+                    // Handle AI model dropdown selection
+                    if (dropdownId?.startsWith('ai-model-dropdown-')) {
+                        let provider = option?.provider
+                        let model = option?.model
+                        if ((!provider || !model) && option?.title) {
+                            const allModels = aiModelsStore.getData()
+                            const found = allModels.find(m => m.title === option.title)
+                            if (found) {
+                                provider = provider || found.provider
+                                model = model || found.model
+                            }
+                        }
+                        if (provider && model && typeof nodePos === 'number') {
+                            const newModel = `${provider}:${model}`
+                            let threadPos = -1
+                            let threadNode: PMNode | null = null
+                            newState.doc.nodesBetween(0, newState.doc.content.size, (node, pos) => {
+                                if (node.type.name === 'aiChatThread') {
+                                    const threadStart = pos
+                                    const threadEnd = pos + node.nodeSize
+                                    if (nodePos >= threadStart && nodePos < threadEnd) {
+                                        threadPos = pos
+                                        threadNode = node
+                                        console.log('[AI_DBG][APPEND_TX] matched thread for aiModel update', { threadPos, nodePos, threadAttrs: node.attrs, newModel })
+                                        return false
+                                    }
+                                }
+                            })
+                            if (threadPos !== -1 && threadNode && threadNode.attrs.aiModel !== newModel) {
+                                const tr = newState.tr
+                                const newAttrs = { ...threadNode.attrs, aiModel: newModel }
+                                tr.setNodeMarkup(threadPos, undefined, newAttrs)
+                                console.log('[AI_DBG][APPEND_TX] committing aiModel change', { from: threadNode.attrs.aiModel, to: newModel, threadPos })
+                                documentStore.setMetaValues({ requiresSave: true })
+                                return tr
+                            } else {
+                                console.log('[AI_DBG][APPEND_TX] aiModel already current or thread not found', { threadPos, existing: threadNode?.attrs?.aiModel, desired: newModel })
+                            }
+                        } else {
+                            console.log('[AI_DBG][APPEND_TX] insufficient data to update aiModel', { provider, model, nodePos })
                         }
                     }
-                    if (provider && model && typeof nodePos === 'number') {
-                        const newModel = `${provider}:${model}`
-                        let threadPos = -1
-                        let threadNode: PMNode | null = null
-                        newState.doc.nodesBetween(0, newState.doc.content.size, (node, pos) => {
-                            if (node.type.name === 'aiChatThread') {
-                                const threadStart = pos
-                                const threadEnd = pos + node.nodeSize
-                                if (nodePos >= threadStart && nodePos < threadEnd) {
-                                    threadPos = pos
-                                    threadNode = node
-                                    console.log('[AI_DBG][APPEND_TX] matched thread for aiModel update', { threadPos, nodePos, threadAttrs: node.attrs, newModel })
-                                    return false
+                    
+                    // Handle thread context dropdown selection
+                    if (dropdownId?.startsWith('thread-context-dropdown-')) {
+                        const newContext = option?.value || option?.title
+                        if (newContext && typeof nodePos === 'number') {
+                            let threadPos = -1
+                            let threadNode: PMNode | null = null
+                            newState.doc.nodesBetween(0, newState.doc.content.size, (node, pos) => {
+                                if (node.type.name === 'aiChatThread') {
+                                    const threadStart = pos
+                                    const threadEnd = pos + node.nodeSize
+                                    if (nodePos >= threadStart && nodePos < threadEnd) {
+                                        threadPos = pos
+                                        threadNode = node
+                                        console.log('[AI_DBG][APPEND_TX] matched thread for threadContext update', { threadPos, nodePos, threadAttrs: node.attrs, newContext })
+                                        return false
+                                    }
                                 }
+                            })
+                            if (threadPos !== -1 && threadNode && threadNode.attrs.threadContext !== newContext) {
+                                const tr = newState.tr
+                                const newAttrs = { ...threadNode.attrs, threadContext: newContext }
+                                tr.setNodeMarkup(threadPos, undefined, newAttrs)
+                                console.log('[AI_DBG][APPEND_TX] committing threadContext change', { from: threadNode.attrs.threadContext, to: newContext, threadPos })
+                                documentStore.setMetaValues({ requiresSave: true })
+                                return tr
+                            } else {
+                                console.log('[AI_DBG][APPEND_TX] threadContext already current or thread not found', { threadPos, existing: threadNode?.attrs?.threadContext, desired: newContext })
                             }
-                        })
-                        if (threadPos !== -1 && threadNode && threadNode.attrs.aiModel !== newModel) {
-                            const tr = newState.tr
-                            const newAttrs = { ...threadNode.attrs, aiModel: newModel }
-                            tr.setNodeMarkup(threadPos, undefined, newAttrs)
-                            console.log('[AI_DBG][APPEND_TX] committing aiModel change', { from: threadNode.attrs.aiModel, to: newModel, threadPos })
-                            documentStore.setMetaValues({ requiresSave: true })
-                            return tr
                         } else {
-                            console.log('[AI_DBG][APPEND_TX] aiModel already current or thread not found', { threadPos, existing: threadNode?.attrs?.aiModel, desired: newModel })
+                            console.log('[AI_DBG][APPEND_TX] insufficient data to update threadContext', { newContext, nodePos })
                         }
-                    } else {
-                        console.log('[AI_DBG][APPEND_TX] insufficient data to update aiModel', { provider, model, nodePos })
                     }
                 }
 

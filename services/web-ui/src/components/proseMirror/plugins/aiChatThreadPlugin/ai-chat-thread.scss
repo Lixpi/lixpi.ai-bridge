@@ -115,20 +115,24 @@
         }
     }
 
-    // ===== AI MODEL SELECTOR DROPDOWN =====
-    // Target dropdown nodes within this aiChatThread for positioning
-    .dropdown-menu-tag-pill-wrapper {
+    // ===== AI CHAT THREAD CONTROLS CONTAINER =====
+    .ai-chat-thread-controls {
         position: absolute;
         bottom: -0.75rem;
-        right: 4rem; // Position to the left of submit button
+        right: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         z-index: 999;
+
+        // All dropdown wrappers inside controls use natural flex flow
+        .dropdown-menu-tag-pill-wrapper {
+            position: relative;
+        }
     }
 
     // ===== AI SUBMIT BUTTON =====
     .ai-submit-button {
-        position: absolute;
-        bottom: -0.75rem;
-        right: 1rem;
         border-radius: 50%;
         opacity: 0.8;
         transition: hoverTransition(all, 400ms);
