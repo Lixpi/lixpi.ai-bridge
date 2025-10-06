@@ -63,14 +63,24 @@ class DropdownPlugin {
                 }),
 
                 apply: (tr: Transaction, pluginState: DropdownPluginState) => {
+                    console.log('[AI_DBG][DROPDOWN_PLUGIN.apply] CALLED', {
+                        docChanged: tr.docChanged,
+                        steps: tr.steps.length,
+                        currentOpenId: pluginState.openDropdownId,
+                        hasToggleMeta: !!tr.getMeta('toggleDropdown'),
+                        hasCloseMeta: !!tr.getMeta('closeDropdown')
+                    })
+
                     let { decorations, openDropdownId } = pluginState
                     let stateChanged = false
 
                     // Handle dropdown toggle metadata
                     const toggleDropdown = tr.getMeta('toggleDropdown')
                     if (toggleDropdown) {
+                        console.log('[AI_DBG][DROPDOWN_PLUGIN.apply] toggleDropdown meta found', { toggleDropdown, currentOpenId: openDropdownId })
                         const newOpenId = openDropdownId === toggleDropdown.id ? null : toggleDropdown.id
                         if (newOpenId !== openDropdownId) {
+                            console.log('[AI_DBG][DROPDOWN_PLUGIN.apply] openDropdownId changed', { from: openDropdownId, to: newOpenId })
                             openDropdownId = newOpenId
                             stateChanged = true
                         }
@@ -79,19 +89,24 @@ class DropdownPlugin {
                     // Handle close dropdown metadata
                     const closeDropdown = tr.getMeta('closeDropdown')
                     if (closeDropdown && openDropdownId !== null) {
+                        console.log('[AI_DBG][DROPDOWN_PLUGIN.apply] closeDropdown meta found', { closingId: openDropdownId })
                         openDropdownId = null
                         stateChanged = true
                     }
 
                     // Only recreate decorations if state changed or document structure changed
                     if (stateChanged || tr.docChanged) {
+                        console.log('[AI_DBG][DROPDOWN_PLUGIN.apply] recreating decorations', { stateChanged, docChanged: tr.docChanged, openDropdownId })
                         decorations = this.createDecorations(tr.doc, openDropdownId)
+                        console.log('[AI_DBG][DROPDOWN_PLUGIN.apply] decorations created', { openDropdownId })
                     }
 
-                    return {
+                    const newState = {
                         decorations: decorations.map(tr.mapping, tr.doc),
                         openDropdownId
                     }
+                    console.log('[AI_DBG][DROPDOWN_PLUGIN.apply] returning new state', { openDropdownId: newState.openDropdownId })
+                    return newState
                 }
             },
 
@@ -110,20 +125,34 @@ class DropdownPlugin {
 
     private createDecorations(doc: any, openDropdownId: string | null): DecorationSet {
         const decorations: Decoration[] = []
+        console.log('[AI_DBG][DROPDOWN_PLUGIN.createDecorations] CALLED', { openDropdownId })
 
         if (openDropdownId) {
+            let foundCount = 0
             doc.descendants((node: any, pos: number) => {
+                if (node.type.name === dropdownNodeType) {
+                    foundCount++
+                    console.log('[AI_DBG][DROPDOWN_PLUGIN.createDecorations] found dropdown node', {
+                        pos,
+                        nodeId: node.attrs.id,
+                        openDropdownId,
+                        matches: node.attrs.id === openDropdownId
+                    })
+                }
                 if (node.type.name === dropdownNodeType && node.attrs.id === openDropdownId) {
-                    decorations.push(
-                        Decoration.node(pos, pos + node.nodeSize, {
-                            class: 'dropdown-open'
-                        })
-                    )
+                    const decoration = Decoration.node(pos, pos + node.nodeSize, {
+                        class: 'dropdown-open'
+                    })
+                    decorations.push(decoration)
+                    console.log('[AI_DBG][DROPDOWN_PLUGIN.createDecorations] created decoration for dropdown', { pos, nodeSize: node.nodeSize, dropdownId: node.attrs.id })
                 }
             })
+            console.log('[AI_DBG][DROPDOWN_PLUGIN.createDecorations] scan complete', { foundDropdowns: foundCount, createdDecorations: decorations.length })
         }
 
-        return DecorationSet.create(doc, decorations)
+        const decorationSet = DecorationSet.create(doc, decorations)
+        console.log('[AI_DBG][DROPDOWN_PLUGIN.createDecorations] returning DecorationSet', { decorationsCount: decorations.length })
+        return decorationSet
     }
 }
 

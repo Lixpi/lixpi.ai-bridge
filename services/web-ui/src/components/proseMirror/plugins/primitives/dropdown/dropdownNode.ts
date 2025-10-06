@@ -21,11 +21,14 @@ export const dropdownNodeView = (node, view, getPos) => {
 
     // Handle toggle dropdown
     const toggleSubmenuHandler = (e, dropdownId) => {
+        console.log('[AI_DBG][DROPDOWN.toggleSubmenuHandler] CALLED', { dropdownId, id, event: e.type, target: e.target })
         e.preventDefault()
         e.stopPropagation()
 
         const tr = view.state.tr.setMeta('toggleDropdown', { id: dropdownId })
+        console.log('[AI_DBG][DROPDOWN.toggleSubmenuHandler] dispatching transaction', { dropdownId, hasMeta: !!tr.getMeta('toggleDropdown') })
         view.dispatch(tr)
+        console.log('[AI_DBG][DROPDOWN.toggleSubmenuHandler] transaction dispatched', { dropdownId })
     }
 
     // Handle option click
@@ -94,17 +97,20 @@ export const dropdownNodeView = (node, view, getPos) => {
     const isOpen = () => {
         const pluginKey = view.state.plugins.find(p => p.key && p.key.key === 'dropdown')?.key
         if (!pluginKey) {
+            console.log('[AI_DBG][DROPDOWN.isOpen] NO PLUGIN KEY FOUND', { id, availablePlugins: view.state.plugins.map(p => p.key?.key || 'unnamed') })
             return false
         }
 
         const pluginState = pluginKey.getState(view.state)
-        return pluginState?.openDropdownId === id
+        const open = pluginState?.openDropdownId === id
+        console.log('[AI_DBG][DROPDOWN.isOpen] checked', { id, openDropdownId: pluginState?.openDropdownId, isOpen: open })
+        return open
     }
 
     // Create the dropdown structure using html templates - GENERIC DROPDOWN ONLY
     const createDropdownDOM = () => {
         const dropdownDOM = html`
-            <div class="dropdown-menu-tag-pill-wrapper theme-${theme}">
+            <div class="dropdown-menu-tag-pill-wrapper theme-${theme}" data-dropdown-id="${id}">
                 <span
                     class="dots-dropdown-menu"
                     onclick=${(e) => e.stopPropagation()}
