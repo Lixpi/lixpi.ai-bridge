@@ -587,10 +587,10 @@ class AiChatThreadPluginClass {
     private createThreadBoundaryDecorations(state: EditorState, pluginState: AiChatThreadPluginState): Decoration[] {
         const decorations: Decoration[] = []
 
-        // Find all ai-chat-thread nodes and add boundary visibility ONLY for the hovered thread
+        // Find all ai-chat-thread nodes and add boundary visibility to ALL threads (always visible)
         state.doc.descendants((node, pos) => {
-            if (node.type.name === 'aiChatThread' && pluginState.hoveredThreadId === node.attrs.threadId) {
-                // Apply boundary visibility class ONLY to the specific hovered thread
+            if (node.type.name === 'aiChatThread') {
+                // Apply boundary visibility class to all threads
                 decorations.push(
                     Decoration.node(pos, pos + node.nodeSize, {
                         class: 'thread-boundary-visible'
@@ -898,11 +898,9 @@ class AiChatThreadPluginClass {
                         allDecorations.push(...receivingDecorations)
                     }
 
-                    // Independent thread boundary system
-                    if (pluginState?.hoveredThreadId) {
-                        const boundaryDecorations = this.createThreadBoundaryDecorations(state, pluginState)
-                        allDecorations.push(...boundaryDecorations)
-                    }
+                    // Independent thread boundary system - always visible
+                    const boundaryDecorations = this.createThreadBoundaryDecorations(state, pluginState)
+                    allDecorations.push(...boundaryDecorations)
 
                     // Note: Dropdown decorations are now handled by the dropdown primitive plugin
 

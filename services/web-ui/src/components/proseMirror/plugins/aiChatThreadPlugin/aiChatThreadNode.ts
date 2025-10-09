@@ -76,11 +76,11 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
 
     // Create dropdowns outside document schema (like submit button - not document nodes)
     const creationTimestamp = Date.now()
-    console.log('[AI_DBG][THREAD.nodeView] CONSTRUCTOR CALLED', { 
-        threadId, 
-        initialAiModel: node.attrs.aiModel, 
+    console.log('[AI_DBG][THREAD.nodeView] CONSTRUCTOR CALLED', {
+        threadId,
+        initialAiModel: node.attrs.aiModel,
         creationTimestamp,
-        contentSize: node.content.size 
+        contentSize: node.content.size
     })
 
     const threadContextDropdown = createThreadContextDropdown(view, node, getPos, threadId)
@@ -143,7 +143,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
             // ProseMirror will handle content updates via contentDOM automatically.
             // Returning false would destroy/recreate the NodeView (including dropdowns),
             // which breaks event listeners and state.
-            
+
             // Update attributes if changed
             dom.setAttribute('data-thread-id', updatedNode.attrs.threadId)
             dom.setAttribute('data-status', updatedNode.attrs.status)
@@ -172,9 +172,9 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
                         const newAttrs = { ...updatedNode.attrs, aiModel: `${firstModel.provider}:${firstModel.model}` }
                         const tr = view.state.tr.setNodeMarkup(pos, undefined, newAttrs)
                         view.dispatch(tr)
-                        console.log('[AI_DBG][THREAD.nodeView.update] auto-assigned first model', { 
-                            threadId: updatedNode.attrs.threadId, 
-                            assignedModel: newAttrs.aiModel 
+                        console.log('[AI_DBG][THREAD.nodeView.update] auto-assigned first model', {
+                            threadId: updatedNode.attrs.threadId,
+                            assignedModel: newAttrs.aiModel
                         })
                     }
                 }
