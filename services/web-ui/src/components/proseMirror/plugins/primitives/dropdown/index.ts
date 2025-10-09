@@ -1,3 +1,3 @@
 // Dropdown Primitive (Outside Document Schema)
-export { createPureDropdown } from './pureDropdown.js'
-export { dropdownStateManager } from './dropdownStateManager.js'
+export { createPureDropdown } from './pureDropdown.ts'
+export { dropdownStateManager } from './dropdownStateManager.ts'

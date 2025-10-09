@@ -7,7 +7,7 @@ import {
     checkMarkIcon,
     claudeIcon,
     claudeAnimatedFrameIcon,
-} from '../../../../svgIcons/index.js'
+} from '../../../../svgIcons/index.ts'
 
 // Define the unique type name for this custom node
 export const aiResponseMessageNodeType = 'aiResponseMessage'

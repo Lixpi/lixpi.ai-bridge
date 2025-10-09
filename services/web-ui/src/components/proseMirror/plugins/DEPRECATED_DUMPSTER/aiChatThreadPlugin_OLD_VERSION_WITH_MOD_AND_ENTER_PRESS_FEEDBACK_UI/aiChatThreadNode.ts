@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, stopIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon } from '../../../../svgIcons/index.js'
+import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, stopIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon } from '../../../../svgIcons/index.ts'
 import { TextSelection, PluginKey } from 'prosemirror-state'
 
 export const aiChatThreadNodeType = 'aiChatThread'

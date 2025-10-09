@@ -17,8 +17,8 @@ import { aiChatThreadNodeType, aiChatThreadNodeView } from './aiChatThreadNode.t
 import { AI_CHAT_THREAD_PLUGIN_KEY } from './aiChatThreadPluginKey.ts'
 import { aiResponseMessageNodeType, aiResponseMessageNodeView } from './aiResponseMessageNode.ts'
 import SegmentsReceiver from '../../../../services/segmentsReceiver-service.js'
-import { documentStore } from '../../../../stores/documentStore.js'
-import { aiModelsStore } from '../../../../stores/aiModelsStore.js'
+import { documentStore } from '../../../../stores/documentStore.ts'
+import { aiModelsStore } from '../../../../stores/aiModelsStore.ts'
 import type { AiModelId } from '@lixpi/constants'
 
 const IS_RECEIVING_TEMP_DEBUG_STATE = false    // For debug purposes only
@@ -173,7 +173,7 @@ class ContentExtractor {
         state.doc.descendants((node, pos) => {
             if (node.type.name === aiChatThreadNodeType) {
                 threadCount++
-                
+
                 // Add a thread separator if not the first thread
                 if (threadCount > 1) {
                     allThreadsContent.push({
@@ -679,17 +679,17 @@ class AiChatThreadPluginClass {
         // Use thread node's aiModel and threadContext
         const aiModel = threadNode?.attrs?.aiModel || ''
         const threadContext = threadNode?.attrs?.threadContext || 'Thread'
-        
+
         // Extract content based on thread context
         const threadContent = ContentExtractor.getActiveThreadContent(newState, threadContext)
         const messages = ContentExtractor.toMessages(threadContent)
 
-        console.log('[AI_DBG][SUBMIT] handleChatRequest', { 
-            aiModel, 
+        console.log('[AI_DBG][SUBMIT] handleChatRequest', {
+            aiModel,
             threadContext,
-            threadHasNode: !!threadNode, 
-            threadAttrs: threadNode?.attrs, 
-            messagesCount: messages.length 
+            threadHasNode: !!threadNode,
+            threadAttrs: threadNode?.attrs,
+            messagesCount: messages.length
         })
         this.callback({ messages, aiModel })
     }
@@ -774,7 +774,7 @@ class AiChatThreadPluginClass {
                 if (dropdownTx) {
                     const dropdownSelection = dropdownTx.getMeta('dropdownOptionSelected')
                     const { option, nodePos, dropdownId } = dropdownSelection || {}
-                    
+
                     // Handle AI model dropdown selection
                     if (dropdownId?.startsWith('ai-model-dropdown-')) {
                         let provider = option?.provider
@@ -817,7 +817,7 @@ class AiChatThreadPluginClass {
                             console.log('[AI_DBG][APPEND_TX] insufficient data to update aiModel', { provider, model, nodePos })
                         }
                     }
-                    
+
                     // Handle thread context dropdown selection
                     if (dropdownId?.startsWith('thread-context-dropdown-')) {
                         const newContext = option?.value || option?.title

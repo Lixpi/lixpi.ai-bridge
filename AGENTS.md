@@ -5,3 +5,4 @@ Do not create README.md if it doesn't exist.
 Never use any JSDoc comments!
 
 When working on TypeScript code make sure to use `type` instead of `interface` for type definitions.
+Always use `.ts` extension when importing files, all our code is in TypeScript, never use `.js` imports.

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { html } from '../../../components/domTemplates.ts'
-import { chevronDownIcon } from '../../../../../svgIcons/index.js'
+import { chevronDownIcon } from '../../../../../svgIcons/index.ts'
 import { dropdownStateManager } from './dropdownStateManager.ts'
 
 // Inject fill color utility (same as original dropdown)

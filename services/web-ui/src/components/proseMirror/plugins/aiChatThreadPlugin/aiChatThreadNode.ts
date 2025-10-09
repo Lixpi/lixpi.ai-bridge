@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon } from '../../../../svgIcons/index.js'
+import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon } from '../../../../svgIcons/index.ts'
 import { TextSelection } from 'prosemirror-state'
 import { AI_CHAT_THREAD_PLUGIN_KEY } from './aiChatThreadPluginKey.ts'
 import { html } from '../../components/domTemplates.ts'
@@ -57,31 +57,13 @@ export const defaultAttrs = {
 
 // Define the node view for AI chat thread
 export const aiChatThreadNodeView = (node, view, getPos) => {
-    // Ensure node has a proper threadId - if not, assign one via transaction
-    if (!node.attrs.threadId) {
-        const newThreadId = defaultAttrs.threadId()
-        setTimeout(() => {
-            const pos = getPos()
-            if (pos !== undefined) {
-                const tr = view.state.tr.setNodeMarkup(pos, undefined, {
-                    ...node.attrs,
-                    threadId: newThreadId
-                })
-                view.dispatch(tr)
-                console.log('[AI_DBG][THREAD.nodeView] assigned new threadId', { pos, newThreadId })
-            }
-        }, 0)
-        // Use the new threadId for this render
-        node = node.type.create({
-            ...node.attrs,
-            threadId: newThreadId
-        }, node.content)
-    }
+    // Ensure node has a proper threadId for initial render
+    const threadId = node.attrs.threadId || defaultAttrs.threadId()
 
     // Create DOM structure - the plugin will apply decoration classes like 'receiving' and 'thread-boundary-visible' to this DOM element
     const dom = document.createElement('div')
     dom.className = 'ai-chat-thread-wrapper'
-    dom.setAttribute('data-thread-id', node.attrs.threadId)
+    dom.setAttribute('data-thread-id', threadId)
     dom.setAttribute('data-status', node.attrs.status)
 
     // Create content container
@@ -94,16 +76,16 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
 
     // Create dropdowns outside document schema (like submit button - not document nodes)
     const creationTimestamp = Date.now()
-    console.log('[AI_DBG][THREAD.nodeView] CONSTRUCTOR CALLED', { threadId: node.attrs.threadId, initialAiModel: node.attrs.aiModel, creationTimestamp })
+    console.log('[AI_DBG][THREAD.nodeView] CONSTRUCTOR CALLED', { threadId, initialAiModel: node.attrs.aiModel, creationTimestamp })
 
-    const threadContextDropdown = createThreadContextDropdown(view, node, getPos)
-    const modelSelectorDropdown = createAiModelSelectorDropdown(view, node, getPos)
+    const threadContextDropdown = createThreadContextDropdown(view, node, getPos, threadId)
+    const modelSelectorDropdown = createAiModelSelectorDropdown(view, node, getPos, threadId)
 
     // Create AI submit button
     const submitButton = createAiSubmitButton(view)
 
     // Create thread boundary indicator for context visualization
-    const threadBoundaryIndicator = createThreadBoundaryIndicator(dom, view, node.attrs.threadId)
+    const threadBoundaryIndicator = createThreadBoundaryIndicator(dom, view, threadId)
 
     // Append controls to controls container (flex layout: context, model, submit)
     controlsContainer.appendChild(threadContextDropdown.dom)
@@ -164,6 +146,38 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
             // Update attributes if changed
             dom.setAttribute('data-thread-id', updatedNode.attrs.threadId)
             dom.setAttribute('data-status', updatedNode.attrs.status)
+
+            // Auto-assign threadId if missing
+            if (!updatedNode.attrs.threadId) {
+                const pos = getPos()
+                if (pos !== undefined) {
+                    const newThreadId = defaultAttrs.threadId()
+                    const tr = view.state.tr.setNodeMarkup(pos, undefined, {
+                        ...updatedNode.attrs,
+                        threadId: newThreadId
+                    })
+                    view.dispatch(tr)
+                    console.log('[AI_DBG][THREAD.nodeView.update] assigned new threadId', { threadId: newThreadId })
+                }
+            }
+
+            // Auto-assign first model if thread has no aiModel set
+            if (!updatedNode.attrs.aiModel) {
+                const aiModelsData = aiModelsStore.getData()
+                if (aiModelsData.length > 0) {
+                    const firstModel = aiModelsData[0]
+                    const pos = getPos()
+                    if (pos !== undefined) {
+                        const newAttrs = { ...updatedNode.attrs, aiModel: `${firstModel.provider}:${firstModel.model}` }
+                        const tr = view.state.tr.setNodeMarkup(pos, undefined, newAttrs)
+                        view.dispatch(tr)
+                        console.log('[AI_DBG][THREAD.nodeView.update] auto-assigned first model', { 
+                            threadId: updatedNode.attrs.threadId, 
+                            assignedModel: newAttrs.aiModel 
+                        })
+                    }
+                }
+            }
 
             // Sync aiModel change to model dropdown
             if (node.attrs.aiModel !== updatedNode.attrs.aiModel) {
@@ -276,8 +290,8 @@ function createThreadInfoDropdown() {
 // They dispatch transactions to update thread node attrs directly
 
 // Helper function to create AI model selector dropdown (direct DOM, no document node)
-function createAiModelSelectorDropdown(view, node, getPos) {
-    const dropdownId = `ai-model-dropdown-${node.attrs.threadId}`
+function createAiModelSelectorDropdown(view, node, getPos, threadId) {
+    const dropdownId = `ai-model-dropdown-${threadId}`
 
     const aiAvatarIcons = {
         gptAvatarIcon,
@@ -287,7 +301,7 @@ function createAiModelSelectorDropdown(view, node, getPos) {
     // Get AI models from store
     const aiModelsData = aiModelsStore.getData()
     const currentAiModel = node.attrs.aiModel || ''
-    console.log('[AI_DBG][THREAD.modelDropdown] creating dropdown', { threadId: node.attrs.threadId, currentAiModel, modelsCount: aiModelsData.length })
+    console.log('[AI_DBG][THREAD.modelDropdown] creating dropdown', { threadId, currentAiModel, modelsCount: aiModelsData.length })
 
     // Transform data to match dropdown format
     const aiModelsSelectorDropdownOptions = aiModelsData.map(aiModel => ({
@@ -302,19 +316,9 @@ function createAiModelSelectorDropdown(view, node, getPos) {
     // Find selected value
     let selectedValue = aiModelsSelectorDropdownOptions.find(model => model.aiModel === currentAiModel)
 
-    // If current thread has no aiModel or it's invalid, pick first available model and update node attr
+    // If current thread has no aiModel or it's invalid, use first available model
     if (!selectedValue && aiModelsSelectorDropdownOptions.length > 0) {
         selectedValue = aiModelsSelectorDropdownOptions[0]
-        const pos = getPos()
-        if (pos !== undefined) {
-            const threadNode = view.state.doc.nodeAt(pos)
-            if (threadNode) {
-                const newAttrs = { ...threadNode.attrs, aiModel: selectedValue.aiModel }
-                const trSet = view.state.tr.setNodeMarkup(pos, undefined, newAttrs)
-                view.dispatch(trSet)
-                console.log('[AI_DBG][THREAD.modelDropdown] auto-assigned first model', { threadId: node.attrs.threadId, assignedModel: selectedValue.aiModel })
-            }
-        }
     }
 
     // Default to first if still no selection
@@ -333,7 +337,7 @@ function createAiModelSelectorDropdown(view, node, getPos) {
         ignoreColorValuesForOptions: true,
         ignoreColorValuesForSelectedValue: false,
         onSelect: (option) => {
-            console.log('[AI_DBG][THREAD.modelDropdown] onSelect', { threadId: node.attrs.threadId, option })
+            console.log('[AI_DBG][THREAD.modelDropdown] onSelect', { threadId, option })
 
             // Update thread node attrs via transaction
             const pos = getPos()
@@ -350,11 +354,11 @@ function createAiModelSelectorDropdown(view, node, getPos) {
 }
 
 // Helper function to create thread context selector dropdown (direct DOM, no document node)
-function createThreadContextDropdown(view, node, getPos) {
-    const dropdownId = `thread-context-dropdown-${node.attrs.threadId}`
+function createThreadContextDropdown(view, node, getPos, threadId) {
+    const dropdownId = `thread-context-dropdown-${threadId}`
 
     const currentThreadContext = node.attrs.threadContext || 'Thread'
-    console.log('[AI_DBG][THREAD.contextDropdown] creating dropdown', { threadId: node.attrs.threadId, currentThreadContext })
+    console.log('[AI_DBG][THREAD.contextDropdown] creating dropdown', { threadId, currentThreadContext })
 
     // Define thread context options
     const threadContextOptions = [
@@ -384,7 +388,7 @@ function createThreadContextDropdown(view, node, getPos) {
         ignoreColorValuesForOptions: true,
         ignoreColorValuesForSelectedValue: true,
         onSelect: (option) => {
-            console.log('[AI_DBG][THREAD.contextDropdown] onSelect', { threadId: node.attrs.threadId, option })
+            console.log('[AI_DBG][THREAD.contextDropdown] onSelect', { threadId, option })
 
             // Update thread node attrs via transaction
             const pos = getPos()

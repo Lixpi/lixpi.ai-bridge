@@ -116,13 +116,13 @@ class MyNodeView implements NodeView {
   dom: HTMLElement
   controlsContainer: HTMLElement
   dropdown: { dom: HTMLElement; update: (v: string) => void; destroy: () => void }
-  
+
   constructor(node: Node, view: EditorView, getPos: () => number) {
     // Create container structure
     this.dom = document.createElement('div')
     this.controlsContainer = document.createElement('div')
     this.dom.appendChild(this.controlsContainer)
-    
+
     // Create dropdown outside document schema
     this.dropdown = createPureDropdown({
       id: `dropdown-${node.attrs.id}`,
@@ -136,22 +136,22 @@ class MyNodeView implements NodeView {
         )
       }
     })
-    
+
     // Append to controls container (NOT contentDOM)
     this.controlsContainer.appendChild(this.dropdown.dom)
   }
-  
+
   update(node: Node) {
     // Update control when attrs change
     this.dropdown.update(node.attrs.value)
     return true
   }
-  
+
   destroy() {
     // Clean up control
     this.dropdown.destroy()
   }
-  
+
   // CRITICAL: Prevent NodeView recreation from control mutations
   ignoreMutation(mutation: MutationRecord): boolean {
     return this.controlsContainer.contains(mutation.target as Node)
@@ -182,16 +182,16 @@ When building new plugins, check if your UI needs match existing primitives befo
 
 Decorations add CSS classes to document nodes without modifying the document itself.
 
-### When to Use Pure Chrome
+### When to Use UI Controls (Outside Schema)
 
-**Pure chrome** is for **UI controls** that exist outside the document:
+**UI controls** are for presentational elements that exist outside the document:
 
 - Dropdowns, buttons, toolbars
 - Floating panels, popovers
 - Editor controls (not document content)
 - Any UI that should never be serialized
 
-Chrome state is managed directly (element properties) or via singleton coordinators (like `dropdownStateManager`), not decorations.
+State is managed directly (element properties) or via singleton coordinators (like `dropdownStateManager`), not decorations.
 
 ### Decoration Pattern (for document-related UI state)
 

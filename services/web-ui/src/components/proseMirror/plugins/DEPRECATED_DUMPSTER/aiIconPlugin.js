@@ -6,7 +6,7 @@ import {
     microphoneIcon,
     trashBinIcon,
     checkMarkIcon
-} from '../../../../svgIcons/index.js'
+} from '../../../../svgIcons/index.ts'
 
 let viewRef; // to store the reference to the view object
 
