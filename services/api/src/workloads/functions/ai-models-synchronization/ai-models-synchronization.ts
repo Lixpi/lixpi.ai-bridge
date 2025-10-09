@@ -107,7 +107,7 @@ export class AiModelsSync {
             // Exact matches (use for cases like 'gpt-4' to avoid excluding 'gpt-4o')
             exact: [
                 'gpt-4',
-                // 'gpt-4o',
+                'gpt-4o',
                 'gpt-image-1',    // temporarily disabled, code doesn't yet support it
                 'gpt-4o-transcribe',    // temporarily disabled, code doesn't yet support it
             ],
