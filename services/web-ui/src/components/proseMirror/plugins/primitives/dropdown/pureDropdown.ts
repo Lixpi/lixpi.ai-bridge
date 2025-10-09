@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { html } from '../../components/domTemplates.ts'
-import { chevronDownIcon } from '../../../../svgIcons/index.js'
+import { html } from '../../../components/domTemplates.ts'
+import { chevronDownIcon } from '../../../../../svgIcons/index.js'
 import { dropdownStateManager } from './dropdownStateManager.ts'
 
 // Inject fill color utility (same as original dropdown)
@@ -129,8 +129,8 @@ export function createPureDropdown(config: PureDropdownConfig) {
             if (currentSelectedValue?.icon) {
                 iconWrap.innerHTML = ''
                 const span = document.createElement('span')
-                span.innerHTML = ignoreColorValuesForSelectedValue 
-                    ? currentSelectedValue.icon 
+                span.innerHTML = ignoreColorValuesForSelectedValue
+                    ? currentSelectedValue.icon
                     : injectFillColor(currentSelectedValue.icon, currentSelectedValue.color)
                 iconWrap.appendChild(span)
             } else {

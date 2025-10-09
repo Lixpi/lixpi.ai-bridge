@@ -2,7 +2,7 @@
 
 Adds ChatGPT-style conversations directly inside ProseMirror documents. Users can type messages, hit Cmd+Enter (or Ctrl+Enter on Windows), and get AI responses streamed back in real-time.
 
-This README reflects the current implementation, including the ProseMirror-native AI model selector dropdown that uses plugin state + decorations.
+This README reflects the current implementation, including pure chrome dropdowns (AI model selector and thread context selector) that exist outside the document schema.
 
 ## What it does
 
@@ -66,7 +66,7 @@ graph TD
 ```
 
 **Key Design Principles:**
-- **Self-contained nodes:** Each node type exports both spec AND NodeView (handles boundary indicator, focus, and per-thread dropdown UI)
+- **Self-contained nodes:** Each node type exports both spec AND NodeView (handles boundary indicator, focus, and per-thread pure chrome dropdowns)
 - **Declarative UI:** All DOM creation uses `html` template literals instead of verbose `createElement` chains
 - **Shared utilities:** `domTemplates.ts` provides consistent DOM building across all ProseMirror components
 - **Performance-focused:** htm/mini gives zero-runtime overhead with direct DOM element creation
@@ -164,12 +164,28 @@ const button = html`
 `
 ```
 
-### AI Model Selector Dropdown (current)
+### AI Model & Context Selector Dropdowns (Pure Chrome)
 
-- **Uses the dropdown primitive component**: ALL rendering, layout, and state management is handled by `services/web-ui/src/components/proseMirror/plugins/primitives/dropdown`.
-- `createAiModelSelectorDropdown()` only transforms data and passes it to the dropdown primitive - no DOM creation or event handling.
-- The primitive component manages its own open/close state via decorations and handles all click events internally.
-- The selected model label/icon sync is handled via subscription to `documentStore` with proper cleanup.
+The thread NodeView includes two dropdowns for configuring the AI conversation:
+
+1. **AI Model Selector** - Choose which AI model to use (GPT-4, Claude, etc.)
+2. **Thread Context Selector** - Choose context scope (workspace, document, etc.)
+
+Both dropdowns follow the **pure chrome pattern**:
+- **Not part of the document schema** - Zero NodeSpec involvement, never serialized
+- **Rendered directly to controls container** - No transactions, no decorations needed
+- **State managed via singleton** - `dropdownStateManager` handles open/close coordination
+- **Created by pure DOM factory** - `createPureDropdown()` from `primitives/dropdown`
+- **Reusable primitive** - Same dropdown used across different plugins
+
+The NodeView simply:
+1. Calls `createPureDropdown()` with configuration (options, onSelect callback, theme)
+2. Appends the returned `dom` element to `controlsContainer`
+3. Calls `update()` when thread attributes change
+4. Calls `destroy()` in NodeView cleanup
+5. Uses `ignoreMutation()` to prevent NodeView recreation when dropdown opens/closes
+
+**Why pure chrome?** Previously dropdowns were document nodes, causing flicker (rendered in contentDOM, then relocated), complex state management via decorations, and unnecessary involvement in document transactions. Pure chrome dropdowns render instantly in the correct location with simple, direct state management.
 
 ## Quick setup
 
@@ -304,9 +320,10 @@ Users see:
 - `aiChatThreadNode.ts` - Thread container node (self-contained):
   - Exports node schema AND its NodeView implementation
   - Uses `html` template literals for clean UI creation
-  - Creates boundary indicator, submit button, and **delegates dropdown to primitive component**
-  - `createAiModelSelectorDropdown()` transforms data and passes it to `services/web-ui/src/components/proseMirror/plugins/primitives/dropdown`
-  - No dropdown DOM creation or event handling - all handled by the primitive
+  - Creates boundary indicator, submit button, and **pure chrome dropdowns**
+  - `createAiModelSelectorDropdown()` and `createThreadContextDropdown()` use `createPureDropdown()` primitive
+  - Dropdowns appended directly to controlsContainer (not inserted via transactions)
+  - `ignoreMutation()` prevents NodeView recreation when dropdowns open/close
   - Handles hover events and focus management for non-dropdown elements
 
 - `aiResponseMessageNode.ts` - AI response node (self-contained):
@@ -320,16 +337,18 @@ Users see:
   - Plugin state and lifecycle management
   - Content extraction and message conversion
   - Streaming event handling and DOM insertion
-  - Decoration system (placeholders, boundaries) - **dropdown decorations removed, now handled by primitive**
+  - Decoration system (placeholders, boundaries)
   - No UI rendering - delegates to node-specific NodeViews and primitive components
 
 - `aiChatThreadPluginKey.ts` - Shared `PluginKey` to avoid identity mismatch and circular imports between NodeView and plugin. Import this key in both places and call `AI_CHAT_THREAD_PLUGIN_KEY.getState(view.state)` when needed.
 
-- `../primitives/dropdown/` - **NEW** Dropdown primitive component:
-  - Handles ALL dropdown rendering, layout, state management, and decorations
-  - `dropdownPlugin.ts` - Plugin state and decoration system for dropdown open/close
-  - `dropdownNode.ts` - NodeView with complete dropdown UI implementation
-  - Used by aiChatThreadNode for the AI model selector - no dropdown code in aiChatThreadNode itself
+- `../primitives/dropdown/` - Pure chrome dropdown primitive:
+  - `pureDropdown.ts` - Factory function creating dropdowns with {dom, update, destroy} API
+  - `dropdownStateManager.ts` - Singleton coordinating open/close state (mutual exclusion)
+  - `index.ts` - Clean exports
+  - Zero ProseMirror dependencies - framework-agnostic pure DOM
+  - Used by aiChatThreadNode for AI model and context selectors
+  - See `primitives/dropdown/README.md` for full documentation
 
 - `../../components/domTemplates.ts` - **NEW** Shared DOM template utilities:
   - TypeScript class-based `DOMTemplateBuilder` with proper typing

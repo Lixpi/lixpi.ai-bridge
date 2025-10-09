@@ -18,12 +18,12 @@ plugins/
 		anotherNode.ts            # …more nodes if needed
 		some-plugin.scss          # styles for that plugin
 
-	primitives/                   # reusable node primitives
-		dropdown/                 # generic dropdown component
-			README.md             # dropdown-specific docs
-			dropdownPlugin.ts     # state management
-			dropdownNode.ts       # NodeView + rendering
-			dropdownSpec.ts       # node schema definition
+	primitives/                   # reusable UI primitives (chrome)
+		dropdown/                 # pure chrome dropdown component
+			README.md             # comprehensive dropdown docs
+			pureDropdown.ts       # factory returning {dom, update, destroy}
+			dropdownStateManager.ts  # singleton for open/close coordination
+			index.ts              # exports
 
 	README.md                   # this file (shared patterns)
 
@@ -37,29 +37,172 @@ components/
 - UI is decoration-first. Visual states come from classes via `DecorationSet` (placeholders, keyboard feedback, boundary highlights, etc.). NodeViews render structure; decorations toggle classes.
 - Templating uses `htm` via our `html` helper from `components/domTemplates.ts`. No JSX, no VDOM. Tagged templates → direct DOM.
 - The plugin class does orchestration only: selection checks, content extraction, transactions, streaming insertions, state flags.
-- **Reuse primitives**: For common UI patterns (dropdowns, modals, tooltips), use or create reusable primitives in `primitives/` rather than duplicating code across plugins.
+- **Reuse primitives**: For common UI patterns (dropdowns, modals, tooltips), use or create reusable primitives in `primitives/` rather than duplicating code across plugins. Primitives follow the "pure chrome" pattern - they exist outside the document schema.
 - Keep code small and obvious. If it feels like "framework", you're over-engineering it.
 
-## Reusable Primitives
+## Reusable Primitives (Pure Chrome Pattern)
 
-The `primitives/` folder contains reusable node components that can be embedded in any plugin:
+The `primitives/` folder contains reusable UI components that follow the **pure chrome pattern** - they exist outside the document schema and are never part of saved content.
 
-- **`dropdown/`** - Generic dropdown menus with decoration-driven state management. Used by AI Chat Thread for model selection. See `primitives/dropdown/README.md` for full documentation and usage patterns.
+### What is "Pure Chrome"?
+
+Chrome refers to UI controls that are presentational, not semantic content. Think toolbar buttons, editor controls, floating panels. Pure chrome components:
+
+- **Not in the schema** - No NodeSpec, no content type definition
+- **Rendered directly to DOM** - Append to containers, no transactions needed
+- **Zero document involvement** - Never serialized, never part of saved content
+- **Simple state management** - Direct DOM manipulation or singleton coordinators, no decorations
+- **Framework-agnostic** - Can be pure DOM with zero ProseMirror dependencies
+
+### Available Primitives
+
+- **`dropdown/`** - Pure chrome dropdown menus with singleton state management
+  - Factory pattern: `createPureDropdown(config)` returns `{dom, update, destroy}`
+  - State coordinator: `dropdownStateManager` for mutual exclusion (one open at a time)
+  - Used by AI Chat Thread for model and context selection
+  - Zero ProseMirror dependencies in the dropdown code itself
+  - See `primitives/dropdown/README.md` for complete API reference and migration guide
+
+### Chrome vs Document Nodes
+
+**Document Nodes** (semantic content):
+```typescript
+// Defined in schema
+dropdown: { group: 'block', atom: true, attrs: {...} }
+
+// Inserted via transactions
+tr.insert(pos, schema.nodes.dropdown.create(...))
+
+// Problems:
+// - Renders in contentDOM (wrong location for UI controls)
+// - State via decorations (complex, survives NodeView recreation)
+// - Becomes part of document content
+```
+
+**Pure Chrome** (presentational controls):
+```typescript
+// No schema definition
+const dropdown = createPureDropdown({...config})
+
+// Direct append
+controlsContainer.appendChild(dropdown.dom)
+
+// Benefits:
+// - Renders exactly where appended
+// - Simple state (direct or singleton)
+// - Never part of document content
+```
+
+### When to Use Each Approach
+
+Use **Pure Chrome** for:
+- Toolbar buttons, controls, floating panels
+- UI that should never be saved/serialized
+- Controls that don't belong in document flow
+- Simple open/close state
+
+Use **Document Nodes** for:
+- Semantic content (images, tables, custom blocks)
+- Content that should be saved/serialized
+- Elements that participate in document structure
+- Content with complex nested schemas
+
+### Using Pure Chrome in NodeViews
+
+When building NodeViews that include chrome controls:
+
+```typescript
+class MyNodeView implements NodeView {
+  dom: HTMLElement
+  controlsContainer: HTMLElement
+  dropdown: { dom: HTMLElement; update: (v: string) => void; destroy: () => void }
+  
+  constructor(node: Node, view: EditorView, getPos: () => number) {
+    // Create container structure
+    this.dom = document.createElement('div')
+    this.controlsContainer = document.createElement('div')
+    this.dom.appendChild(this.controlsContainer)
+    
+    // Create chrome dropdown
+    this.dropdown = createPureDropdown({
+      id: `dropdown-${node.attrs.id}`,
+      selectedValue: node.attrs.value,
+      options: [...],
+      onSelect: (value) => {
+        // Update node attrs via transaction
+        const pos = getPos()
+        view.dispatch(
+          view.state.tr.setNodeMarkup(pos, null, { ...node.attrs, value })
+        )
+      }
+    })
+    
+    // Append to chrome container (NOT contentDOM)
+    this.controlsContainer.appendChild(this.dropdown.dom)
+  }
+  
+  update(node: Node) {
+    // Update chrome when attrs change
+    this.dropdown.update(node.attrs.value)
+    return true
+  }
+  
+  destroy() {
+    // Clean up chrome
+    this.dropdown.destroy()
+  }
+  
+  // CRITICAL: Prevent NodeView recreation from chrome mutations
+  ignoreMutation(mutation: MutationRecord): boolean {
+    return this.controlsContainer.contains(mutation.target as Node)
+  }
+}
+```
+
+**Key points:**
+1. Chrome appended to dedicated container, not contentDOM
+2. `ignoreMutation()` prevents NodeView destruction when chrome changes
+3. Chrome state updates via `update()` method, not recreating NodeView
+4. Cleanup via `destroy()` method
 
 When building new plugins, check if your UI needs match existing primitives before creating custom components.
 
-## Plugin state & rendering: the decoration-first contract
+## Plugin state & rendering: decorations vs chrome
 
-When a NodeView holds transient UI state (like a dropdown open/closed), it will get destroyed/recreated during ProseMirror updates and you will lose that state. The fix is: keep state in the plugin, render via decorations, and let the NodeView dispatch intent via transactions.
+### When to Use Decorations
 
-What this looks like in practice:
+**Decorations** are for **document-related visual states** that need to survive NodeView recreation:
+
+- Placeholders for empty content
+- Selection highlights or ranges
+- Keyboard feedback on document nodes
+- Boundary indicators for document blocks
+- Syntax highlighting tokens
+- Spell-check underlines
+
+Decorations add CSS classes to document nodes without modifying the document itself.
+
+### When to Use Pure Chrome
+
+**Pure chrome** is for **UI controls** that exist outside the document:
+
+- Dropdowns, buttons, toolbars
+- Floating panels, popovers
+- Editor controls (not document content)
+- Any UI that should never be serialized
+
+Chrome state is managed directly (element properties) or via singleton coordinators (like `dropdownStateManager`), not decorations.
+
+### Decoration Pattern (for document-related UI state)
+
+When a NodeView needs transient visual states that must survive recreation:
 
 - Create a shared `PluginKey` in its own module to avoid circular imports.
 	- Example: `aiChatThreadPluginKey.ts` exporting `AI_CHAT_THREAD_PLUGIN_KEY`.
-- Store UI state in plugin state (e.g., `dropdownStates: Map<string, boolean>` keyed by node/thread id).
+- Store state in plugin state (e.g., `keyboardFeedback: Map<string, boolean>`).
 - Update that state only via `tr.setMeta(...)` in response to UI events.
-- Reflect state to the UI by generating decoration classes (e.g., `dropdown-open`) in `props.decorations`.
-- In `NodeView.update(updatedNode, decorations)`, read the `decorations` parameter to know which classes apply and toggle wrapper classes accordingly. Do not keep a separate NodeView boolean.
+- Reflect state to the UI by generating decoration classes in `props.decorations`.
+- In `NodeView.update(updatedNode, decorations)`, read the `decorations` parameter and toggle wrapper classes accordingly.
 - Let SCSS show/hide/animate purely from classes. Avoid inline style switches.
 
 ### Minimal pattern (copy-paste friendly)

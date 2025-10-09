@@ -5,7 +5,7 @@ import { AI_CHAT_THREAD_PLUGIN_KEY } from './aiChatThreadPluginKey.ts'
 import { html } from '../../components/domTemplates.ts'
 import { aiModelsStore } from '../../../../stores/aiModelsStore.js'
 import { documentStore } from '../../../../stores/documentStore.js'
-import { createPureDropdown } from './pureDropdown.ts'
+import { createPureDropdown } from '../primitives/dropdown/index.ts'
 
 export const aiChatThreadNodeType = 'aiChatThread'
 

@@ -1,384 +1,535 @@
-# Dropdown Primitive Plugin
+# Pure Chrome Dropdown Primitive
 
-A generic dropdown node primitive for ProseMirror that provides reusable dropdown functionality with decoration-driven open/close state management. Used throughout the editor for AI model selection, theme switching, and other contextual menus.
+A lightweight, framework-agnostic dropdown component designed for use as "chrome" (UI controls) in ProseMirror editors, completely independent of the document schema.
 
-## What it does
+## Overview
 
-This plugin provides a fully functional dropdown node that can be embedded anywhere in a ProseMirror document. Each dropdown includes:
-- A button with customizable icon, title, and selected value display
-- A collapsible submenu with configurable options
-- Click-outside-to-close behavior
-- Decoration-based open/close state management
-- Full keyboard and mouse interaction support
-- Theme support (light/dark)
-- Configurable positioning (top/bottom/left/right)
+This primitive provides a dropdown UI component that exists **outside** the ProseMirror document structure. Unlike document nodes that become part of the editor's content, pure chrome dropdowns are:
 
-When a user clicks the dropdown button, the plugin:
-1. Toggles the dropdown open state via transaction metadata
-2. Updates decorations to show/hide the submenu
-3. Handles option selection with customizable callbacks
-4. Provides event metadata for parent plugins to handle selection logic
+- **Not part of the document schema** - No NodeSpec, no content type
+- **Rendered directly to the DOM** - No transactions, no decorations
+- **Framework-agnostic** - Zero ProseMirror dependencies in the dropdown itself
+- **Reusable across plugins** - Can be used in any NodeView or plugin UI
 
-Perfect for AI model selectors, settings menus, or any contextual choice interface that needs to be embedded directly in rich text content.
+## Architecture
 
-## Technical Architecture
+### Pure Chrome Pattern
 
-The dropdown primitive follows the standard ProseMirror plugin pattern with decoration-driven state management:
+The "pure chrome" pattern treats UI controls like toolbar buttons or editor controls - they're presentational elements that live outside the semantic document structure:
 
-```mermaid
-graph TD
-    A[DropdownPlugin] --> B[DropdownNodeSpec]
-    A --> C[DropdownNodeView]
-    A --> D[DecorationSystem]
-
-    B --> B1[Node Attributes]
-    B1 --> B2[id: string]
-    B1 --> B3[selectedValue: object]
-    B1 --> B4[dropdownOptions: array]
-    B1 --> B5["theme: light/dark"]
-    B1 --> B6["renderPosition: top/bottom/left/right"]
-
-    C --> C1[DOM Creation]
-    C --> C2[Event Handling]
-    C --> C3[Option Rendering]
-
-    C1 --> CT[html templates]
-    C2 --> CE1[toggleSubmenuHandler]
-    C2 --> CE2[onClickHandler]
-    C2 --> CE3[handleWindowClick]
-
-    D --> D1[OpenStateDecorations]
-    D1 --> D2[dropdown-open class]
-
-    A --> M1[toggleDropdown meta]
-    A --> M2[closeDropdown meta]
-    A --> M3[dropdownOptionSelected meta]
+```
+┌─────────────────────────────────────────┐
+│  Plugin UI Container (chrome)           │
+│  ┌─────────────┐  ┌─────────────┐      │
+│  │  Dropdown   │  │   Button    │      │  ← Pure Chrome
+│  └─────────────┘  └─────────────┘      │
+├─────────────────────────────────────────┤
+│  ProseMirror contentDOM                 │
+│  ┌─────────────────────────────────┐   │
+│  │  Document Content (paragraphs,  │   │  ← Document Schema
+│  │  headings, etc.)                │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
 ```
 
-**Key Design Principles:**
-- **Stateless NodeView:** All persistent state lives in plugin state, not in the NodeView
-- **Decoration-driven:** Open/close visual state controlled entirely via CSS classes from decorations
-- **Event metadata:** Selection events dispatched as transaction metadata for parent plugins to handle
-- **Self-contained:** No external dependencies beyond standard ProseMirror and our DOM templates
-- **Reusable:** Generic enough to be used by any plugin that needs dropdown functionality
+### Why Not Document Nodes?
 
-## Plugin State & Event Flow
+Document nodes (with NodeSpec) are semantic content that ProseMirror:
+- Renders into `contentDOM`
+- Manages via transactions
+- Includes in document serialization
+- Tracks in the document tree
 
-The dropdown uses a simple state machine managed entirely through transaction metadata:
+This causes problems for UI controls:
+- Initial render in wrong location (contentDOM instead of controls container)
+- Requires complex relocation logic (requestAnimationFrame loops, MutationObserver)
+- State management via decorations is awkward
+- Controls become part of saved document content
 
-```mermaid
-stateDiagram-v2
-    [*] --> Closed: Initialize
-    Closed --> Open: toggleDropdown meta
-    Open --> Closed: toggleDropdown meta
-    Open --> Closed: closeDropdown meta
-    Open --> Closed: click outside
-    Open --> SelectionMade: option clicked
-    SelectionMade --> Closed: closeDropdown meta
+Pure chrome avoids all these issues by staying outside the document entirely.
 
-    note right of Open
-        Decoration applied:
-        - class: 'dropdown-open'
-        - CSS shows submenu
-    end note
+## Components
 
-    note right of SelectionMade
-        Metadata dispatched:
-        - dropdownOptionSelected
-        - closeDropdown
-    end note
+### `createPureDropdown(config)`
+
+Factory function that creates a dropdown with lifecycle management.
+
+#### Parameters
+
+```typescript
+interface DropdownConfig {
+  id: string                    // Unique identifier for state management
+  selectedValue: string         // Currently selected option value
+  options: DropdownOption[]     // Array of available options
+  onSelect: (value: string) => void  // Callback when option selected
+  
+  // Optional styling
+  theme?: 'dark' | 'light'     // Color theme (default: 'dark')
+  renderPosition?: 'top' | 'bottom'  // Menu position (default: 'bottom')
+  buttonIcon?: string          // SVG icon for button (default: chevronDownIcon)
+  
+  // Optional behavior flags
+  ignoreColorValues?: string[] // Option values to render without color styles
+}
+
+interface DropdownOption {
+  value: string      // Option identifier
+  label: string      // Display text
+  icon?: string      // Optional SVG icon
+  iconBgColor?: string  // Optional icon background color
+}
 ```
 
-### Transaction Metadata Events
+#### Returns
 
-The plugin responds to and generates these metadata events:
+```typescript
+interface DropdownInstance {
+  dom: HTMLElement              // The dropdown's root DOM element
+  update: (newValue: string) => void  // Update selected value
+  destroy: () => void           // Cleanup subscriptions and remove DOM
+}
+```
 
-**Input Events (handled by plugin):**
-- `toggleDropdown: { id: string }` - Toggle open state for specific dropdown
-- `closeDropdown: true` - Close currently open dropdown
+#### Example
 
-**Output Events (generated by NodeView):**
-- `dropdownOptionSelected: { dropdownId: string, option: object, nodePos: number }` - User selected an option
+```typescript
+import { createPureDropdown } from '../primitives/dropdown/index.ts'
 
-## Usage Patterns
-
-### Basic Dropdown Creation
-
-```ts
-// In your plugin or NodeView:
-const dropdownNode = schema.nodes.dropdown.create({
-    id: 'my-dropdown-id',
-    selectedValue: {
-        title: 'Selected Item',
-        icon: someIcon,
-        color: '#blue'
-    },
-    dropdownOptions: [
-        {
-            title: 'Option 1',
-            icon: icon1,
-            color: '#red',
-            // Custom data fields for your use case
-            value: 'option1',
-            metadata: { key: 'value' }
-        },
-        {
-            title: 'Option 2',
-            icon: icon2,
-            color: '#green',
-            value: 'option2'
-        }
-    ],
-    theme: 'dark',
-    renderPosition: 'bottom',
-    buttonIcon: chevronDownIcon
+const dropdown = createPureDropdown({
+  id: 'my-dropdown',
+  selectedValue: 'option-1',
+  options: [
+    { value: 'option-1', label: 'Option 1', icon: iconSvg1 },
+    { value: 'option-2', label: 'Option 2', icon: iconSvg2 }
+  ],
+  onSelect: (value) => {
+    console.log('Selected:', value)
+    // Update your state/store here
+  },
+  theme: 'dark',
+  renderPosition: 'bottom'
 })
 
-// Insert into document
-const tr = view.state.tr.insert(pos, dropdownNode)
+// Append to your chrome container
+controlsContainer.appendChild(dropdown.dom)
+
+// Update selected value when external state changes
+dropdown.update('option-2')
+
+// Cleanup when NodeView is destroyed
+dropdown.destroy()
+```
+
+### `dropdownStateManager`
+
+Singleton that coordinates open/close state across all dropdowns, ensuring mutual exclusion (only one dropdown open at a time).
+
+#### Methods
+
+```typescript
+class DropdownStateManager {
+  // Open a dropdown (closes any other open dropdown)
+  open(id: string): void
+  
+  // Close a specific dropdown
+  close(id: string): void
+  
+  // Close all dropdowns
+  closeAll(): void
+  
+  // Check if a dropdown is currently open
+  isOpen(id: string): boolean
+  
+  // Subscribe to open/close events for a specific dropdown
+  subscribe(id: string, callback: (isOpen: boolean) => void): () => void
+}
+```
+
+#### Example
+
+```typescript
+import { dropdownStateManager } from '../primitives/dropdown/index.ts'
+
+// Subscribe to state changes
+const unsubscribe = dropdownStateManager.subscribe('my-dropdown', (isOpen) => {
+  console.log('Dropdown is now:', isOpen ? 'open' : 'closed')
+  // Update DOM classes, icons, etc.
+})
+
+// Manually control state
+dropdownStateManager.open('my-dropdown')  // Opens this, closes others
+dropdownStateManager.close('my-dropdown')
+dropdownStateManager.closeAll()
+
+// Cleanup subscription
+unsubscribe()
+```
+
+## Usage in ProseMirror NodeViews
+
+### Basic Integration
+
+```typescript
+class MyNodeView implements NodeView {
+  dom: HTMLElement
+  dropdown: { dom: HTMLElement; update: (v: string) => void; destroy: () => void }
+  
+  constructor(node: Node, view: EditorView, getPos: () => number) {
+    // Create your container
+    this.dom = document.createElement('div')
+    const controlsContainer = document.createElement('div')
+    this.dom.appendChild(controlsContainer)
+    
+    // Create dropdown as pure chrome
+    this.dropdown = createPureDropdown({
+      id: 'my-node-dropdown',
+      selectedValue: node.attrs.someValue,
+      options: [/* your options */],
+      onSelect: (value) => {
+        // Update node attributes via transaction
+        const pos = getPos()
+        view.dispatch(
+          view.state.tr.setNodeMarkup(pos, null, { ...node.attrs, someValue: value })
+        )
+      }
+    })
+    
+    // Append directly to controls (not contentDOM!)
+    controlsContainer.appendChild(this.dropdown.dom)
+  }
+  
+  update(node: Node) {
+    // Update dropdown when node attributes change
+    this.dropdown.update(node.attrs.someValue)
+    return true
+  }
+  
+  destroy() {
+    // Clean up dropdown subscriptions
+    this.dropdown.destroy()
+  }
+  
+  ignoreMutation(mutation: MutationRecord) {
+    // Tell ProseMirror to ignore dropdown mutations
+    // to prevent unwanted NodeView recreation
+    return mutation.target === this.dropdown.dom ||
+           this.dropdown.dom.contains(mutation.target as Node)
+  }
+}
+```
+
+### Critical: ignoreMutation
+
+When dropdowns open/close, they modify the DOM. ProseMirror sees these mutations and may try to recreate your NodeView. Always implement `ignoreMutation` to tell ProseMirror to ignore these chrome mutations:
+
+```typescript
+ignoreMutation(mutation: MutationRecord): boolean {
+  // Ignore mutations in controls container or any chrome elements
+  const chromeContainer = this.dom.querySelector('.controls-container')
+  return chromeContainer?.contains(mutation.target as Node) || false
+}
+```
+
+## Comparison to Alternatives
+
+### vs Document Node Dropdowns
+
+**Document Node Approach** (old, problematic):
+```typescript
+// Define in schema
+dropdown: {
+  group: 'block',
+  atom: true,
+  // ... NodeSpec config
+}
+
+// Insert via transaction
+tr.insert(pos, schema.nodes.dropdown.create({ value: 'x' }))
+
+// Problems:
+// - Renders in contentDOM (wrong location)
+// - Requires relocation via rAF/MutationObserver
+// - State management via decorations is complex
+// - Becomes part of document content
+```
+
+**Pure Chrome Approach** (current):
+```typescript
+// No schema definition needed
+const dropdown = createPureDropdown({ /* config */ })
+controlsContainer.appendChild(dropdown.dom)
+
+// Benefits:
+// - Renders exactly where appended
+// - No relocation logic needed
+// - Direct state management via singleton
+// - Never part of document content
+```
+
+### vs Svelte Component Integration
+
+You can also mount Svelte components as chrome using `SvelteComponentRenderer`:
+
+```typescript
+import { SvelteComponentRenderer } from '$lib/utils/SvelteComponentRenderer.js'
+import DropdownMenu from './dropdown-menu.svelte'
+
+const renderer = new SvelteComponentRenderer({
+  component: DropdownMenu,
+  props: { /* component props */ },
+  target: controlsContainer
+})
+
+// Cleanup
+renderer.destroy()
+```
+
+**When to use each:**
+
+- **Pure Chrome Dropdown**: Simple dropdowns, minimal dependencies, need fine control over DOM structure
+- **Svelte Component**: Complex UI, need Svelte reactivity, already have Svelte dropdown components
+
+Both follow the pure chrome pattern - neither involves the document schema.
+
+## Real-World Example: AI Chat Thread
+
+See `aiChatThreadNode.ts` for a complete example. Key points:
+
+```typescript
+class AiChatThreadNodeView implements NodeView {
+  constructor(node: Node, view: EditorView, getPos: () => number) {
+    // Create two dropdowns as pure chrome
+    const modelDropdown = createPureDropdown({
+      id: `ai-model-selector-${node.attrs.threadId}`,
+      selectedValue: node.attrs.selectedAiModel,
+      options: aiModelsStore.getAllModels().map(m => ({
+        value: m.id,
+        label: m.name,
+        icon: m.icon
+      })),
+      onSelect: (modelId) => {
+        // Update thread attributes
+        const pos = getPos()
+        view.dispatch(
+          view.state.tr.setNodeMarkup(pos, null, {
+            ...node.attrs,
+            selectedAiModel: modelId
+          })
+        )
+      }
+    })
+    
+    const contextDropdown = createPureDropdown({
+      id: `thread-context-selector-${node.attrs.threadId}`,
+      selectedValue: node.attrs.contextMode,
+      options: [
+        { value: 'workspace', label: 'Workspace' },
+        { value: 'document', label: 'Document' }
+      ],
+      onSelect: (contextMode) => {
+        const pos = getPos()
+        view.dispatch(
+          view.state.tr.setNodeMarkup(pos, null, {
+            ...node.attrs,
+            contextMode
+          })
+        )
+      }
+    })
+    
+    // Append to controls (not contentDOM)
+    controlsContainer.appendChild(modelDropdown.dom)
+    controlsContainer.appendChild(contextDropdown.dom)
+  }
+  
+  ignoreMutation(mutation: MutationRecord): boolean {
+    // Ignore all mutations in controls container
+    const target = mutation.target
+    return controlsContainer.contains(target) || 
+           controlsContainer === target
+  }
+}
+```
+
+## Migration from Document Node Dropdowns
+
+If migrating from the old document node approach:
+
+### 1. Remove from Schema
+
+**Before:**
+```typescript
+const schema = new Schema({
+  nodes: {
+    // ...
+    dropdown: {
+      group: 'block',
+      atom: true,
+      attrs: { value: { default: '' } },
+      // ...
+    }
+  }
+})
+```
+
+**After:**
+```typescript
+const schema = new Schema({
+  nodes: {
+    // No dropdown node
+  }
+})
+```
+
+### 2. Remove from Content Spec
+
+**Before:**
+```typescript
+aiChatThread: {
+  content: '(paragraph | dropdown | aiResponseMessage)+'
+}
+```
+
+**After:**
+```typescript
+aiChatThread: {
+  content: '(paragraph | aiResponseMessage)+'
+}
+```
+
+### 3. Replace Transaction-Based Creation
+
+**Before:**
+```typescript
+const dropdown = schema.nodes.dropdown.create({ value: 'x' })
+tr.insert(pos, dropdown)
 view.dispatch(tr)
 ```
 
-### Handling Selection Events
+**After:**
+```typescript
+const dropdown = createPureDropdown({ /* config */ })
+controlsContainer.appendChild(dropdown.dom)
+```
 
-```ts
-// In your parent plugin's state.apply:
-apply: (tr, prev) => {
-    const selection = tr.getMeta('dropdownOptionSelected')
-    if (selection && selection.dropdownId === 'my-dropdown-id') {
-        const { option } = selection
-        // Handle the selection - update stores, trigger actions, etc.
-        myStore.setValue(option.value)
+### 4. Remove Relocation Logic
 
-        return {
-            ...prev,
-            // Update your plugin state as needed
-        }
-    }
-    return prev
+**Before:**
+```typescript
+// Complex relocation with rAF and observers
+moveDropdownsToControls() {
+  requestAnimationFrame(() => {
+    const dropdowns = this.dom.querySelectorAll('.dropdown-wrapper')
+    dropdowns.forEach(d => controlsContainer.appendChild(d))
+  })
+}
+
+// MutationObserver to catch late renders
+const observer = new MutationObserver(() => this.moveDropdownsToControls())
+```
+
+**After:**
+```typescript
+// No relocation needed - renders in correct location immediately
+```
+
+### 5. Replace Decoration-Based State
+
+**Before:**
+```typescript
+// Plugin managing dropdown open state via decorations
+const dropdownPlugin = new Plugin({
+  state: {
+    init() { return DecorationSet.empty },
+    apply(tr, set) { /* complex decoration logic */ }
+  }
+})
+```
+
+**After:**
+```typescript
+// Direct state management via singleton
+import { dropdownStateManager } from '../primitives/dropdown/index.ts'
+dropdownStateManager.open('my-dropdown')
+```
+
+## Troubleshooting
+
+### Dropdown Closes Immediately After Opening
+
+**Symptom:** Click dropdown, it opens then instantly closes.
+
+**Cause:** ProseMirror sees DOM mutations and recreates the NodeView, destroying the dropdown.
+
+**Solution:** Implement `ignoreMutation` in your NodeView:
+
+```typescript
+ignoreMutation(mutation: MutationRecord): boolean {
+  return this.controlsContainer.contains(mutation.target as Node)
 }
 ```
 
-### Updating Selected Value
+### Dropdown Appears in Wrong Location
 
-```ts
-// To update what's shown as selected:
-const pos = findDropdownPosition() // your logic
-const currentNode = view.state.doc.nodeAt(pos)
-const newAttrs = {
-    ...currentNode.attrs,
-    selectedValue: {
-        title: 'New Selected Item',
-        icon: newIcon,
-        color: '#purple'
-    }
-}
-const tr = view.state.tr.setNodeMarkup(pos, null, newAttrs)
-view.dispatch(tr)
+**Symptom:** Dropdown appears inside contentDOM instead of controls.
+
+**Cause:** Appending to wrong container or inserting via transaction.
+
+**Solution:** Append directly to your chrome container, not contentDOM:
+
+```typescript
+// ✅ Correct
+controlsContainer.appendChild(dropdown.dom)
+
+// ❌ Wrong - this is for document content
+this.contentDOM.appendChild(dropdown.dom)
+
+// ❌ Wrong - transactions are for document nodes
+tr.insert(pos, dropdown)
 ```
 
-## Node Attributes Reference
+### Multiple Dropdowns Open Simultaneously
 
-### Required Attributes
+**Symptom:** Can open multiple dropdowns at once.
 
-- **`id: string`** - Unique identifier for this dropdown instance. Used to match decorations and events.
+**Cause:** Dropdowns have duplicate IDs or aren't using dropdownStateManager.
 
-### Optional Attributes
+**Solution:** Ensure unique IDs and that `createPureDropdown` is using the shared state manager:
 
-- **`selectedValue: object`** - Currently selected item display
-  - `title: string` - Text shown in button
-  - `icon: string` - SVG string for icon
-  - `color: string` - Icon color
-- **`dropdownOptions: array`** - List of selectable options
-  - Each option: `{ title, icon?, color?, ...customFields }`
-- **`theme: string`** - Visual theme: `'light'` | `'dark'` (default: `'dark'`)
-- **`renderPosition: string`** - Menu position: `'top'` | `'bottom'` | `'left'` | `'right'` (default: `'bottom'`)
-- **`buttonIcon: string`** - SVG string for the dropdown arrow/indicator (default: `chevronDownIcon`)
-- **`ignoreColorValuesForOptions: boolean`** - Skip inline color injection for dropdown menu items, allowing CSS to control icon colors (default: `false`)
-- **`ignoreColorValuesForSelectedValue: boolean`** - Skip inline color injection for selected value icon, allowing CSS to control color (default: `false`)
+```typescript
+// ✅ Unique IDs per dropdown
+createPureDropdown({ id: `dropdown-${uniqueIdentifier}`, /* ... */ })
+```
 
-## Integration with Parent Plugins
+### Dropdown State Not Updating
 
-### AI Model Selector Example
+**Symptom:** External state changes don't reflect in dropdown.
 
-The AI Chat Thread plugin uses this dropdown for model selection:
+**Cause:** Not calling `update()` when state changes.
 
-```ts
-// aiChatThreadNode.ts
-function createAiModelSelectorDropdown(view, node, getPos) {
-    const dropdownId = `ai-model-dropdown-${node.attrs.threadId}`
+**Solution:** Call `update()` in NodeView's `update()` method:
 
-    // Transform AI models data into dropdown format
-    const options = aiModelsData.map(model => ({
-        title: model.title,
-        icon: model.icon,
-        color: model.color,
-        provider: model.provider,  // Custom fields for selection handling
-        model: model.model
-    }))
-
-    const dropdownNode = view.state.schema.nodes.dropdown.create({
-        id: dropdownId,
-        selectedValue: currentSelection,
-        dropdownOptions: options,
-        theme: 'dark',
-        renderPosition: 'bottom',
-        ignoreColorValuesForOptions: true,        // Use CSS itemIconColor for menu items
-        ignoreColorValuesForSelectedValue: false  // Keep inline colors for selected display
-    })
-
-    // Subscribe to documentStore to update selection when model changes
-    documentStore.subscribe((store) => {
-        const newModel = store?.data?.aiModel
-        const newSelected = options.find(opt => `${opt.provider}:${opt.model}` === newModel)
-        if (newSelected && newSelected !== currentSelection) {
-            updateDropdownSelection(dropdownId, newSelected)
-        }
-    })
-}
-
-// aiChatThreadPlugin.ts - handle selections
-apply: (tr, prev) => {
-    const selection = tr.getMeta('dropdownOptionSelected')
-    if (selection?.dropdownId?.startsWith('ai-model-dropdown-')) {
-        const { option } = selection
-        if (option?.provider && option?.model) {
-            documentStore.setDataValues({
-                aiModel: `${option.provider}:${option.model}`
-            })
-        }
-    }
-    return prev
+```typescript
+update(node: Node): boolean {
+  this.dropdown.update(node.attrs.selectedValue)
+  return true
 }
 ```
 
-## Styling & CSS Classes
+## Benefits Summary
 
-The dropdown generates this DOM structure:
+Pure chrome dropdowns provide:
 
-```html
-<div class="dropdown-menu-tag-pill-wrapper theme-dark">
-    <span class="dots-dropdown-menu">
-        <button class="flex justify-between items-center">
-            <span class="selected-option-icon flex items-center">
-                <!-- Selected item icon -->
-            </span>
-            <span class="title">Selected Item Title</span>
-            <span class="state-indicator flex items-center">
-                <!-- Chevron/arrow icon -->
-            </span>
-        </button>
-        <nav class="submenu-wrapper render-position-bottom">
-            <ul class="submenu">
-                <li class="flex justify-start items-center">
-                    <!-- Option icon + title -->
-                </li>
-                <!-- More options... -->
-            </ul>
-        </nav>
-    </span>
-</div>
-```
+- ✅ **Zero flicker** - Render in correct location immediately
+- ✅ **No relocation logic** - No rAF loops, no observers, no position calculations
+- ✅ **Simple state management** - Direct pub/sub pattern via singleton
+- ✅ **Not document content** - Never serialized, never part of saved content
+- ✅ **Framework agnostic** - No ProseMirror dependencies in dropdown code
+- ✅ **Reusable** - Use in any NodeView or plugin UI
+- ✅ **Predictable** - Standard DOM patterns, no ProseMirror complexity
 
-**State Classes:**
-- `.dropdown-open` - Applied by decoration when dropdown is open
-- `.theme-dark` / `.theme-light` - Theme variants
-- `.render-position-{top|bottom|left|right}` - Positioning variants
+## Related
 
-**CSS Integration:**
-```scss
-.submenu-wrapper { display: none; }
-.dropdown-open .submenu-wrapper { display: block; }
-```
-
-## Color Control System
-
-The dropdown supports two modes for icon colors:
-
-### Default Behavior (Inline Colors)
-When `ignoreColorValuesForOptions: false` and `ignoreColorValuesForSelectedValue: false`:
-- Icons use inline `style="fill: color"` from the `color` property in option data
-- Each icon can have individual colors specified in the data
-
-### CSS-Controlled Colors
-When `ignoreColorValuesForOptions: true`:
-- Dropdown menu item icons ignore inline colors and use CSS `itemIconColor`
-- Allows consistent theming via SCSS mixins
-
-```scss
-&.theme-dark {
-    @include tagPillDropdownDarkTheme((
-        itemIconColor: #your-color-here  // Controls all menu item icons
-    ));
-}
-```
-
-### Hybrid Approach
-Common pattern: CSS for menu items, inline for selected value:
-```ts
-ignoreColorValuesForOptions: true,        // Menu items use CSS
-ignoreColorValuesForSelectedValue: false  // Selected shows individual colors
-```
-
-## Event Handling Details
-
-### Click Outside Detection
-
-The NodeView automatically handles click-outside-to-close:
-
-```ts
-const handleWindowClick = (e) => {
-    if (submenuRef && !e.composedPath().includes(submenuRef)) {
-        const tr = view.state.tr.setMeta('closeDropdown', true)
-        view.dispatch(tr)
-    }
-}
-document.addEventListener('click', handleWindowClick)
-```
-
-### Option Selection Flow
-
-1. User clicks option → `onClickHandler` called
-2. Handler builds transaction with two metas:
-   - `dropdownOptionSelected: { dropdownId, option, nodePos }`
-   - `closeDropdown: true`
-3. Handler attempts optimistic update via `setNodeMarkup` (immediate UI feedback)
-4. Parent plugin receives `dropdownOptionSelected` meta and handles business logic
-5. Dropdown plugin receives `closeDropdown` meta and removes decorations
-
-## Error Handling & Edge Cases
-
-- **Missing dropdown plugin:** NodeView gracefully degrades if dropdown plugin not installed
-- **Invalid positions:** getPos() validation prevents crashes during rapid updates
-- **Rapid clicking:** Event handlers debounced via preventDefault/stopPropagation
-- **DOM element cleanup:** All event listeners removed in destroy() method
-- **Schema validation:** Node creation wrapped in try/catch with fallback returns
-
-## Performance Considerations
-
-- **Decoration efficiency:** Only creates decorations for actually open dropdowns
-- **Event delegation:** Uses single window click listener, not per-option handlers
-- **DOM reuse:** NodeView.update modifies existing DOM rather than recreating
-- **Memory cleanup:** Subscriptions and listeners properly cleaned up in destroy()
-- **Optimistic updates:** Immediate UI feedback via setNodeMarkup before async plugin handling
-
-## Testing & Development
-
-Key scenarios to test when modifying this plugin:
-
-1. **Basic interaction:** Open dropdown, select option, confirm selection updates
-2. **Click outside:** Open dropdown, click elsewhere, confirm it closes
-3. **Multiple dropdowns:** Multiple dropdowns in same document don't interfere
-4. **Rapid interaction:** Fast clicking doesn't cause state corruption
-5. **Document updates:** Dropdown survives document mutations and position changes
-6. **Theme switching:** Light/dark themes render correctly
-7. **Position variants:** Top/bottom/left/right positioning works in all scroll contexts
-8. **Memory leaks:** No listeners or subscriptions leak after NodeView destruction
-
-For debugging, temporarily enable console logging in the NodeView event handlers to trace the event flow.
-
-## Related Documentation
-
-- [Main ProseMirror Plugins README](../README.md) - Shared patterns and architecture
-- [AI Chat Thread Plugin README](../../aiChatThreadPlugin/README.md) - Usage example
-- [DOM Templates Documentation](../../../components/domTemplates.ts) - html() templating system
+- `aiChatThreadNode.ts` - Complete real-world example
+- `SvelteComponentRenderer` - Alternative for Svelte component chrome
+- ProseMirror NodeView documentation - Understanding `ignoreMutation`

@@ -3,3 +3,5 @@ Each folder may contain a separate README.md file. When working on the code you 
 Do not create README.md if it doesn't exist.
 
 Never use any JSDoc comments!
+
+When working on TypeScript code make sure to use `type` instead of `interface` for type definitions.

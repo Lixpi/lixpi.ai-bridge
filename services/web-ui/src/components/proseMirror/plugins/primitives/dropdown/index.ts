@@ -1,2 +1,3 @@
-export { createDropdownPlugin, dropdownNodeSpec } from './dropdownPlugin.js'
-export { dropdownNodeView } from './dropdownNode.js'
+// Pure Chrome Dropdown Primitive
+export { createPureDropdown } from './pureDropdown.js'
+export { dropdownStateManager } from './dropdownStateManager.js'
