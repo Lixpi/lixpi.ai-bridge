@@ -387,7 +387,7 @@ function createThreadContextDropdown(view, node, getPos, threadId) {
         renderPosition: 'bottom',
         buttonIcon: chevronDownIcon,
         ignoreColorValuesForOptions: true,
-        ignoreColorValuesForSelectedValue: true,
+        ignoreColorValuesForSelectedValue: false,
         onSelect: (option) => {
             console.log('[AI_DBG][THREAD.contextDropdown] onSelect', { threadId, option })
 

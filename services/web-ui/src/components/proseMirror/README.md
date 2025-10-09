@@ -40,7 +40,6 @@ Custom nodes (in `customNodes/`):
 - `aiResponseMessageNode` (`aiResponseMessage`): assistant message with provider avatar, animation controls, and a contentDOM placeholder; `aiResponseMessageNodeView` manages Claude animation frames using node attrs (`isInitialRenderAnimation`, `isReceivingAnimation`, `currentFrame`). Content expression: `(paragraph | block)*` so it can start empty and be filled by streaming.
 - `aiUserMessageNode` (`aiUserMessage`, legacy): styled bubble with user avatar; kept for backward compatibility in old documents. New flows do not create this node.
 - `code_block` override (`codeBlockNode`): prosemirror spec extended with `theme` attr and DOM `data-theme`. Rendering and interaction are delegated to a CodeMirror 6 node view (plugin).
-- `dropdown` (`dropdownNode`): reusable dropdown primitive for inline menus and selectors. Used by AI Chat Thread plugin for model selection. Supports theming, custom positioning, and decoration-driven open/close states. See `plugins/primitives/dropdown/README.md` for full documentation.
 - `taskRowNode` exists but currently a placeholder without DOM hooks; kept for future Svelte component rendering.
 
 ```mermaid
@@ -50,7 +49,6 @@ flowchart TD
   T --> P[paragraph]
   T --> CB[code_block]
   T --> R[aiResponseMessage]
-  T --> D[dropdown]
   R --> RP["(paragraph | block)*"]
 ```
 

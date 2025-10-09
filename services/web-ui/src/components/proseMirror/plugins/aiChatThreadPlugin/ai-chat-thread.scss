@@ -119,10 +119,10 @@
     .ai-chat-thread-controls {
         position: absolute;
         bottom: -0.75rem;
-        right: 1rem;
+        right: .5rem;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.1rem;
         z-index: 999;
 
         // All dropdown wrappers inside controls use natural flex flow
