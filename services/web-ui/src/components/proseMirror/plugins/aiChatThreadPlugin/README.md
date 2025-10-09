@@ -2,7 +2,7 @@
 
 Adds ChatGPT-style conversations directly inside ProseMirror documents. Users can type messages, hit Cmd+Enter (or Ctrl+Enter on Windows), and get AI responses streamed back in real-time.
 
-This README reflects the current implementation, including pure chrome dropdowns (AI model selector and thread context selector) that exist outside the document schema.
+This README reflects the current implementation, including dropdowns (AI model selector and thread context selector) that exist outside the document schema as UI controls.
 
 ## What it does
 
@@ -66,7 +66,7 @@ graph TD
 ```
 
 **Key Design Principles:**
-- **Self-contained nodes:** Each node type exports both spec AND NodeView (handles boundary indicator, focus, and per-thread pure chrome dropdowns)
+- **Self-contained nodes:** Each node type exports both spec AND NodeView (handles boundary indicator, focus, and per-thread dropdown controls)
 - **Declarative UI:** All DOM creation uses `html` template literals instead of verbose `createElement` chains
 - **Shared utilities:** `domTemplates.ts` provides consistent DOM building across all ProseMirror components
 - **Performance-focused:** htm/mini gives zero-runtime overhead with direct DOM element creation
@@ -164,18 +164,18 @@ const button = html`
 `
 ```
 
-### AI Model & Context Selector Dropdowns (Pure Chrome)
+### AI Model & Context Selector Dropdowns
 
 The thread NodeView includes two dropdowns for configuring the AI conversation:
 
 1. **AI Model Selector** - Choose which AI model to use (GPT-4, Claude, etc.)
 2. **Thread Context Selector** - Choose context scope (workspace, document, etc.)
 
-Both dropdowns follow the **pure chrome pattern**:
+Both dropdowns are **UI controls outside the document schema**:
 - **Not part of the document schema** - Zero NodeSpec involvement, never serialized
 - **Rendered directly to controls container** - No transactions, no decorations needed
 - **State managed via singleton** - `dropdownStateManager` handles open/close coordination
-- **Created by pure DOM factory** - `createPureDropdown()` from `primitives/dropdown`
+- **Created by DOM factory** - `createPureDropdown()` from `primitives/dropdown`
 - **Reusable primitive** - Same dropdown used across different plugins
 
 The NodeView simply:
@@ -185,7 +185,7 @@ The NodeView simply:
 4. Calls `destroy()` in NodeView cleanup
 5. Uses `ignoreMutation()` to prevent NodeView recreation when dropdown opens/closes
 
-**Why pure chrome?** Previously dropdowns were document nodes, causing flicker (rendered in contentDOM, then relocated), complex state management via decorations, and unnecessary involvement in document transactions. Pure chrome dropdowns render instantly in the correct location with simple, direct state management.
+**Why outside the schema?** Previously dropdowns were document nodes, causing flicker (rendered in contentDOM, then relocated), complex state management via decorations, and unnecessary involvement in document transactions. Keeping them outside the schema means they render instantly in the correct location with simple, direct state management.
 
 ## Quick setup
 
@@ -320,7 +320,7 @@ Users see:
 - `aiChatThreadNode.ts` - Thread container node (self-contained):
   - Exports node schema AND its NodeView implementation
   - Uses `html` template literals for clean UI creation
-  - Creates boundary indicator, submit button, and **pure chrome dropdowns**
+  - Creates boundary indicator, submit button, and **dropdown UI controls**
   - `createAiModelSelectorDropdown()` and `createThreadContextDropdown()` use `createPureDropdown()` primitive
   - Dropdowns appended directly to controlsContainer (not inserted via transactions)
   - `ignoreMutation()` prevents NodeView recreation when dropdowns open/close
@@ -342,7 +342,7 @@ Users see:
 
 - `aiChatThreadPluginKey.ts` - Shared `PluginKey` to avoid identity mismatch and circular imports between NodeView and plugin. Import this key in both places and call `AI_CHAT_THREAD_PLUGIN_KEY.getState(view.state)` when needed.
 
-- `../primitives/dropdown/` - Pure chrome dropdown primitive:
+- `../primitives/dropdown/` - Dropdown primitive (outside document schema):
   - `pureDropdown.ts` - Factory function creating dropdowns with {dom, update, destroy} API
   - `dropdownStateManager.ts` - Singleton coordinating open/close state (mutual exclusion)
   - `index.ts` - Clean exports

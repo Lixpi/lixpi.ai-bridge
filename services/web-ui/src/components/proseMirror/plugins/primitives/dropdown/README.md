@@ -1,10 +1,10 @@
-# Pure Chrome Dropdown Primitive
+# Dropdown Primitive (Outside Document Schema)
 
-A lightweight, framework-agnostic dropdown component designed for use as "chrome" (UI controls) in ProseMirror editors, completely independent of the document schema.
+A lightweight, framework-agnostic dropdown component designed for use as editor UI controls in ProseMirror, completely independent of the document schema.
 
 ## Overview
 
-This primitive provides a dropdown UI component that exists **outside** the ProseMirror document structure. Unlike document nodes that become part of the editor's content, pure chrome dropdowns are:
+This primitive provides a dropdown UI component that exists **outside** the ProseMirror document structure. Unlike document nodes that become part of the editor's content, these dropdowns are:
 
 - **Not part of the document schema** - No NodeSpec, no content type
 - **Rendered directly to the DOM** - No transactions, no decorations
@@ -13,15 +13,15 @@ This primitive provides a dropdown UI component that exists **outside** the Pros
 
 ## Architecture
 
-### Pure Chrome Pattern
+### UI Controls Outside Document Schema
 
-The "pure chrome" pattern treats UI controls like toolbar buttons or editor controls - they're presentational elements that live outside the semantic document structure:
+These dropdowns are presentational elements that live outside the semantic document structure, similar to toolbar buttons or editor controls:
 
 ```
 ┌─────────────────────────────────────────┐
-│  Plugin UI Container (chrome)           │
+│  Plugin UI Container                    │
 │  ┌─────────────┐  ┌─────────────┐      │
-│  │  Dropdown   │  │   Button    │      │  ← Pure Chrome
+│  │  Dropdown   │  │   Button    │      │  ← UI Controls
 │  └─────────────┘  └─────────────┘      │
 ├─────────────────────────────────────────┤
 │  ProseMirror contentDOM                 │
@@ -46,7 +46,7 @@ This causes problems for UI controls:
 - State management via decorations is awkward
 - Controls become part of saved document content
 
-Pure chrome avoids all these issues by staying outside the document entirely.
+Keeping dropdowns outside the document schema avoids all these issues.
 
 ## Components
 
@@ -110,7 +110,7 @@ const dropdown = createPureDropdown({
   renderPosition: 'bottom'
 })
 
-// Append to your chrome container
+// Append to your controls container
 controlsContainer.appendChild(dropdown.dom)
 
 // Update selected value when external state changes
@@ -180,7 +180,7 @@ class MyNodeView implements NodeView {
     const controlsContainer = document.createElement('div')
     this.dom.appendChild(controlsContainer)
     
-    // Create dropdown as pure chrome
+    // Create dropdown outside document schema
     this.dropdown = createPureDropdown({
       id: 'my-node-dropdown',
       selectedValue: node.attrs.someValue,
@@ -220,13 +220,13 @@ class MyNodeView implements NodeView {
 
 ### Critical: ignoreMutation
 
-When dropdowns open/close, they modify the DOM. ProseMirror sees these mutations and may try to recreate your NodeView. Always implement `ignoreMutation` to tell ProseMirror to ignore these chrome mutations:
+When dropdowns open/close, they modify the DOM. ProseMirror sees these mutations and may try to recreate your NodeView. Always implement `ignoreMutation` to tell ProseMirror to ignore these UI control mutations:
 
 ```typescript
 ignoreMutation(mutation: MutationRecord): boolean {
-  // Ignore mutations in controls container or any chrome elements
-  const chromeContainer = this.dom.querySelector('.controls-container')
-  return chromeContainer?.contains(mutation.target as Node) || false
+  // Ignore mutations in controls container or any UI control elements
+  const controlsContainer = this.dom.querySelector('.controls-container')
+  return controlsContainer?.contains(mutation.target as Node) || false
 }
 ```
 
@@ -253,7 +253,7 @@ tr.insert(pos, schema.nodes.dropdown.create({ value: 'x' }))
 // - Becomes part of document content
 ```
 
-**Pure Chrome Approach** (current):
+**Current Approach** (outside document schema):
 ```typescript
 // No schema definition needed
 const dropdown = createPureDropdown({ /* config */ })
@@ -268,7 +268,7 @@ controlsContainer.appendChild(dropdown.dom)
 
 ### vs Svelte Component Integration
 
-You can also mount Svelte components as chrome using `SvelteComponentRenderer`:
+You can also mount Svelte components as UI controls using `SvelteComponentRenderer`:
 
 ```typescript
 import { SvelteComponentRenderer } from '$lib/utils/SvelteComponentRenderer.js'
@@ -286,10 +286,10 @@ renderer.destroy()
 
 **When to use each:**
 
-- **Pure Chrome Dropdown**: Simple dropdowns, minimal dependencies, need fine control over DOM structure
+- **This Dropdown Primitive**: Simple dropdowns, minimal dependencies, need fine control over DOM structure
 - **Svelte Component**: Complex UI, need Svelte reactivity, already have Svelte dropdown components
 
-Both follow the pure chrome pattern - neither involves the document schema.
+Both approaches keep UI controls outside the document schema.
 
 ## Real-World Example: AI Chat Thread
 
@@ -298,7 +298,7 @@ See `aiChatThreadNode.ts` for a complete example. Key points:
 ```typescript
 class AiChatThreadNodeView implements NodeView {
   constructor(node: Node, view: EditorView, getPos: () => number) {
-    // Create two dropdowns as pure chrome
+    // Create two dropdowns outside document schema
     const modelDropdown = createPureDropdown({
       id: `ai-model-selector-${node.attrs.threadId}`,
       selectedValue: node.attrs.selectedAiModel,
@@ -475,7 +475,7 @@ ignoreMutation(mutation: MutationRecord): boolean {
 
 **Cause:** Appending to wrong container or inserting via transaction.
 
-**Solution:** Append directly to your chrome container, not contentDOM:
+**Solution:** Append directly to your controls container, not contentDOM:
 
 ```typescript
 // ✅ Correct
@@ -518,7 +518,7 @@ update(node: Node): boolean {
 
 ## Benefits Summary
 
-Pure chrome dropdowns provide:
+These dropdowns provide:
 
 - ✅ **Zero flicker** - Render in correct location immediately
 - ✅ **No relocation logic** - No rAF loops, no observers, no position calculations
@@ -531,5 +531,5 @@ Pure chrome dropdowns provide:
 ## Related
 
 - `aiChatThreadNode.ts` - Complete real-world example
-- `SvelteComponentRenderer` - Alternative for Svelte component chrome
+- `SvelteComponentRenderer` - Alternative for Svelte component UI controls
 - ProseMirror NodeView documentation - Understanding `ignoreMutation`

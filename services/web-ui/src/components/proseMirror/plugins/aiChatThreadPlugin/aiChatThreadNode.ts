@@ -13,7 +13,7 @@ export const aiChatThreadNodeSpec = {
     group: 'block',
     // Allow paragraphs, AI response messages, code blocks
     // Put 'paragraph' first so PM's contentMatch.defaultType picks it when creating an empty thread
-    // Dropdowns are now pure chrome (not document nodes) managed by thread NodeView
+    // Dropdowns are UI controls (outside document schema) managed by thread NodeView
     content: '(paragraph | code_block | aiResponseMessage)+', // Must contain at least one child; default child = paragraph
     defining: false, // Changed to false to allow better cursor interaction
     draggable: false,
@@ -92,7 +92,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
     const controlsContainer = document.createElement('div')
     controlsContainer.className = 'ai-chat-thread-controls'
 
-    // Create pure chrome dropdowns (like submit button - no document nodes)
+    // Create dropdowns outside document schema (like submit button - not document nodes)
     const creationTimestamp = Date.now()
     console.log('[AI_DBG][THREAD.nodeView] CONSTRUCTOR CALLED', { threadId: node.attrs.threadId, initialAiModel: node.attrs.aiModel, creationTimestamp })
 
@@ -272,10 +272,10 @@ function createThreadInfoDropdown() {
     `
 }
 
-// Note: Dropdowns are now pure chrome (like submit button), not document nodes
+// Note: Dropdowns are UI controls (outside document schema), not document nodes
 // They dispatch transactions to update thread node attrs directly
 
-// Helper function to create AI model selector dropdown (pure DOM, no document node)
+// Helper function to create AI model selector dropdown (direct DOM, no document node)
 function createAiModelSelectorDropdown(view, node, getPos) {
     const dropdownId = `ai-model-dropdown-${node.attrs.threadId}`
 
@@ -287,7 +287,7 @@ function createAiModelSelectorDropdown(view, node, getPos) {
     // Get AI models from store
     const aiModelsData = aiModelsStore.getData()
     const currentAiModel = node.attrs.aiModel || ''
-    console.log('[AI_DBG][THREAD.modelDropdown] creating pure chrome', { threadId: node.attrs.threadId, currentAiModel, modelsCount: aiModelsData.length })
+    console.log('[AI_DBG][THREAD.modelDropdown] creating dropdown', { threadId: node.attrs.threadId, currentAiModel, modelsCount: aiModelsData.length })
 
     // Transform data to match dropdown format
     const aiModelsSelectorDropdownOptions = aiModelsData.map(aiModel => ({
@@ -349,12 +349,12 @@ function createAiModelSelectorDropdown(view, node, getPos) {
     })
 }
 
-// Helper function to create thread context selector dropdown (pure DOM, no document node)
+// Helper function to create thread context selector dropdown (direct DOM, no document node)
 function createThreadContextDropdown(view, node, getPos) {
     const dropdownId = `thread-context-dropdown-${node.attrs.threadId}`
 
     const currentThreadContext = node.attrs.threadContext || 'Thread'
-    console.log('[AI_DBG][THREAD.contextDropdown] creating pure chrome', { threadId: node.attrs.threadId, currentThreadContext })
+    console.log('[AI_DBG][THREAD.contextDropdown] creating dropdown', { threadId: node.attrs.threadId, currentThreadContext })
 
     // Define thread context options
     const threadContextOptions = [

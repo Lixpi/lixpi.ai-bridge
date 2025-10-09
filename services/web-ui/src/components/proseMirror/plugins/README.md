@@ -18,8 +18,8 @@ plugins/
 		anotherNode.ts            # …more nodes if needed
 		some-plugin.scss          # styles for that plugin
 
-	primitives/                   # reusable UI primitives (chrome)
-		dropdown/                 # pure chrome dropdown component
+	primitives/                   # reusable UI primitives
+		dropdown/                 # dropdown component (outside doc schema)
 			README.md             # comprehensive dropdown docs
 			pureDropdown.ts       # factory returning {dom, update, destroy}
 			dropdownStateManager.ts  # singleton for open/close coordination
@@ -37,16 +37,16 @@ components/
 - UI is decoration-first. Visual states come from classes via `DecorationSet` (placeholders, keyboard feedback, boundary highlights, etc.). NodeViews render structure; decorations toggle classes.
 - Templating uses `htm` via our `html` helper from `components/domTemplates.ts`. No JSX, no VDOM. Tagged templates → direct DOM.
 - The plugin class does orchestration only: selection checks, content extraction, transactions, streaming insertions, state flags.
-- **Reuse primitives**: For common UI patterns (dropdowns, modals, tooltips), use or create reusable primitives in `primitives/` rather than duplicating code across plugins. Primitives follow the "pure chrome" pattern - they exist outside the document schema.
+- **Reuse primitives**: For common UI patterns (dropdowns, modals, tooltips), use or create reusable primitives in `primitives/` rather than duplicating code across plugins. Primitives exist outside the document schema as UI controls.
 - Keep code small and obvious. If it feels like "framework", you're over-engineering it.
 
-## Reusable Primitives (Pure Chrome Pattern)
+## Reusable Primitives (UI Controls Outside Document Schema)
 
-The `primitives/` folder contains reusable UI components that follow the **pure chrome pattern** - they exist outside the document schema and are never part of saved content.
+The `primitives/` folder contains reusable UI components that exist outside the document schema and are never part of saved content.
 
-### What is "Pure Chrome"?
+### UI Controls vs Document Content
 
-Chrome refers to UI controls that are presentational, not semantic content. Think toolbar buttons, editor controls, floating panels. Pure chrome components:
+These primitives are presentational controls, not semantic content. Think toolbar buttons, editor controls, floating panels. These components:
 
 - **Not in the schema** - No NodeSpec, no content type definition
 - **Rendered directly to DOM** - Append to containers, no transactions needed
@@ -56,14 +56,14 @@ Chrome refers to UI controls that are presentational, not semantic content. Thin
 
 ### Available Primitives
 
-- **`dropdown/`** - Pure chrome dropdown menus with singleton state management
+- **`dropdown/`** - Dropdown menus with singleton state management (outside document schema)
   - Factory pattern: `createPureDropdown(config)` returns `{dom, update, destroy}`
   - State coordinator: `dropdownStateManager` for mutual exclusion (one open at a time)
   - Used by AI Chat Thread for model and context selection
   - Zero ProseMirror dependencies in the dropdown code itself
   - See `primitives/dropdown/README.md` for complete API reference and migration guide
 
-### Chrome vs Document Nodes
+### UI Controls vs Document Nodes
 
 **Document Nodes** (semantic content):
 ```typescript
@@ -79,7 +79,7 @@ tr.insert(pos, schema.nodes.dropdown.create(...))
 // - Becomes part of document content
 ```
 
-**Pure Chrome** (presentational controls):
+**UI Controls** (presentational, outside schema):
 ```typescript
 // No schema definition
 const dropdown = createPureDropdown({...config})
@@ -95,7 +95,7 @@ controlsContainer.appendChild(dropdown.dom)
 
 ### When to Use Each Approach
 
-Use **Pure Chrome** for:
+Use **UI Controls** (outside schema) for:
 - Toolbar buttons, controls, floating panels
 - UI that should never be saved/serialized
 - Controls that don't belong in document flow
@@ -107,9 +107,9 @@ Use **Document Nodes** for:
 - Elements that participate in document structure
 - Content with complex nested schemas
 
-### Using Pure Chrome in NodeViews
+### Using UI Controls in NodeViews
 
-When building NodeViews that include chrome controls:
+When building NodeViews that include UI controls outside the document schema:
 
 ```typescript
 class MyNodeView implements NodeView {
@@ -123,7 +123,7 @@ class MyNodeView implements NodeView {
     this.controlsContainer = document.createElement('div')
     this.dom.appendChild(this.controlsContainer)
     
-    // Create chrome dropdown
+    // Create dropdown outside document schema
     this.dropdown = createPureDropdown({
       id: `dropdown-${node.attrs.id}`,
       selectedValue: node.attrs.value,
@@ -137,22 +137,22 @@ class MyNodeView implements NodeView {
       }
     })
     
-    // Append to chrome container (NOT contentDOM)
+    // Append to controls container (NOT contentDOM)
     this.controlsContainer.appendChild(this.dropdown.dom)
   }
   
   update(node: Node) {
-    // Update chrome when attrs change
+    // Update control when attrs change
     this.dropdown.update(node.attrs.value)
     return true
   }
   
   destroy() {
-    // Clean up chrome
+    // Clean up control
     this.dropdown.destroy()
   }
   
-  // CRITICAL: Prevent NodeView recreation from chrome mutations
+  // CRITICAL: Prevent NodeView recreation from control mutations
   ignoreMutation(mutation: MutationRecord): boolean {
     return this.controlsContainer.contains(mutation.target as Node)
   }
@@ -160,9 +160,9 @@ class MyNodeView implements NodeView {
 ```
 
 **Key points:**
-1. Chrome appended to dedicated container, not contentDOM
-2. `ignoreMutation()` prevents NodeView destruction when chrome changes
-3. Chrome state updates via `update()` method, not recreating NodeView
+1. UI controls appended to dedicated container, not contentDOM
+2. `ignoreMutation()` prevents NodeView destruction when controls change
+3. Control state updates via `update()` method, not recreating NodeView
 4. Cleanup via `destroy()` method
 
 When building new plugins, check if your UI needs match existing primitives before creating custom components.
