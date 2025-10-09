@@ -76,7 +76,12 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
 
     // Create dropdowns outside document schema (like submit button - not document nodes)
     const creationTimestamp = Date.now()
-    console.log('[AI_DBG][THREAD.nodeView] CONSTRUCTOR CALLED', { threadId, initialAiModel: node.attrs.aiModel, creationTimestamp })
+    console.log('[AI_DBG][THREAD.nodeView] CONSTRUCTOR CALLED', { 
+        threadId, 
+        initialAiModel: node.attrs.aiModel, 
+        creationTimestamp,
+        contentSize: node.content.size 
+    })
 
     const threadContextDropdown = createThreadContextDropdown(view, node, getPos, threadId)
     const modelSelectorDropdown = createAiModelSelectorDropdown(view, node, getPos, threadId)
@@ -134,15 +139,11 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
                 return false
             }
 
-            // Check if content structure changed (would require recreation)
-            if (node.content.size !== updatedNode.content.size) {
-                console.log('[AI_DBG][THREAD.nodeView.update] REJECTED - content size changed, needs recreation', {
-                    oldSize: node.content.size,
-                    newSize: updatedNode.content.size
-                })
-                return false
-            }
-
+            // Note: We DO NOT check content size changes here!
+            // ProseMirror will handle content updates via contentDOM automatically.
+            // Returning false would destroy/recreate the NodeView (including dropdowns),
+            // which breaks event listeners and state.
+            
             // Update attributes if changed
             dom.setAttribute('data-thread-id', updatedNode.attrs.threadId)
             dom.setAttribute('data-status', updatedNode.attrs.status)

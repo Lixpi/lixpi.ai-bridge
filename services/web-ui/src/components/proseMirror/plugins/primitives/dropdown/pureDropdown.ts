@@ -163,6 +163,8 @@ export function createPureDropdown(config: PureDropdownConfig) {
         },
         destroy: () => {
             console.log('[AI_DBG][PURE_DROPDOWN.destroy]', { id })
+            // Close dropdown if it was open
+            dropdownStateManager.close(id)
             unsubscribe()
             document.removeEventListener('click', handleWindowClick)
         }
