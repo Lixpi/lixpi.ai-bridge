@@ -8,7 +8,13 @@
     @include dropdownChipWrapperPosition((
         position: relative
     ));
-    @include dropdownChipStructure();
+    @include dropdownChipStructure((
+        fontSize: .9rem,
+        fontWeight: 400,
+        itemFontSize: .83rem,
+        iconMargin: 0 .3rem 0 .2rem,
+        triggerPadding: 0
+    ));
     @include dropdownChipSubmenuPlacement();
 
     // Themes

@@ -85,6 +85,7 @@ export type AiModel = {
     provider: string
     model: string
     title: string
+    shortTitle?: string
     modelVersion: string
     contextWindow: number
     maxCompletionSize: number

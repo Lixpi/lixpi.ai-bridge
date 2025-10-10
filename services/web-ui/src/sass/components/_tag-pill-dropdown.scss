@@ -95,7 +95,7 @@
 // 3) Structure (layout + motion; no colors)
 @mixin dropdownChipStructure($config: ()) {
     $defaults: (
-        svgSize: 1.4rem,
+        svgSize: 1.3rem,
         triggerHeight: 23px,
         triggerPadding: 0.2rem 0.3rem,
         triggerRadius: 4px,
@@ -133,7 +133,7 @@
 
         :global(svg) {
             height: map-get($s, svgSize);
-            width: map-get($s, svgSize);
+            width: calc(#{map-get($s, svgSize)} - .2rem);
         }
 
         button {

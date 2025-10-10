@@ -191,7 +191,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
 
                 if (newSelectedModel) {
                     modelSelectorDropdown.update({
-                        title: newSelectedModel.title,
+                        title: newSelectedModel.shortTitle,
                         icon: aiAvatarIcons[newSelectedModel.iconName],
                         color: newSelectedModel.color,
                         aiModel: `${newSelectedModel.provider}:${newSelectedModel.model}`
@@ -306,7 +306,7 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
 
     // Transform data to match dropdown format
     const aiModelsSelectorDropdownOptions = aiModelsData.map(aiModel => ({
-        title: aiModel.title,
+        title: aiModel.shortTitle,
         icon: aiAvatarIcons[aiModel.iconName],
         color: aiModel.color,
         aiModel: `${aiModel.provider}:${aiModel.model}`,
