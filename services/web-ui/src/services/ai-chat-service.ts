@@ -1,7 +1,7 @@
 'use strict'
 
 import { AI_CHAT_SUBJECTS } from '@lixpi/constants'
-import type { AiModelId } from '@lixpi/constants'
+import type { AiModelId, AiChatSendMessagePayload, AiChatStopMessagePayload } from '@lixpi/constants'
 
 import AuthService from './auth0-service.ts'
 import SegmentsReceiver from '$src/services/segmentsReceiver-service.js'
@@ -13,6 +13,9 @@ import { documentStore } from '$src/stores/documentStore.ts'
 
 
 export default class ChatService {
+    instanceKey: string
+    segmentsReceiver: any
+
     constructor(instanceKey: string) {
         this.instanceKey = instanceKey
         this.segmentsReceiver = SegmentsReceiver;
@@ -48,31 +51,34 @@ export default class ChatService {
         this.segmentsReceiver.receiveSegment(data.content);
     }
 
-    async sendMessage(chatContent: any, aiModel: AiModelId) {
-        console.log('[AI_DBG][SERVICE.sendMessage] called', { aiModel, chatContentPreview: (chatContent||'').slice(0,120), length: chatContent?.length })
+    async sendMessage({ messages, aiModel, threadId }: AiChatSendMessagePayload) {
+        console.log('[AI_DBG][SERVICE.sendMessage] called', { aiModel, threadId, chatContentPreview: (messages||'').slice(0,120), length: messages?.length })
         const organizationId = organizationStore.getData('organizationId')
 
         const user = userStore.getData()
+
         const payload = {
             token: await AuthService.getTokenSilently(),
             documentId: this.instanceKey,
-            aiModel: aiModel,
-            chatContent: chatContent,
+            messages,
+            aiModel,
+            threadId,
             organizationId
         }
         console.log('[AI_DBG][SERVICE.sendMessage] publishing', payload)
         servicesStore.getData('nats')!.publish(AI_CHAT_SUBJECTS.SEND_MESSAGE, payload)
+    }
 
-        // SocketService.emit({
-        //     event: AI_CHAT_SUBJECTS.SEND_MESSAGE,
-        //     data: {
-        //         documentId: this.instanceKey,
-        //         aiModel: documentStore.getData('aiModel'),
-        //         chatContent: inputValue,
-        //         organizationId,
-        //         // room: this.instanceKey
-        //     }
-        // })
+    async stopMessage({ threadId }: AiChatStopMessagePayload) {
+        console.log('[AI_DBG][SERVICE.stopMessage] called', { documentId: this.instanceKey, threadId })
+
+        const payload = {
+            token: await AuthService.getTokenSilently(),
+            documentId: this.instanceKey,
+            threadId
+        }
+
+        servicesStore.getData('nats')!.publish(AI_CHAT_SUBJECTS.STOP_MESSAGE, payload)
     }
 
     disconnect() {}

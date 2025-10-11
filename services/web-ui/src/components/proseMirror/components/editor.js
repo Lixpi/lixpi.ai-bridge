@@ -61,10 +61,20 @@ const nodesBuilder = (schema, supportedNodes) => {
 }
 
 export class ProseMirrorEditor {
-    constructor(editorMountElement, content, initialVal = {}, isDisabled, onEditorChange, onProjectTitleChange, onAiChatSubmit) {
+    constructor({
+        editorMountElement,
+        content,
+        initialVal = {},
+        isDisabled,
+        onEditorChange,
+        onProjectTitleChange,
+        onAiChatSubmit,
+        onAiChatStop
+    }) {
         this.onEditorChange = onEditorChange
         this.onProjectTitleChange = onProjectTitleChange
         this.onAiChatSubmit = onAiChatSubmit
+        this.onAiChatStop = onAiChatStop
         this.isDisabled = isDisabled
         this.editorSchema = this.createSchema()
 
@@ -107,7 +117,14 @@ export class ProseMirrorEditor {
             gapCursor(),
             history(),
             // createSvelteComponentRendererPlugin(TaskRow, 'taskRow', defautSubtaskAttrs),
-            createAiChatThreadPlugin(val => this.onAiChatSubmit(val), {titlePlaceholder: 'New document', paragraphPlaceholder: 'Type something and hit Cmd+Enter on Mac or Ctrl+Enter on PC to send it to AI.\n'}),
+            createAiChatThreadPlugin({
+                sendAiRequestHandler: val => this.onAiChatSubmit(val),
+                stopAiRequestHandler: val => this.onAiChatStop(val),
+                placeholders: {
+                    titlePlaceholder: 'New document',
+                    paragraphPlaceholder: 'Type something and hit Cmd+Enter on Mac or Ctrl+Enter on PC to send it to AI.\n'
+                }
+            }),
             createAiUserInputPlugin(val => {}),
             // lockCursorPositionPlugin()
             createCodeBlockPlugin(this.editorSchema),

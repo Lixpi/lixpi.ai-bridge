@@ -17,7 +17,8 @@
 
     import {
         LoadingStatus,
-        type AiModelId
+        type AiChatSendMessagePayload,
+        type AiChatStopMessagePayload
     } from '@lixpi/constants'
 
     import Spinner from `$src/components/spinner.svelte`
@@ -37,8 +38,8 @@
     const documentService = new DocumentService()
 
 
-    const onAiChatSubmit = ({ messages, aiModel }: { messages: any; aiModel: AiModelId }) => {
-        // console.log('onAiChatSubmit', {messages, aiModel, aiChatInstance})
+    const onAiChatSubmit = ({ messages, aiModel, threadId }: AiChatSendMessagePayload) => {
+        // console.log('onAiChatSubmit', {messages, aiModel, threadId, aiChatInstance})
 
         if (!aiChatInstance) {
             console.log('call->onAiChatSubmit', {aiChatInstance, projectKey: $routerStore.data.currentRoute?.routeParams.key})
@@ -47,7 +48,19 @@
             return false
         }
 
-        aiChatInstance.sendMessage(messages, aiModel)
+        aiChatInstance.sendMessage({ messages, aiModel, threadId })
+    }
+
+    const onAiChatStop = ({ threadId }: AiChatStopMessagePayload) => {
+        console.log('onAiChatStop', { threadId, aiChatInstance })
+
+        if (!aiChatInstance) {
+            console.log('call->onAiChatStop', { aiChatInstance, threadId })
+            alert('🚫 call->onAiChatStop :: aiChatInstance is not initialized... \n\nPlease call 📞 Shallbee 🐝 immediatelly!');
+            return false
+        }
+
+        aiChatInstance.stopMessage({ threadId })
     }
 
     const onProjectTitleChange = inputValue => {
@@ -134,7 +147,16 @@
                 aiChatInstance = null
             }
 
-            editorInstance = new ProseMirrorEditor(newEditor, newContent, initialContent, isDisabled, onEditorChange, onProjectTitleChange, onAiChatSubmit);
+            editorInstance = new ProseMirrorEditor({
+                editorMountElement: newEditor,
+                content: newContent,
+                initialVal: initialContent,
+                isDisabled,
+                onEditorChange,
+                onProjectTitleChange,
+                onAiChatSubmit,
+                onAiChatStop
+            });
             aiChatInstance = new AiChatService(RouterService.getRouteParams().documentId as string)
             documentStore.setMetaValues({ isRendered: true })
         }

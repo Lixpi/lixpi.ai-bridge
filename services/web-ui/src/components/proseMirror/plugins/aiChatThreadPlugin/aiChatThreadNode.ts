@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon } from '../../../../svgIcons/index.ts'
 import { TextSelection } from 'prosemirror-state'
-import { AI_CHAT_THREAD_PLUGIN_KEY } from './aiChatThreadPluginKey.ts'
+import { AI_CHAT_THREAD_PLUGIN_KEY, USE_AI_CHAT_META, STOP_AI_CHAT_META } from './aiChatThreadPluginConstants.ts'
 import { html } from '../../components/domTemplates.ts'
 import { aiModelsStore } from '../../../../stores/aiModelsStore.js'
 import { documentStore } from '../../../../stores/documentStore.js'
@@ -87,7 +87,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
     const modelSelectorDropdown = createAiModelSelectorDropdown(view, node, getPos, threadId)
 
     // Create AI submit button
-    const submitButton = createAiSubmitButton(view)
+    const submitButton = createAiSubmitButton(view, threadId)
 
     // Create thread boundary indicator for context visualization
     const threadBoundaryIndicator = createThreadBoundaryIndicator(dom, view, threadId)
@@ -410,7 +410,7 @@ function createThreadContextDropdown(view, node, getPos, threadId) {
 }
 
 // Helper function to create AI submit button
-function createAiSubmitButton(view) {
+function createAiSubmitButton(view, threadId) {
     // Cache the click handler to avoid recreation
     const handleClick = (e) => {
         e.preventDefault()
@@ -420,10 +420,12 @@ function createAiSubmitButton(view) {
         const pluginState = AI_CHAT_THREAD_PLUGIN_KEY.getState(view.state)
 
         if (pluginState?.isReceiving) {
-            // TODO: Stop AI streaming functionality
+            // Dispatch stop transaction - plugin will handle the logic
+            const tr = view.state.tr.setMeta(STOP_AI_CHAT_META, { threadId })
+            view.dispatch(tr)
         } else {
             // Trigger AI chat submission
-            const tr = view.state.tr.setMeta('use:aiChat', true)
+            const tr = view.state.tr.setMeta(USE_AI_CHAT_META, true)
             view.dispatch(tr)
         }
     }

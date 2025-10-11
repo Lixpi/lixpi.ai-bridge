@@ -1,4 +1,3 @@
-// @ts-nocheck
 // AI Chat Thread Plugin - Modular Architecture
 // This plugin consolidates AI chat functionality for ProseMirror:
 // - Keyboard triggers (Mod+Enter)
@@ -14,7 +13,7 @@ import { Node as PMNode, Schema } from 'prosemirror-model'
 import { nodeTypes, nodeViews } from '../../customNodes/index.js'
 import { documentTitleNodeType } from '../../customNodes/documentTitleNode.js'
 import { aiChatThreadNodeType, aiChatThreadNodeView } from './aiChatThreadNode.ts'
-import { AI_CHAT_THREAD_PLUGIN_KEY } from './aiChatThreadPluginKey.ts'
+import { AI_CHAT_THREAD_PLUGIN_KEY, USE_AI_CHAT_META, STOP_AI_CHAT_META } from './aiChatThreadPluginConstants.ts'
 import { aiResponseMessageNodeType, aiResponseMessageNodeView } from './aiResponseMessageNode.ts'
 import SegmentsReceiver from '../../../../services/segmentsReceiver-service.js'
 import { documentStore } from '../../../../stores/documentStore.ts'
@@ -25,7 +24,10 @@ const IS_RECEIVING_TEMP_DEBUG_STATE = false    // For debug purposes only
 
 // ========== TYPE DEFINITIONS ==========
 
-type AiChatCallback = (data: { messages: Array<{ role: string; content: string }>; aiModel: AiModelId }) => void
+import type { AiChatSendMessagePayload, AiChatStopMessagePayload } from '@lixpi/constants'
+
+type SendAiRequestHandler = (data: AiChatSendMessagePayload) => void
+type StopAiRequestHandler = (data: AiChatStopMessagePayload) => void
 type PlaceholderOptions = { titlePlaceholder: string; paragraphPlaceholder: string }
 type StreamStatus = 'START_STREAM' | 'STREAMING' | 'END_STREAM'
 type SegmentEvent = {
@@ -55,7 +57,6 @@ type AiChatThreadPluginState = {
 
 const PLUGIN_KEY = AI_CHAT_THREAD_PLUGIN_KEY as PluginKey<AiChatThreadPluginState>
 const INSERT_THREAD_META = `insert:${aiChatThreadNodeType}`
-const USE_AI_CHAT_META = 'use:aiChat'
 
 // ========== UTILITY MODULES ==========
 
@@ -399,13 +400,23 @@ class StreamingInserter {
 
 // Main plugin class coordinating all AI chat functionality
 class AiChatThreadPluginClass {
-    private callback: AiChatCallback
+    private sendAiRequestHandler: SendAiRequestHandler
+    private stopAiRequestHandler: StopAiRequestHandler
     private placeholderOptions: PlaceholderOptions
     private unsubscribeFromSegments: (() => void) | null = null
 
-    constructor(callback: AiChatCallback, placeholderOptions: PlaceholderOptions) {
-        this.callback = callback
-        this.placeholderOptions = placeholderOptions
+    constructor({
+        sendAiRequestHandler,
+        stopAiRequestHandler,
+        placeholders
+    }: {
+        sendAiRequestHandler: SendAiRequestHandler
+        stopAiRequestHandler: StopAiRequestHandler
+        placeholders: PlaceholderOptions
+    }) {
+        this.sendAiRequestHandler = sendAiRequestHandler
+        this.stopAiRequestHandler = stopAiRequestHandler
+        this.placeholderOptions = placeholders
     }
 
     // ========== STREAMING MANAGEMENT ==========
@@ -662,7 +673,7 @@ class AiChatThreadPluginClass {
     }
 
     private handleChatRequest(newState: EditorState): void {
-        // Extract aiModel and threadContext from the active thread
+        // Extract aiModel, threadContext, and threadId from the active thread
         const { selection } = newState
         const $from = selection.$from
 
@@ -676,9 +687,10 @@ class AiChatThreadPluginClass {
             }
         }
 
-        // Use thread node's aiModel and threadContext
+        // Use thread node's aiModel, threadContext, and threadId
         const aiModel = threadNode?.attrs?.aiModel || ''
         const threadContext = threadNode?.attrs?.threadContext || 'Thread'
+        const threadId = threadNode?.attrs?.threadId || ''
 
         // Extract content based on thread context
         const threadContent = ContentExtractor.getActiveThreadContent(newState, threadContext)
@@ -687,11 +699,21 @@ class AiChatThreadPluginClass {
         console.log('[AI_DBG][SUBMIT] handleChatRequest', {
             aiModel,
             threadContext,
+            threadId,
             threadHasNode: !!threadNode,
             threadAttrs: threadNode?.attrs,
             messagesCount: messages.length
         })
-        this.callback({ messages, aiModel })
+        this.sendAiRequestHandler({ messages, aiModel, threadId })
+    }
+
+    private handleStopRequest(transaction: Transaction): void {
+        const meta = transaction.getMeta(STOP_AI_CHAT_META)
+        const { threadId } = meta || {}
+
+        console.log('[AI_STOP] handleStopRequest called', { threadId })
+
+        this.stopAiRequestHandler({ threadId })
     }
 
     // ========== PLUGIN CREATION ==========
@@ -761,6 +783,12 @@ class AiChatThreadPluginClass {
                 const chatTransaction = transactions.find(tr => tr.getMeta(USE_AI_CHAT_META))
                 if (chatTransaction) {
                     this.handleChatRequest(newState)
+                }
+
+                // Handle AI chat stop requests
+                const stopTransaction = transactions.find(tr => tr.getMeta(STOP_AI_CHAT_META))
+                if (stopTransaction) {
+                    this.handleStopRequest(stopTransaction)
                 }
 
                 // Handle thread insertions
@@ -922,7 +950,15 @@ class AiChatThreadPluginClass {
 // ========== FACTORY FUNCTION ==========
 
 // Factory function to create the AI Chat Thread plugin
-export function createAiChatThreadPlugin(callback: AiChatCallback, placeholderOptions: PlaceholderOptions): Plugin {
-    const pluginInstance = new AiChatThreadPluginClass(callback, placeholderOptions)
+export function createAiChatThreadPlugin({
+    sendAiRequestHandler,
+    stopAiRequestHandler,
+    placeholders
+}: {
+    sendAiRequestHandler: SendAiRequestHandler
+    stopAiRequestHandler: StopAiRequestHandler
+    placeholders: PlaceholderOptions
+}): Plugin {
+    const pluginInstance = new AiChatThreadPluginClass({ sendAiRequestHandler, stopAiRequestHandler, placeholders })
     return pluginInstance.create()
 }
