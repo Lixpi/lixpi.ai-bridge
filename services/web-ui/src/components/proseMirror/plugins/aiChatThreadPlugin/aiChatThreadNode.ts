@@ -337,6 +337,8 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
         buttonIcon: chevronDownIcon,
         ignoreColorValuesForOptions: true,
         ignoreColorValuesForSelectedValue: false,
+        renderIconForSelectedValue: false,
+        renderIconForOptions: true,
         onSelect: (option) => {
             console.log('[AI_DBG][THREAD.modelDropdown] onSelect', { threadId, option })
 
@@ -388,6 +390,8 @@ function createThreadContextDropdown(view, node, getPos, threadId) {
         buttonIcon: chevronDownIcon,
         ignoreColorValuesForOptions: true,
         ignoreColorValuesForSelectedValue: false,
+        renderIconForSelectedValue: false,
+        renderIconForOptions: true,
         onSelect: (option) => {
             console.log('[AI_DBG][THREAD.contextDropdown] onSelect', { threadId, option })
 

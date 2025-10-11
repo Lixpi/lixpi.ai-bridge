@@ -27,6 +27,9 @@ type PureDropdownConfig = {
     buttonIcon?: string
     ignoreColorValuesForOptions?: boolean
     ignoreColorValuesForSelectedValue?: boolean
+    renderIconForSelectedValue?: boolean
+    renderIconForOptions?: boolean
+    renderTitleForSelectedValue?: boolean
     onSelect: (option: DropdownOption) => void
 }
 
@@ -40,6 +43,9 @@ export function createPureDropdown(config: PureDropdownConfig) {
         buttonIcon = chevronDownIcon,
         ignoreColorValuesForOptions = false,
         ignoreColorValuesForSelectedValue = false,
+        renderIconForSelectedValue = true,
+        renderIconForOptions = true,
+        renderTitleForSelectedValue = true,
         onSelect
     } = config
 
@@ -51,6 +57,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
         console.log('[AI_DBG][PURE_DROPDOWN.toggle]', { id })
         e.preventDefault()
         e.stopPropagation()
+        e.stopImmediatePropagation()
 
         if (dropdownStateManager.isOpen(id)) {
             dropdownStateManager.close(id)
@@ -59,11 +66,19 @@ export function createPureDropdown(config: PureDropdownConfig) {
         }
     }
 
+    // Prevent ProseMirror from handling mousedown on dropdown
+    const preventProseMirrorEdit = (e: Event) => {
+        e.preventDefault()
+        e.stopPropagation()
+        e.stopImmediatePropagation()
+    }
+
     // Handle option click
     const optionClickHandler = (e: Event, option: DropdownOption) => {
         console.log('[AI_DBG][PURE_DROPDOWN.optionClick]', { id, option })
         e.preventDefault()
         e.stopPropagation()
+        e.stopImmediatePropagation()
 
         // Update local state
         currentSelectedValue = option
@@ -87,23 +102,28 @@ export function createPureDropdown(config: PureDropdownConfig) {
 
     // Build DOM
     const dom = html`
-        <div class="dropdown-menu-tag-pill-wrapper theme-${theme}" data-dropdown-id="${id}">
+        <div class="dropdown-menu-tag-pill-wrapper theme-${theme}" data-dropdown-id="${id}" contenteditable="false">
             <span class="dots-dropdown-menu">
-                <button class="flex justify-between items-center" onclick=${toggleHandler}>
+                <button
+                    class="flex justify-between items-center"
+                    onclick=${toggleHandler}
+                    onmousedown=${preventProseMirrorEdit}
+                    contenteditable="false"
+                >
                     <span class="selected-option-icon flex items-center"></span>
                     <span class="title"></span>
                     <span class="state-indicator flex items-center">
                         <span innerHTML=${buttonIcon}></span>
                     </span>
                 </button>
-                <nav class="submenu-wrapper render-position-${renderPosition}">
+                <nav class="submenu-wrapper render-position-${renderPosition}" contenteditable="false">
                     <ul class="submenu">
                         ${options.map(option => html`
                             <li
                                 class="flex justify-start items-center"
                                 onclick=${(e: Event) => optionClickHandler(e, option)}
                             >
-                                ${option.icon ? html`<span innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
+                                ${renderIconForOptions && option.icon ? html`<span innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
                                 ${option.title}
                             </li>
                         `)}
@@ -122,11 +142,11 @@ export function createPureDropdown(config: PureDropdownConfig) {
         const iconWrap = dom.querySelector('.selected-option-icon')
 
         if (titleEl) {
-            titleEl.textContent = currentSelectedValue?.title || ''
+            titleEl.textContent = renderTitleForSelectedValue ? (currentSelectedValue?.title || '') : ''
         }
 
         if (iconWrap) {
-            if (currentSelectedValue?.icon) {
+            if (renderIconForSelectedValue && currentSelectedValue?.icon) {
                 iconWrap.innerHTML = ''
                 const span = document.createElement('span')
                 span.innerHTML = ignoreColorValuesForSelectedValue
