@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { v4 as uuidv4 } from 'uuid'
 import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon } from '../../../../svgIcons/index.ts'
 import { TextSelection } from 'prosemirror-state'
 import { AI_CHAT_THREAD_PLUGIN_KEY, USE_AI_CHAT_META, STOP_AI_CHAT_META } from './aiChatThreadPluginConstants.ts'
@@ -51,7 +52,7 @@ export const aiChatThreadNodeSpec = {
 }
 
 export const defaultAttrs = {
-    threadId: () => `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    threadId: () => uuidv4(),
     status: 'active'
 }
 

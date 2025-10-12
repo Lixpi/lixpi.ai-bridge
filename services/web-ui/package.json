@@ -36,7 +36,8 @@
         "vaul-svelte": "^1.0.0-next.2",
         "vite": "^6.0.3",
         "type-fest": "*",
-        "http-server": "*"
+        "http-server": "*",
+        "uuid": "*"
     },
     "dependencies": {
         "@lixpi/constants": "workspace:*",
