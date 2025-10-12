@@ -44,14 +44,13 @@ import { defaultAttrs as defautSubtaskAttrs } from '../customNodes/taskRowNode.j
 // `nodesBuilder` extends the base ProseMirror `schema` with custom node types defined in `supportedNodes`.
 // `schema`: Base ProseMirror schema to be extended.
 // `supportedNodes`: Object with custom node types. Each key is a node type name, value is its spec.
-// The function updates the 'doc' node type to allow only documentTitle and one aiChatThread at document level.
-// The single aiChatThread can contain other nodes including nested aiChatThread nodes.
+// The function updates the 'doc' node type to allow the documentTitle followed by one or more aiChatThread nodes at document level.
 // Returns the extended schema.
 const nodesBuilder = (schema, supportedNodes) => {
     const nodesKeys = Object.keys(supportedNodes)
     let extendedSchema = schema.spec.nodes
     .update('doc', {
-        content: `${documentTitleNodeType} ${aiChatThreadNodeType}`,
+        content: `${documentTitleNodeType} ${aiChatThreadNodeType}+`,
         marks: "_",
     })
     nodesKeys.forEach((nodeKey) => {

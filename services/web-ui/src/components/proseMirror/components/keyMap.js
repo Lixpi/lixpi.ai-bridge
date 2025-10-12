@@ -89,8 +89,14 @@ export const buildKeymap = (schema, mapKeys) => {
     bind("Mod-I", useAiInput)
 
     // AI Chat Thread trigger
-    bind("Mod-Shift-i", insertAiChatThread)
-    bind("Mod-Shift-I", insertAiChatThread)
+    bind("Mod-Shift-i", (state, dispatch) => {
+        console.log('[AI_DBG][KEYMAP] Mod-Shift-i pressed!')
+        return insertAiChatThread(state, dispatch)
+    })
+    bind("Mod-Shift-I", (state, dispatch) => {
+        console.log('[AI_DBG][KEYMAP] Mod-Shift-I pressed!')
+        return insertAiChatThread(state, dispatch)
+    })
 
     if (type = schema.marks.em) {
         // Note: Mod-i is now used for AI Input, Mod-Shift-i for AI Chat Thread
