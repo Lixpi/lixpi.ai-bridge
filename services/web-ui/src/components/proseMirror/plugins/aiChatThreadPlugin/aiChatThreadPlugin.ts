@@ -655,164 +655,43 @@ class AiChatThreadPluginClass {
     // ========== TRANSACTION HANDLING ==========
 
     private handleInsertThread(transaction: Transaction, newState: EditorState): Transaction | null {
-        console.log('[AI_DBG][PLUGIN.handleInsertThread] CALLED')
-        
         const attrs = transaction.getMeta(INSERT_THREAD_META)
-        console.log('[AI_DBG][PLUGIN.handleInsertThread] attrs from meta', { attrs, INSERT_THREAD_META })
-        
-        if (!attrs) {
-            console.log('[AI_DBG][PLUGIN.handleInsertThread] NO ATTRS - returning null')
-            return null
-        }
+        if (!attrs) return null
 
         // Create thread with initial empty paragraph
         const nodeType = newState.schema.nodes[aiChatThreadNodeType]
-        console.log('[AI_DBG][PLUGIN.handleInsertThread] nodeType', { 
-            nodeType: nodeType ? nodeType.name : 'null',
-            aiChatThreadNodeType,
-            availableNodes: Object.keys(newState.schema.nodes)
-        })
-        
         const paragraph = newState.schema.nodes.paragraph.create()
         const threadNode = nodeType.create(attrs, paragraph)
-        
-        console.log('[AI_DBG][PLUGIN.handleInsertThread] created thread node', { 
-            threadNodeType: threadNode.type.name,
-            attrs: threadNode.attrs
-        })
 
         const { $from } = newState.selection
-        
-        // Check if cursor is inside an existing aiChatThread
+
+        // Find if cursor is inside an existing aiChatThread
         let currentThreadDepth = -1
         for (let depth = $from.depth; depth >= 0; depth--) {
-            const node = $from.node(depth)
-            if (node.type.name === aiChatThreadNodeType) {
+            if ($from.node(depth).type.name === aiChatThreadNodeType) {
                 currentThreadDepth = depth
                 break
             }
         }
 
-        let tr = newState.tr
-
-        // Helper: find thread position by its unique threadId
-        const findThreadPosById = (doc: PMNode, threadId: string): number | null => {
-            let found: number | null = null
-            doc.descendants((node: PMNode, pos: number) => {
-                if (node.type.name === aiChatThreadNodeType && node.attrs?.threadId === threadNode.attrs.threadId) {
-                    found = pos
-                    return false
-                }
-            })
-            return found
-        }
-
-        // Helper: check if node can be inserted at position using schema checks
-        const canInsertAt = (pos: number): boolean => {
-            try {
-                const $pos = tr.doc.resolve(pos)
-                const parent = $pos.parent
-                const index = $pos.index($pos.depth)
-                const allowed = parent.canReplaceWith(index, index, threadNode.type)
-                return !!allowed
-            } catch {
-                return false
-            }
-        }
-
-        // Helper: attempt an insert at the exact position (no-op if blocked)
-        const doInsertAt = (pos: number): boolean => {
-            try {
-                const preSteps = tr.steps.length
-                tr = tr.replace(pos, pos, new Slice(Fragment.from(threadNode), 0, 0))
-                const postSteps = tr.steps.length
-                const ok = postSteps > preSteps
-                console.log('[AI_DBG][INSERT_THREAD] attempted insert', { candidatePos: pos, preSteps, postSteps, ok })
-                return ok
-            } catch (e) {
-                console.warn('[AI_DBG][INSERT_THREAD] insert failed', { pos, error: e })
-                return false
-            }
-        }
-
-        // Compute a set of candidate boundaries (top-level) near the preferred position
-        const buildTopLevelBoundaries = (): number[] => {
-            const boundaries = new Set<number>()
-            // Include start (0) and end
-            boundaries.add(0)
-            boundaries.add(tr.doc.content.size)
-            tr.doc.descendants((node: PMNode, pos: number, parent: PMNode | undefined) => {
-                if (parent && parent.type === tr.doc.type) {
-                    boundaries.add(pos)
-                    boundaries.add(pos + node.nodeSize)
-                }
-            })
-            return Array.from(boundaries)
-        }
-
-        // Determine preferred insert position:
-        // - If inside a thread: right after the current thread node
-        // - Else: right after the current top-level block containing the selection
-        let preferredPos: number
+        // Insert after current thread or after current top-level block
+        let insertPos: number
         if (currentThreadDepth !== -1) {
-            const currentThreadPos = $from.before(currentThreadDepth)
-            const currentThreadNode = $from.node(currentThreadDepth)
-            preferredPos = currentThreadPos + currentThreadNode.nodeSize
+            const threadPos = $from.before(currentThreadDepth)
+            const threadNode = $from.node(currentThreadDepth)
+            insertPos = threadPos + threadNode.nodeSize
         } else {
-            const topDepth = Math.min(1, $from.depth)
-            const blockStart = $from.before(topDepth)
-            const blockNode = $from.node(topDepth)
-            preferredPos = blockStart + blockNode.nodeSize
-        }
-        // Try preferred position if schema allows
-        let usedPos = preferredPos
-        let inserted = false
-        if (canInsertAt(preferredPos)) {
-            inserted = doInsertAt(preferredPos)
-        }
-        // If not inserted, search nearest valid top-level boundary
-        if (!inserted) {
-            const boundaries = buildTopLevelBoundaries()
-            boundaries.sort((a, b) => Math.abs(a - preferredPos) - Math.abs(b - preferredPos))
-            for (const b of boundaries) {
-                if (canInsertAt(b)) {
-                    usedPos = b
-                    if (doInsertAt(b)) {
-                        inserted = true
-                        break
-                    }
-                }
-            }
-        }
-        if (!inserted) {
-            console.error('[AI_DBG][INSERT_THREAD] Unable to find any valid insertion boundary; aborting')
-            return null
+            insertPos = $from.after(1)
         }
 
-        // Compute cursor position relative to the insertion point.
-        // For a thread node with a single paragraph, caret inside paragraph = usedPos + 2
-        const cursorPos = usedPos + 2
-        console.log('[AI_DBG][INSERT_THREAD] computed cursor from usedPos', { usedPos, cursorPos })
+        let tr = newState.tr.replace(insertPos, insertPos, new Slice(Fragment.from(threadNode), 0, 0))
 
-        // Set cursor position inside the new thread's paragraph
-        try {
-            const safePos = Math.min(Math.max(1, cursorPos), tr.doc.content.size - 1)
-            try {
-                tr = tr.setSelection(TextSelection.create(tr.doc, safePos))
-                console.log('[AI_DBG][INSERT_THREAD] cursor set (TextSelection)', { safePos })
-            } catch (_err) {
-                const $near = tr.doc.resolve(safePos)
-                tr = tr.setSelection(Selection.near($near, 1))
-                console.warn('[AI_DBG][INSERT_THREAD] TextSelection failed, used Selection.near', { safePos })
-            }
-        } catch (error) {
-            console.error('[AI_DBG][INSERT_THREAD] error setting selection after insert', { error })
-        }
+        // Set cursor inside new thread's paragraph (insertPos + 2)
+        const cursorPos = insertPos + 2
+        tr = tr.setSelection(TextSelection.create(tr.doc, cursorPos))
 
         return tr
-    }
-
-    private handleChatRequest(newState: EditorState): void {
+    }    private handleChatRequest(newState: EditorState): void {
         // Extract aiModel, threadContext, and threadId from the active thread
         const { selection } = newState
         const $from = selection.$from
@@ -919,45 +798,23 @@ class AiChatThreadPluginClass {
             },
 
             appendTransaction: (transactions: Transaction[], _oldState: EditorState, newState: EditorState) => {
-                console.log('[AI_DBG][PLUGIN.appendTransaction] called', { 
-                    transactionCount: transactions.length,
-                    metas: transactions.map(tr => {
-                        const allMetas: any = {}
-                        tr.getMeta('addToHistory') !== undefined && (allMetas.addToHistory = tr.getMeta('addToHistory'))
-                        tr.getMeta(USE_AI_CHAT_META) !== undefined && (allMetas.USE_AI_CHAT_META = tr.getMeta(USE_AI_CHAT_META))
-                        tr.getMeta(STOP_AI_CHAT_META) !== undefined && (allMetas.STOP_AI_CHAT_META = tr.getMeta(STOP_AI_CHAT_META))
-                        tr.getMeta(INSERT_THREAD_META) !== undefined && (allMetas.INSERT_THREAD_META = tr.getMeta(INSERT_THREAD_META))
-                        return allMetas
-                    })
-                })
-
                 // Handle AI chat requests
                 const chatTransaction = transactions.find(tr => tr.getMeta(USE_AI_CHAT_META))
                 if (chatTransaction) {
-                    console.log('[AI_DBG][PLUGIN.appendTransaction] found USE_AI_CHAT_META')
                     this.handleChatRequest(newState)
                 }
 
                 // Handle AI chat stop requests
                 const stopTransaction = transactions.find(tr => tr.getMeta(STOP_AI_CHAT_META))
                 if (stopTransaction) {
-                    console.log('[AI_DBG][PLUGIN.appendTransaction] found STOP_AI_CHAT_META')
                     this.handleStopRequest(stopTransaction)
                 }
 
                 // Handle thread insertions
                 const insertTransaction = transactions.find(tr => tr.getMeta(INSERT_THREAD_META))
-                console.log('[AI_DBG][PLUGIN.appendTransaction] checking for INSERT_THREAD_META', { 
-                    INSERT_THREAD_META,
-                    found: !!insertTransaction,
-                    insertTransaction: insertTransaction ? 'exists' : 'null'
-                })
                 if (insertTransaction) {
-                    console.log('[AI_DBG][PLUGIN.appendTransaction] found INSERT_THREAD_META, calling handleInsertThread')
                     return this.handleInsertThread(insertTransaction, newState)
-                }
-
-                // Handle deferred dropdown attr updates after dropdown selection
+                }                // Handle deferred dropdown attr updates after dropdown selection
                 const dropdownTx = transactions.find(tr => tr.getMeta('dropdownOptionSelected'))
                 if (dropdownTx) {
                     const dropdownSelection = dropdownTx.getMeta('dropdownOptionSelected')
