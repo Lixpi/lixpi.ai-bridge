@@ -89,7 +89,8 @@ export const aiChatSubjects = [
                         }
                     });
 
-                    await anthropicChatService.generate({
+                    // Don't await - let it run concurrently so we can process next message immediately
+                    anthropicChatService.generate({
                         messages,
                         aiModelMetaInfo,
                         eventMeta: {
@@ -129,7 +130,8 @@ export const aiChatSubjects = [
                         }
                     });
 
-                    await openAiChatService.generate({
+                    // Don't await - let it run concurrently so we can process next message immediately
+                    openAiChatService.generate({
                         messages,
                         aiModelMetaInfo,
                         eventMeta: {
