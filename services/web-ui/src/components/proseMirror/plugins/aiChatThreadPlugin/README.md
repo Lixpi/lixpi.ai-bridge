@@ -221,22 +221,11 @@ const view = new EditorView(document.querySelector('#editor'), {
 
 ## Streaming Protocol
 
-The plugin subscribes to `SegmentsReceiver.subscribeToeceiveSegment()` and expects this event structure:
-
-```typescript
-type StreamStatus = 'START_STREAM' | 'STREAMING' | 'END_STREAM'
-type SegmentEvent = {
-  status: StreamStatus
-  aiProvider?: string  // 'Anthropic' | 'OpenAI'
-  segment?: {
-    segment: string           // The actual text content
-    styles: string[]          // ['bold', 'italic', 'code', 'strikethrough']
-    type: string             // 'paragraph' | 'header' | 'codeBlock' | 'text' | 'linebreak'
-    level?: number           // 1-6 for headers
-    isBlockDefining: boolean // true = new block, false = inline content
-  }
-}
-```
+The plugin subscribes to `SegmentsReceiver.subscribeToeceiveSegment()` and expects streaming events with:
+- **status**: START_STREAM, STREAMING, or END_STREAM
+- **aiProvider**: Which AI service is responding (Anthropic, OpenAI, etc.)
+- **threadId**: Identifies which thread this stream belongs to (enables concurrent streams)
+- **segment**: Contains the actual content (text, styles, type, block/inline flag, header level)
 
 ### Streaming Lifecycle
 
@@ -340,7 +329,7 @@ Users see:
   - Decoration system (placeholders, boundaries)
   - No UI rendering - delegates to node-specific NodeViews and primitive components
 
-- `aiChatThreadPluginKey.ts` - Shared `PluginKey` to avoid identity mismatch and circular imports between NodeView and plugin. Import this key in both places and call `AI_CHAT_THREAD_PLUGIN_KEY.getState(view.state)` when needed.
+- `aiChatThreadPluginConstants.ts` - Shared `PluginKey` to avoid identity mismatch and circular imports between NodeView and plugin. Import this key in both places and call `AI_CHAT_THREAD_PLUGIN_KEY.getState(view.state)` when needed.
 
 - `../primitives/dropdown/` - Dropdown primitive (outside document schema):
   - `pureDropdown.ts` - Factory function creating dropdowns with {dom, update, destroy} API
@@ -438,22 +427,17 @@ class StreamingInserter {
 
 ### Plugin State Management
 
-```typescript
-type AiChatThreadPluginState = {
-  isReceiving: boolean          // True during AI streaming
-  insideBackticks: boolean      // Code block parsing state
-  backtickBuffer: string        // Code block content buffer
-  insideCodeBlock: boolean      // Legacy code parsing
-  codeBuffer: string            // Legacy code buffer
-  decorations: DecorationSet    // UI decorations
-  hoveredThreadId: string | null // Thread boundary visibility
-}
-```
+The plugin maintains state for:
+- **receivingThreadIds**: Set of thread IDs currently receiving AI responses (supports concurrent streams)
+- **Code block parsing**: Backtick buffer and code block tracking
+- **Decorations**: Placeholders, boundaries, and visual feedback
+- **hoveredThreadId**: Which thread boundary is currently visible
 
-**Transaction Metadata:**
-- `setReceiving: boolean` - Toggle streaming state
-- `hoverThread: string | null` - Thread boundary hover
-- `USE_AI_CHAT_META` - Trigger chat submission
+**Transaction Metadata** signals actions between components:
+- `setReceiving` - Toggle streaming state for specific thread
+- `hoverThread` - Thread boundary hover
+- `USE_AI_CHAT_META` - Trigger chat submission with thread context (threadId + nodePos)
+- `STOP_AI_CHAT_META` - Stop AI streaming for specific thread
 - `INSERT_THREAD_META` - Insert new thread
 
 ## NodeViews & UI Components
@@ -573,91 +557,40 @@ State classes applied via decorations: `.receiving`, `.thread-boundary-visible`.
 ## Implementation Details & Edge Cases
 
 ### Thread Selection Algorithm
-```typescript
-// ContentExtractor.getActiveThreadContent() implementation
-static getActiveThreadContent(state: EditorState): ThreadContent[] {
-  const { $from } = state.selection
-  let thread: PMNode | null = null
 
-  // Walk up DOM hierarchy to find containing aiChatThread
-  for (let depth = $from.depth; depth > 0; depth--) {
-    const node = $from.node(depth)
-    if (node.type.name === aiChatThreadNodeType) {
-      thread = node; break
-    }
-  }
-
-  if (!thread) return [] // No active thread = no-op
-
-  // Extract all child blocks...
-}
-```
+`ContentExtractor.getActiveThreadContent()` walks up the document tree from the cursor position to find the containing thread, then extracts all child blocks.
 
 **Critical:** Cursor must be inside a thread for extraction to work. Plugin silently does nothing if cursor is outside all threads.
 
 ### Response Node Targeting
-```typescript
-// PositionFinder.findResponseNode() - LIMITATION
-static findResponseNode(state: EditorState) {
-  state.doc.descendants((node, pos) => {
-    if (node.type.name === aiResponseMessageNodeType) {
-      // Returns FIRST match in entire document
-      endOfNodePos = pos + node.nodeSize
-      found = true
-      return false // Stop searching
-    }
-  })
-}
-```
 
-**Issue:** Multiple concurrent streams will target the first `aiResponseMessage` globally, not scoped to active thread. For multi-thread documents, scope the search to the active thread container.
+`PositionFinder.findResponseNode()` locates the AI response node to stream content into:
+- When **threadId provided**: searches only within that specific thread's container
+- When **threadId omitted**: searches globally across entire document
+- **Priority scoring**: isReceiving > isInitialRender > any response (newest wins ties)
+
+**Concurrent Stream Support:** The optional `threadId` parameter enables multiple concurrent AI streams in different threads without interference. Each thread's responses are isolated and independently managed.
 
 ### Content Formatting Rules
-1. **Code blocks** - Wrapped in triple backticks when sent to AI:
-   ```typescript
-   if (block.type.name === 'code_block' && !textContent.includes('```')) {
-     textContent = `\`\`\`\n${textContent}\n\`\`\``
-   }
-   ```
-
+1. **Code blocks** - Wrapped in triple backticks when sent to AI
 2. **Hard breaks** - Converted to `\n` in message content
 3. **Role merging** - Consecutive blocks with same role merged with `\n` separator
 4. **Empty blocks** - Filtered out (no text content)
 
 ### Threading & Async Gotchas
 
-**Thread ID Generation:**
-```typescript
-// aiChatThreadNode.ts - async ID assignment
-if (!node.attrs.threadId) {
-  const newThreadId = `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  setTimeout(() => {
-    const tr = view.state.tr.setNodeMarkup(pos, undefined, {
-      ...node.attrs, threadId: newThreadId
-    })
-    view.dispatch(tr)
-  }, 0) // Async dispatch can cause re-render flicker
-}
-```
+**Thread ID Generation:** Auto-generates unique IDs using timestamp + random string, dispatched async to avoid initialization conflicts.
 
-**Animation State Management:**
-```typescript
-// aiResponseMessageNodeView.ts - Anthropic frame animation
-setInterval(() => {
-  const newFrame = (node.attrs.currentFrame + 1) % totalFrames
-  // HACK: Updates node attribute to trigger re-render
-  view.dispatch(view.state.tr.setNodeMarkup(getPos(), null, {
-    ...node.attrs, currentFrame: newFrame
-  }))
-}, 90) // 90ms frame rate
-```
+**Animation State Management:** Anthropic responses use 8-frame sprite animation at 90ms intervals, updating node attrs via `setNodeMarkup` to trigger re-renders.
+
+### Implemented Features
+- ✅ **Multiple concurrent streams** - Each thread can have independent AI streaming via `threadId` scoping
+- ✅ **Stop streaming** - Stop button functionality implemented with `STOP_AI_CHAT_META`
+- ✅ **Thread isolation** - Responses correctly routed to their originating thread
 
 ### Unimplemented Features
-- **Stop streaming** - Button exists but TODO functionality
-- **Multiple concurrent streams** - Response targeting needs scoping
 - **Retry failed streams** - No error handling for failed segments
 - **Stream resume** - No persistence if browser refreshes mid-stream
-- **Single-open policy for multiple dropdowns** - Optional: in `state.apply`, when opening a dropdown, close other entries in the `dropdownStates` Map.
 
 <!-- Removed noisy change logs. This README stays focused on how to use the plugin, not its history. -->
 
@@ -701,17 +634,12 @@ The styling system uses SCSS variables like `$steelBlue` and `$redPink`. Check `
 
 - **Dropdown rendering**: All dropdown UI, state, and events are handled by the dropdown primitive component in `services/web-ui/src/components/proseMirror/plugins/primitives/dropdown/`. Do NOT put dropdown layout/rendering logic in aiChatThreadNode.
 - The dropdown primitive follows the plugin state + decorations pattern. Never store UI state in NodeViews.
-- Never import the plugin module inside NodeViews; import only the shared `PluginKey` from `aiChatThreadPluginKey.ts` and read state via `getState(view.state)`.
+- Never import the plugin module inside NodeViews; import only the shared `PluginKey` from `aiChatThreadPluginConstants.ts` and read state via `getState(view.state)`.
 - When subscribing to external stores (Svelte), keep references to DOM nodes and update textContent/innerHTML. Unsubscribe in `destroy()` and remove global listeners like `document.click`.
 
 ## Debug mode
 
-There's a debug flag at the top of the plugin:
-```typescript
-const IS_RECEIVING_TEMP_DEBUG_STATE = false
-```
-
-Set it to `true` to keep the "receiving" state active so you can inspect the CSS without needing to trigger actual AI responses.
+Set `IS_RECEIVING_TEMP_DEBUG_STATE = true` at the top of the plugin to keep the "receiving" state active so you can inspect the CSS without needing to trigger actual AI responses.
 
 ---
 

@@ -198,7 +198,7 @@ State is managed directly (element properties) or via singleton coordinators (li
 When a NodeView needs transient visual states that must survive recreation:
 
 - Create a shared `PluginKey` in its own module to avoid circular imports.
-	- Example: `aiChatThreadPluginKey.ts` exporting `AI_CHAT_THREAD_PLUGIN_KEY`.
+	- Example: `aiChatThreadPluginConstants.ts` exporting `AI_CHAT_THREAD_PLUGIN_KEY`.
 - Store state in plugin state (e.g., `keyboardFeedback: Map<string, boolean>`).
 - Update that state only via `tr.setMeta(...)` in response to UI events.
 - Reflect state to the UI by generating decoration classes in `props.decorations`.

@@ -39,9 +39,6 @@ class SegmentsReceiver {
 
     // Parse individual chunk token
     receiveSegment(chunk) {
-        if (chunk.status === 'START_STREAM' || chunk.status === 'END_STREAM') {
-            console.log(`📨 [SEGMENT_RECEIVER] ${chunk.status}`, { threadId: chunk.threadId, aiProvider: chunk.aiProvider })
-        }
         this.notifyReceiveSegment(chunk) // Relay the parsed segment event
     }
 }

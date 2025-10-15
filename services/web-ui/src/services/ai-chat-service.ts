@@ -54,10 +54,8 @@ export default class ChatService {
     }
 
     async sendMessage({ messages, aiModel, threadId }: AiChatSendMessagePayload) {
-        // Generate unique requestId for this specific request
-        const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        console.log('🚀 [SEND_MESSAGE] START', { requestId, threadId, aiModel })
-        
+        console.log('🚀 [SEND_MESSAGE] START', { threadId, aiModel })
+
         const organizationId = organizationStore.getData('organizationId')
         const user = userStore.getData()
 
@@ -67,7 +65,6 @@ export default class ChatService {
             messages,
             aiModel,
             threadId,
-            requestId, // Add unique request ID
             organizationId
         }
         servicesStore.getData('nats')!.publish(AI_CHAT_SUBJECTS.SEND_MESSAGE, payload)

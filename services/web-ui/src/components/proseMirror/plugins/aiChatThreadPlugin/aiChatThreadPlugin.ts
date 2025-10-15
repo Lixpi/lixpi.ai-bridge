@@ -11,7 +11,7 @@ import { Selection } from 'prosemirror-state'
 import { TextSelection } from 'prosemirror-state'
 import { Fragment, Slice } from 'prosemirror-model'
 import { EditorView, Decoration, DecorationSet, NodeView } from 'prosemirror-view'
-import { Node as PMNode, Schema } from 'prosemirror-model'
+import { Node as ProseMirrorNode, Schema as ProseMirrorSchema } from 'prosemirror-model'
 import { nodeTypes, nodeViews } from '../../customNodes/index.js'
 import { documentTitleNodeType } from '../../customNodes/documentTitleNode.js'
 import { aiChatThreadNodeType, aiChatThreadNodeView } from './aiChatThreadNode.ts'
@@ -47,7 +47,6 @@ type SegmentEvent = {
 type ThreadContent = { nodeType: string; textContent: string }
 type AiChatThreadPluginState = {
     receivingThreadIds: Set<string>
-    activeStreamIds: Map<string, string> // threadId -> streamId mapping
     insideBackticks: boolean
     backtickBuffer: string
     insideCodeBlock: boolean
@@ -75,8 +74,33 @@ class KeyboardHandler {
 
 // Content extraction and transformation utilities
 class ContentExtractor {
+    // Find thread node by explicit position
+    static findThreadByPosition(state: EditorState, nodePos: number): ProseMirrorNode | null {
+        // Try direct lookup first
+        let thread = state.doc.nodeAt(nodePos)
+        if (thread?.type.name === aiChatThreadNodeType) return thread
+
+        // Try resolving and walking up tree
+        const $pos = state.doc.resolve(nodePos + 1)
+        for (let depth = $pos.depth; depth >= 0; depth--) {
+            const node = $pos.node(depth)
+            if (node.type.name === aiChatThreadNodeType) return node
+        }
+        return null
+    }
+
+    // Find thread node by current selection
+    static findThreadBySelection(state: EditorState): ProseMirrorNode | null {
+        const { $from } = state.selection
+        for (let depth = $from.depth; depth > 0; depth--) {
+            const node = $from.node(depth)
+            if (node.type.name === aiChatThreadNodeType) return node
+        }
+        return null
+    }
+
     // Extract and format text recursively, preserving code block structure
-    static collectFormattedText(node: PMNode): string {
+    static collectFormattedText(node: ProseMirrorNode): string {
         let text = ''
         node.forEach(child => {
             if (child.type.name === 'text') {
@@ -95,7 +119,7 @@ class ContentExtractor {
     }
 
     // Simple text extraction without formatting (for backwards compatibility)
-    static collectText(node: PMNode): string {
+    static collectText(node: ProseMirrorNode): string {
         let text = ''
         node.forEach(child => {
             if (child.type.name === 'text') {
@@ -113,90 +137,36 @@ class ContentExtractor {
     // If threadContext is 'Document', extract from ALL threads in the document
     static getActiveThreadContent(state: EditorState, threadContext: string = 'Thread', nodePos?: number): ThreadContent[] {
         if (threadContext === 'Document') {
-            // Extract content from ALL threads in the document
             return ContentExtractor.getAllThreadsContent(state)
         }
 
-        // Default behavior: extract from active thread only
-        let thread: PMNode | null = null
+        // Find thread node - prefer explicit position, fallback to selection
+        const thread = nodePos !== undefined
+            ? ContentExtractor.findThreadByPosition(state, nodePos)
+            : ContentExtractor.findThreadBySelection(state)
 
-        // If nodePos provided, use it to find the thread directly
-        if (nodePos !== undefined) {
-            // getPos() returns the start position of the node
-            // Try to get the node directly at this position
-            thread = state.doc.nodeAt(nodePos)
-            
-            // If that didn't work, try resolving and walking up
-            if (!thread || thread.type.name !== aiChatThreadNodeType) {
-                const resolvedPos = state.doc.resolve(nodePos + 1) // +1 to get inside the node
-                for (let depth = resolvedPos.depth; depth >= 0; depth--) {
-                    const node = resolvedPos.node(depth)
-                    if (node.type.name === aiChatThreadNodeType) {
-                        thread = node
-                        break
-                    }
-                }
-            }
-            
-            console.log('🎯 [CONTENT_EXTRACT] Using explicit nodePos:', { 
-                nodePos, 
-                foundThread: !!thread,
-                threadId: thread?.attrs?.threadId,
-                threadNodeType: thread?.type?.name
-            })
-        } else {
-            // Fallback: use selection position
-            const { $from } = state.selection
-            for (let depth = $from.depth; depth > 0; depth--) {
-                const node = $from.node(depth)
-                if (node.type.name === aiChatThreadNodeType) {
-                    thread = node
-                    break
-                }
-            }
-            console.log('⚠️ [CONTENT_EXTRACT] Using selection fallback')
-        }
-
-        if (!thread) {
-            console.error('❌ [CONTENT_EXTRACT] No thread found!', { nodePos })
-            return []
-        }
+        if (!thread) return []
 
         // Extract all blocks with content, preserving code block formatting
         const content: ThreadContent[] = []
         thread.forEach(block => {
-            // Use formatted text extraction for all blocks
             const formattedText = ContentExtractor.collectFormattedText(block)
-            const simpleText = ContentExtractor.collectText(block)
 
-            console.log('Processing block:', {
-                nodeType: block.type.name,
-                textContent: block.textContent,
-                simpleText: simpleText,
-                formattedText: formattedText,
-                hasContent: !!block.textContent,
-                hasFormattedContent: !!formattedText,
-                nodeSize: block.nodeSize,
-                childCount: block.childCount
-            })
-
-            // Include blocks that have any text content
             if (block.textContent || formattedText) {
                 let textContent = formattedText || block.textContent
 
-                // For top-level code blocks, format with triple backticks (if not already formatted)
+                // Format code blocks with triple backticks if needed
                 if (block.type.name === 'code_block' && !textContent.includes('```')) {
                     textContent = `\`\`\`\n${textContent}\n\`\`\``
                 }
 
                 content.push({
                     nodeType: block.type.name,
-                    textContent: textContent
+                    textContent
                 })
             }
         })
 
-        console.log('Final extracted content:', content)
         return content
     }
 
@@ -245,43 +215,26 @@ class ContentExtractor {
             }
         })
 
-        console.log('Extracted content from all threads:', { threadCount, contentItems: allThreadsContent.length })
         return allThreadsContent
     }
 
-    // Transform thread content into AI message format
+    // Transform thread content into AI message format (merges consecutive same-role messages)
     static toMessages(items: ThreadContent[]): Array<{ role: string; content: string }> {
-        console.log('Input items to toMessages:', items)
-
-        const messages: Array<{ role: string; content: string; nodeType: string }> = []
+        const messages: Array<{ role: string; content: string }> = []
 
         items.forEach(item => {
             const role = item.nodeType === aiResponseMessageNodeType ? 'assistant' : 'user'
-            const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null
+            const lastMessage = messages[messages.length - 1]
 
-            console.log('Processing item:', {
-                nodeType: item.nodeType,
-                role,
-                textContent: item.textContent,
-                isAiResponse: item.nodeType === aiResponseMessageNodeType,
-                expectedType: aiResponseMessageNodeType
-            })
-
-            // Merge consecutive messages with same role
-            if (lastMessage && lastMessage.role === role) {
+            // Merge consecutive same-role messages
+            if (lastMessage?.role === role) {
                 lastMessage.content += '\n' + item.textContent
             } else {
-                messages.push({
-                    role,
-                    content: item.textContent,
-                    nodeType: item.nodeType
-                })
+                messages.push({ role, content: item.textContent })
             }
         })
 
-        const finalMessages = messages.map(({ role, content }) => ({ role, content }))
-        console.log('Final messages to send to AI:', finalMessages)
-        return finalMessages
+        return messages
     }
 }
 
@@ -294,15 +247,15 @@ class PositionFinder {
     } | null {
         let result: { insertPos: number; trailingEmptyParagraphPos: number | null } | null = null
 
-        state.doc.descendants((node: PMNode, pos: number) => {
+        state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (node.type.name !== aiChatThreadNodeType) return
-            
+
             // If threadId specified, only match that thread
             if (threadId && node.attrs?.threadId !== threadId) return
 
             // Find the last paragraph in the thread
             let lastParaAbsPos: number | null = null
-            let lastParaNode: PMNode | null = null
+            let lastParaNode: ProseMirrorNode | null = null
 
             node.descendants((child, relPos) => {
                 if (child.type.name === 'paragraph') {
@@ -322,81 +275,57 @@ class PositionFinder {
         return result
     }
 
-    // Find the current aiResponseMessage being streamed into
-    static findResponseNode(state: EditorState, threadId?: string, targetStreamId?: string): {
+    // Find the current aiResponseMessage being streamed into for a specific thread
+    static findResponseNode(state: EditorState, threadId?: string): {
         found: boolean
         endOfNodePos?: number
         childCount?: number
     } {
-        // If we know the thread, search only inside that thread and pick the response matching the streamId
-        if (threadId) {
-            let endOfNodePos: number | undefined
-            let childCount: number | undefined
-
-            state.doc.descendants((node: PMNode, pos: number) => {
-                if (node.type.name !== aiChatThreadNodeType) return
-                if (node.attrs?.threadId !== threadId) return
-
-                // If we have a streamId, ONLY match the exact node with that streamId
-                if (targetStreamId) {
-                    node.descendants((child: PMNode, relPos: number) => {
-                        if (child.type.name !== aiResponseMessageNodeType) return
-                        const attrs = child.attrs as any
-                        if (attrs?.streamId === targetStreamId) {
-                            const absPos = pos + relPos + 1
-                            endOfNodePos = absPos + child.nodeSize
-                            childCount = child.childCount
-                        }
-                    })
-                } else {
-                    // Fallback: pick the best candidate (receiving first, then newest)
-                    let bestAbsPos: number | undefined
-                    let bestChildCount: number | undefined
-                    let bestScore = -1 // 2: isReceiving, 1: isInitialRender, 0: any response
-
-                    node.descendants((child: PMNode, relPos: number) => {
-                        if (child.type.name !== aiResponseMessageNodeType) return
-                        const absPos = pos + relPos + 1
-                        const attrs = child.attrs as any
-                        const score = attrs?.isReceivingAnimation ? 2 : (attrs?.isInitialRenderAnimation ? 1 : 0)
-                        // Prefer higher score or, if equal, the later (newer) node
-                        if (score > bestScore || (score === bestScore && absPos > (bestAbsPos || 0))) {
-                            bestScore = score
-                            bestAbsPos = absPos + child.nodeSize // end position of node
-                            bestChildCount = child.childCount
-                        }
-                    })
-
-                    if (bestAbsPos !== undefined) {
-                        endOfNodePos = bestAbsPos
-                        childCount = bestChildCount
-                    }
-                }
-
-                return false // stop after this thread
-            })
-
-            if (endOfNodePos !== undefined) return { found: true, endOfNodePos, childCount }
-            return { found: false }
-        }
-
-        // Fallback: no thread specified – pick the most recent receiving response globally
         let bestEndPos: number | undefined
         let bestChildCount: number | undefined
-        let bestScore = -1
-        state.doc.descendants((node: PMNode, pos: number) => {
-            if (node.type.name !== aiResponseMessageNodeType) return
-            const attrs = node.attrs as any
-            const score = attrs?.isReceivingAnimation ? 2 : (attrs?.isInitialRenderAnimation ? 1 : 0)
-            const endPos = pos + node.nodeSize
-            if (score > bestScore || (score === bestScore && endPos > (bestEndPos || 0))) {
-                bestScore = score
-                bestEndPos = endPos
-                bestChildCount = node.childCount
-            }
-        })
-        if (bestEndPos !== undefined) return { found: true, endOfNodePos: bestEndPos, childCount: bestChildCount }
-        return { found: false }
+        let bestScore = -1 // 2: isReceiving, 1: isInitialRender, 0: any response
+
+        const scoreNode = (attrs: any) =>
+            attrs?.isReceivingAnimation ? 2 : (attrs?.isInitialRenderAnimation ? 1 : 0)
+
+        if (threadId) {
+            // Search within specific thread
+            state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+                if (node.type.name !== aiChatThreadNodeType || node.attrs?.threadId !== threadId) return
+
+                node.descendants((child: ProseMirrorNode, relPos: number) => {
+                    if (child.type.name !== aiResponseMessageNodeType) return
+
+                    const endPos = pos + relPos + 1 + child.nodeSize
+                    const score = scoreNode(child.attrs)
+
+                    if (score > bestScore || (score === bestScore && endPos > (bestEndPos || 0))) {
+                        bestScore = score
+                        bestEndPos = endPos
+                        bestChildCount = child.childCount
+                    }
+                })
+                return false // Stop after finding thread
+            })
+        } else {
+            // Search globally
+            state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+                if (node.type.name !== aiResponseMessageNodeType) return
+
+                const endPos = pos + node.nodeSize
+                const score = scoreNode(node.attrs)
+
+                if (score > bestScore || (score === bestScore && endPos > (bestEndPos || 0))) {
+                    bestScore = score
+                    bestEndPos = endPos
+                    bestChildCount = node.childCount
+                }
+            })
+        }
+
+        return bestEndPos !== undefined
+            ? { found: true, endOfNodePos: bestEndPos, childCount: bestChildCount }
+            : { found: false }
     }
 }
 
@@ -539,15 +468,11 @@ class AiChatThreadPluginClass {
         if (!threadInfo) return
 
         const { insertPos, trailingEmptyParagraphPos } = threadInfo
-        
-        // Generate unique stream ID for this stream session
-        const streamId = `${threadId || 'global'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        
+
         const aiResponseNode = state.schema.nodes[aiResponseMessageNodeType].create({
             isInitialRenderAnimation: true,
             isReceivingAnimation: true,
-            aiProvider,
-            streamId // Mark this node with unique stream ID
+            aiProvider
         })
 
         try {
@@ -568,10 +493,10 @@ class AiChatThreadPluginClass {
 
             tr.setSelection(TextSelection.create(tr.doc, cursorPos))
 
-            // Set receiving state for this specific thread AND store the stream ID
+            // Set receiving state for this specific thread
             if (threadId) {
-                tr.setMeta('setReceiving', { threadId, receiving: true, streamId })
-                console.log('🔴 [PLUGIN] Response node created', { threadId, streamId, pos: insertPos })
+                tr.setMeta('setReceiving', { threadId, receiving: true })
+                console.log('🔴 [PLUGIN] Response node created', { threadId, pos: insertPos })
             }
             dispatch(tr)
         } catch (error) {
@@ -588,16 +513,12 @@ class AiChatThreadPluginClass {
     ): void {
         if (!segment) return
 
-        // Get the active streamId for this thread from plugin state
-        const pluginState = PLUGIN_KEY.getState(state)
-        const targetStreamId = threadId ? pluginState?.activeStreamIds.get(threadId) : undefined
-
         let tr = state.tr
-        const responseInfo = PositionFinder.findResponseNode(state, threadId, targetStreamId)
+        const responseInfo = PositionFinder.findResponseNode(state, threadId)
 
         // Create response node if missing (fallback) in the correct thread
         if (!responseInfo.found) {
-            console.warn('⚠️ [PLUGIN] No response node found!', { threadId, streamId: targetStreamId })
+            console.warn('⚠️ [PLUGIN] No response node found!', { threadId })
             this.createResponseFallback(state, dispatch, threadId, aiProvider)
             return
         }
@@ -623,12 +544,12 @@ class AiChatThreadPluginClass {
     }
 
     private handleStreamEnd(state: EditorState, dispatch: (tr: Transaction) => void, threadId?: string): void {
-        state.doc.descendants((node: PMNode, pos: number) => {
+        state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (node.type.name === aiResponseMessageNodeType && node.attrs.isInitialRenderAnimation) {
                 // If threadId is provided, verify this response is in the correct thread
                 if (threadId) {
                     let isInCorrectThread = false
-                    state.doc.nodesBetween(0, pos, (n: PMNode) => {
+                    state.doc.nodesBetween(0, pos, (n: ProseMirrorNode) => {
                         if (n.type.name === aiChatThreadNodeType && n.attrs?.threadId === threadId) {
                             isInCorrectThread = true
                             return false
@@ -677,7 +598,7 @@ class AiChatThreadPluginClass {
         dispatch(tr)
     }
 
-    private createMark(schema: Schema, style: string): any {
+    private createMark(schema: ProseMirrorSchema, style: string): any {
         switch (style) {
             case 'bold': return schema.marks.strong.create()
             case 'italic': return schema.marks.em.create()
@@ -693,7 +614,7 @@ class AiChatThreadPluginClass {
         const decorations: Decoration[] = []
 
         // Find all ai-chat-thread nodes and add receiving state styling ONLY
-        state.doc.descendants((node: PMNode, pos: number) => {
+        state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (node.type.name === 'aiChatThread') {
                 let cssClass = 'ai-chat-thread'
                 const threadId = node.attrs?.threadId
@@ -719,7 +640,7 @@ class AiChatThreadPluginClass {
         const decorations: Decoration[] = []
 
         // Find all ai-chat-thread nodes and add boundary visibility to ALL threads (always visible)
-        state.doc.descendants((node: PMNode, pos: number) => {
+        state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (node.type.name === 'aiChatThread') {
                 // Apply boundary visibility class to all threads
                 decorations.push(
@@ -741,7 +662,7 @@ class AiChatThreadPluginClass {
     private createPlaceholders(state: EditorState): DecorationSet {
         const decorations: Decoration[] = []
 
-        state.doc.descendants((node: PMNode, pos: number) => {
+        state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             // Title placeholder
             if (node.type.name === documentTitleNodeType && node.content.size === 0) {
                 decorations.push(
@@ -810,70 +731,36 @@ class AiChatThreadPluginClass {
 
         return tr
     }    private handleChatRequest(newState: EditorState, transaction: Transaction): void {
-        // Get threadId and nodePos from meta (passed from button click)
         const meta = transaction.getMeta(USE_AI_CHAT_META)
-        const threadIdFromMeta = meta?.threadId
-        const nodePosFromMeta = meta?.nodePos
+        const { threadId: threadIdFromMeta, nodePos } = meta || {}
 
-        console.log('🎯 [SUBMIT] Button clicked', { threadIdFromMeta, nodePosFromMeta })
+        // Find thread: prefer explicit position from button, fallback to selection
+        const threadNode = nodePos !== undefined
+            ? ContentExtractor.findThreadByPosition(newState, nodePos)
+            : ContentExtractor.findThreadBySelection(newState)
 
-        // Find the thread node by position
-        let threadNode = null
-        if (nodePosFromMeta !== undefined) {
-            // nodePos is the position of the thread node itself
-            threadNode = newState.doc.nodeAt(nodePosFromMeta)
-            console.log('📍 [SUBMIT] Found thread by nodePos', { 
-                nodeType: threadNode?.type?.name,
-                threadId: threadNode?.attrs?.threadId,
-                aiModel: threadNode?.attrs?.aiModel
-            })
-        }
+        if (!threadNode) return
 
-        // Fallback: try to find by cursor position if meta missing
-        if (!threadNode || threadNode.type.name !== 'aiChatThread') {
-            console.log('⚠️ [SUBMIT] Using cursor fallback')
-            const { selection } = newState
-            const $from = selection.$from
-            for (let depth = $from.depth; depth >= 0; depth--) {
-                const node = $from.node(depth)
-                if (node.type.name === 'aiChatThread') {
-                    threadNode = node
-                    break
-                }
-            }
-        }
+        // Extract thread attributes
+        const { aiModel = '', threadContext = 'Thread', threadId: threadIdFromNode = '' } = threadNode.attrs
+        const threadId = threadIdFromMeta || threadIdFromNode
 
-        // Use thread node's attributes
-        const aiModel = threadNode?.attrs?.aiModel || ''
-        const threadContext = threadNode?.attrs?.threadContext || 'Thread'
-        const threadId = threadIdFromMeta || threadNode?.attrs?.threadId || ''
-
-        // Validate aiModel is selected
+        // Validate AI model selected
         if (!aiModel) {
-            console.error('❌ [SUBMIT] Cannot send request - no AI model selected!', { threadId })
             alert('Please select an AI model from the dropdown before submitting.')
             return
         }
 
-        // Extract content based on thread context - PASS nodePos to extract from correct thread!
-        const threadContent = ContentExtractor.getActiveThreadContent(newState, threadContext, nodePosFromMeta)
+        // Extract and send content
+        const threadContent = ContentExtractor.getActiveThreadContent(newState, threadContext, nodePos)
         const messages = ContentExtractor.toMessages(threadContent)
 
-        console.log('🚀 [SUBMIT] Sending to AI', {
-            threadId,
-            aiModel,
-            threadContext,
-            messagesCount: messages.length
-        })
         this.sendAiRequestHandler({ messages, aiModel, threadId })
     }
 
     private handleStopRequest(transaction: Transaction): void {
         const meta = transaction.getMeta(STOP_AI_CHAT_META)
         const { threadId } = meta || {}
-
-        console.log('[AI_STOP] handleStopRequest called', { threadId })
-
         this.stopAiRequestHandler({ threadId })
     }
 
@@ -886,7 +773,6 @@ class AiChatThreadPluginClass {
             state: {
                 init: (): AiChatThreadPluginState => ({
                     receivingThreadIds: new Set<string>(),
-                    activeStreamIds: new Map<string, string>(),
                     insideBackticks: false,
                     backtickBuffer: '',
                     insideCodeBlock: false,
@@ -898,23 +784,17 @@ class AiChatThreadPluginClass {
                     // Handle receiving state toggle per thread
                     const receivingMeta = tr.getMeta('setReceiving')
                     if (receivingMeta !== undefined) {
-                        const { threadId, receiving, streamId } = receivingMeta
+                        const { threadId, receiving } = receivingMeta
                         if (threadId) {
                             const newSet = new Set(prev.receivingThreadIds)
-                            const newStreamMap = new Map(prev.activeStreamIds)
                             if (receiving) {
                                 newSet.add(threadId)
-                                if (streamId) {
-                                    newStreamMap.set(threadId, streamId)
-                                }
                             } else {
                                 newSet.delete(threadId)
-                                newStreamMap.delete(threadId)
                             }
                             return {
                                 ...prev,
                                 receivingThreadIds: newSet,
-                                activeStreamIds: newStreamMap,
                                 decorations: prev.decorations.map(tr.mapping, tr.doc)
                             }
                         }
@@ -932,16 +812,7 @@ class AiChatThreadPluginClass {
                         }
                     }
 
-                    // Handle dropdown option selection
-                    const dropdownSelection = tr.getMeta('dropdownOptionSelected')
-                    if (dropdownSelection && dropdownSelection.dropdownId?.startsWith('ai-model-dropdown-')) {
-                        console.log('[AI_DBG][PLUGIN.apply] aiModel dropdownSelection meta received (deferring attr update to appendTransaction)', { dropdownSelection })
-                        // We intentionally DO NOT mutate tr/doc here; appendTransaction will perform attr update
-                    }
-                    if (dropdownSelection && dropdownSelection.dropdownId?.startsWith('thread-context-dropdown-')) {
-                        console.log('[AI_DBG][PLUGIN.apply] threadContext dropdownSelection meta received (deferring attr update to appendTransaction)', { dropdownSelection })
-                        // We intentionally DO NOT mutate tr/doc here; appendTransaction will perform attr update
-                    }
+                    // Note: Dropdown selections are handled in appendTransaction
 
                     // Note: dropdown state toggle is now handled by dropdown primitive plugin
                     // aiChatThreadNode converts threadId-based meta to dropdownId-based meta for the primitive
@@ -992,15 +863,14 @@ class AiChatThreadPluginClass {
                         if (provider && model && typeof nodePos === 'number') {
                             const newModel = `${provider}:${model}`
                             let threadPos = -1
-                            let threadNode: PMNode | null = null
-                            newState.doc.nodesBetween(0, newState.doc.content.size, (node: PMNode, pos: number) => {
+                            let threadNode: ProseMirrorNode | null = null
+                            newState.doc.nodesBetween(0, newState.doc.content.size, (node: ProseMirrorNode, pos: number) => {
                                 if (node.type.name === 'aiChatThread') {
                                     const threadStart = pos
                                     const threadEnd = pos + node.nodeSize
                                     if (nodePos >= threadStart && nodePos < threadEnd) {
                                         threadPos = pos
                                         threadNode = node
-                                        console.log('[AI_DBG][APPEND_TX] matched thread for aiModel update', { threadPos, nodePos, threadAttrs: node.attrs, newModel })
                                         return false
                                     }
                                 }
@@ -1009,14 +879,9 @@ class AiChatThreadPluginClass {
                                 const tr = newState.tr
                                 const newAttrs = { ...threadNode.attrs, aiModel: newModel }
                                 tr.setNodeMarkup(threadPos, undefined, newAttrs)
-                                console.log('[AI_DBG][APPEND_TX] committing aiModel change', { from: threadNode.attrs.aiModel, to: newModel, threadPos })
                                 documentStore.setMetaValues({ requiresSave: true })
                                 return tr
-                            } else {
-                                console.log('[AI_DBG][APPEND_TX] aiModel already current or thread not found', { threadPos, existing: threadNode?.attrs?.aiModel, desired: newModel })
                             }
-                        } else {
-                            console.log('[AI_DBG][APPEND_TX] insufficient data to update aiModel', { provider, model, nodePos })
                         }
                     }
 
@@ -1025,15 +890,14 @@ class AiChatThreadPluginClass {
                         const newContext = option?.value || option?.title
                         if (newContext && typeof nodePos === 'number') {
                             let threadPos = -1
-                            let threadNode: PMNode | null = null
-                            newState.doc.nodesBetween(0, newState.doc.content.size, (node: PMNode, pos: number) => {
+                            let threadNode: ProseMirrorNode | null = null
+                            newState.doc.nodesBetween(0, newState.doc.content.size, (node: ProseMirrorNode, pos: number) => {
                                 if (node.type.name === 'aiChatThread') {
                                     const threadStart = pos
                                     const threadEnd = pos + node.nodeSize
                                     if (nodePos >= threadStart && nodePos < threadEnd) {
                                         threadPos = pos
                                         threadNode = node
-                                        console.log('[AI_DBG][APPEND_TX] matched thread for threadContext update', { threadPos, nodePos, threadAttrs: node.attrs, newContext })
                                         return false
                                     }
                                 }
@@ -1042,14 +906,9 @@ class AiChatThreadPluginClass {
                                 const tr = newState.tr
                                 const newAttrs = { ...threadNode.attrs, threadContext: newContext }
                                 tr.setNodeMarkup(threadPos, undefined, newAttrs)
-                                console.log('[AI_DBG][APPEND_TX] committing threadContext change', { from: threadNode.attrs.threadContext, to: newContext, threadPos })
                                 documentStore.setMetaValues({ requiresSave: true })
                                 return tr
-                            } else {
-                                console.log('[AI_DBG][APPEND_TX] threadContext already current or thread not found', { threadPos, existing: threadNode?.attrs?.threadContext, desired: newContext })
                             }
-                        } else {
-                            console.log('[AI_DBG][APPEND_TX] insufficient data to update threadContext', { newContext, nodePos })
                         }
                     }
                 }
@@ -1111,9 +970,9 @@ class AiChatThreadPluginClass {
 
                 // Node views
                 nodeViews: {
-                    [aiChatThreadNodeType]: (node: PMNode, view: EditorView, getPos: () => number | undefined) =>
+                    [aiChatThreadNodeType]: (node: ProseMirrorNode, view: EditorView, getPos: () => number | undefined) =>
                         aiChatThreadNodeView(node, view, getPos),
-                    [aiResponseMessageNodeType]: (node: PMNode, view: EditorView, getPos: () => number | undefined) =>
+                    [aiResponseMessageNodeType]: (node: ProseMirrorNode, view: EditorView, getPos: () => number | undefined) =>
                         aiResponseMessageNodeView(node, view, getPos),
                 }
             }

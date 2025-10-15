@@ -38,14 +38,12 @@ export const aiChatSubjects = [
                 messages,
                 aiModel,
                 threadId,
-                requestId,
                 documentId,
                 organizationId
             } = data as {
                 user: { userId: string; stripeCustomerId: string }
                 documentId: string
                 organizationId: string
-                requestId?: string
             } & AiChatSendMessagePayload
 
             const [provider, model] = (aiModel as string).split(':')
@@ -59,9 +57,9 @@ export const aiChatSubjects = [
                 return
             }
 
-            // Create unique instance key per request to allow parallel processing
-            const instanceKey = requestId ? `${documentId}:${threadId}:${requestId}` : `${documentId}:${threadId}`
-            
+            // One stream per thread - use documentId:threadId as unique key
+            const instanceKey = `${documentId}:${threadId}`
+
             infoStr([
                 chalk.cyan('🚀 [AI_CHAT] NEW REQUEST'),
                 ' :: instanceKey:',
