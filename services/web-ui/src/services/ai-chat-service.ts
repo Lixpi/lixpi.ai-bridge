@@ -48,13 +48,17 @@ export default class ChatService {
             alert(`Failed to receive chat message: \n${JSON.stringify(data.error)}`)
             return;
         }
-        this.segmentsReceiver.receiveSegment(data.content);
+        // Backend sends { content: { status, segment, aiProvider }, threadId }
+        // Merge threadId into the content object before passing to receiver
+        this.segmentsReceiver.receiveSegment({ ...data.content, threadId: data.threadId });
     }
 
     async sendMessage({ messages, aiModel, threadId }: AiChatSendMessagePayload) {
-        console.log('[AI_DBG][SERVICE.sendMessage] called', { aiModel, threadId, chatContentPreview: (messages||'').slice(0,120), length: messages?.length })
+        // Generate unique requestId for this specific request
+        const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        console.log('🚀 [SEND_MESSAGE] START', { requestId, threadId, aiModel })
+        
         const organizationId = organizationStore.getData('organizationId')
-
         const user = userStore.getData()
 
         const payload = {
@@ -63,9 +67,9 @@ export default class ChatService {
             messages,
             aiModel,
             threadId,
+            requestId, // Add unique request ID
             organizationId
         }
-        console.log('[AI_DBG][SERVICE.sendMessage] publishing', payload)
         servicesStore.getData('nats')!.publish(AI_CHAT_SUBJECTS.SEND_MESSAGE, payload)
     }
 

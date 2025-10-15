@@ -23,6 +23,7 @@ export const aiResponseMessageNodeSpec = {
         isReceivingAnimation: { default: false }, // Flag for receiving message animation
         aiProvider: { default: '' }, // AI provider (Anthropic or OpenAI)
         currentFrame: { default: 0 }, // Current frame for Claude's animation
+        streamId: { default: '' }, // Unique stream session identifier
     },
     // Content allowed inside this node (paragraphs or other block elements)
     // Allow zero-or-more so we can create an empty shell on START_STREAM

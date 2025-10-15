@@ -35,6 +35,7 @@ type StreamStatus = 'START_STREAM' | 'STREAMING' | 'END_STREAM'
 type SegmentEvent = {
     status: StreamStatus
     aiProvider?: string
+    threadId?: string
     segment?: {
         segment: string
         styles: string[]
@@ -45,7 +46,8 @@ type SegmentEvent = {
 }
 type ThreadContent = { nodeType: string; textContent: string }
 type AiChatThreadPluginState = {
-    isReceiving: boolean
+    receivingThreadIds: Set<string>
+    activeStreamIds: Map<string, string> // threadId -> streamId mapping
     insideBackticks: boolean
     backtickBuffer: string
     insideCodeBlock: boolean
@@ -109,26 +111,56 @@ class ContentExtractor {
 
     // Find the active aiChatThread containing the cursor and extract content
     // If threadContext is 'Document', extract from ALL threads in the document
-    static getActiveThreadContent(state: EditorState, threadContext: string = 'Thread'): ThreadContent[] {
+    static getActiveThreadContent(state: EditorState, threadContext: string = 'Thread', nodePos?: number): ThreadContent[] {
         if (threadContext === 'Document') {
             // Extract content from ALL threads in the document
             return ContentExtractor.getAllThreadsContent(state)
         }
 
         // Default behavior: extract from active thread only
-        const { $from } = state.selection
         let thread: PMNode | null = null
 
-        // Walk up the node hierarchy to find the thread
-        for (let depth = $from.depth; depth > 0; depth--) {
-            const node = $from.node(depth)
-            if (node.type.name === aiChatThreadNodeType) {
-                thread = node
-                break
+        // If nodePos provided, use it to find the thread directly
+        if (nodePos !== undefined) {
+            // getPos() returns the start position of the node
+            // Try to get the node directly at this position
+            thread = state.doc.nodeAt(nodePos)
+            
+            // If that didn't work, try resolving and walking up
+            if (!thread || thread.type.name !== aiChatThreadNodeType) {
+                const resolvedPos = state.doc.resolve(nodePos + 1) // +1 to get inside the node
+                for (let depth = resolvedPos.depth; depth >= 0; depth--) {
+                    const node = resolvedPos.node(depth)
+                    if (node.type.name === aiChatThreadNodeType) {
+                        thread = node
+                        break
+                    }
+                }
             }
+            
+            console.log('🎯 [CONTENT_EXTRACT] Using explicit nodePos:', { 
+                nodePos, 
+                foundThread: !!thread,
+                threadId: thread?.attrs?.threadId,
+                threadNodeType: thread?.type?.name
+            })
+        } else {
+            // Fallback: use selection position
+            const { $from } = state.selection
+            for (let depth = $from.depth; depth > 0; depth--) {
+                const node = $from.node(depth)
+                if (node.type.name === aiChatThreadNodeType) {
+                    thread = node
+                    break
+                }
+            }
+            console.log('⚠️ [CONTENT_EXTRACT] Using selection fallback')
         }
 
-        if (!thread) return []
+        if (!thread) {
+            console.error('❌ [CONTENT_EXTRACT] No thread found!', { nodePos })
+            return []
+        }
 
         // Extract all blocks with content, preserving code block formatting
         const content: ThreadContent[] = []
@@ -256,14 +288,17 @@ class ContentExtractor {
 // Document position and insertion utilities
 class PositionFinder {
     // Find where to insert aiResponseMessage in the active thread
-    static findThreadInsertionPoint(state: EditorState): {
+    static findThreadInsertionPoint(state: EditorState, threadId?: string): {
         insertPos: number
         trailingEmptyParagraphPos: number | null
     } | null {
         let result: { insertPos: number; trailingEmptyParagraphPos: number | null } | null = null
 
-        state.doc.descendants((node, pos) => {
+        state.doc.descendants((node: PMNode, pos: number) => {
             if (node.type.name !== aiChatThreadNodeType) return
+            
+            // If threadId specified, only match that thread
+            if (threadId && node.attrs?.threadId !== threadId) return
 
             // Find the last paragraph in the thread
             let lastParaAbsPos: number | null = null
@@ -288,25 +323,80 @@ class PositionFinder {
     }
 
     // Find the current aiResponseMessage being streamed into
-    static findResponseNode(state: EditorState): {
+    static findResponseNode(state: EditorState, threadId?: string, targetStreamId?: string): {
         found: boolean
         endOfNodePos?: number
         childCount?: number
     } {
-        let found = false
-        let endOfNodePos: number | undefined
-        let childCount: number | undefined
+        // If we know the thread, search only inside that thread and pick the response matching the streamId
+        if (threadId) {
+            let endOfNodePos: number | undefined
+            let childCount: number | undefined
 
-        state.doc.descendants((node, pos) => {
+            state.doc.descendants((node: PMNode, pos: number) => {
+                if (node.type.name !== aiChatThreadNodeType) return
+                if (node.attrs?.threadId !== threadId) return
+
+                // If we have a streamId, ONLY match the exact node with that streamId
+                if (targetStreamId) {
+                    node.descendants((child: PMNode, relPos: number) => {
+                        if (child.type.name !== aiResponseMessageNodeType) return
+                        const attrs = child.attrs as any
+                        if (attrs?.streamId === targetStreamId) {
+                            const absPos = pos + relPos + 1
+                            endOfNodePos = absPos + child.nodeSize
+                            childCount = child.childCount
+                        }
+                    })
+                } else {
+                    // Fallback: pick the best candidate (receiving first, then newest)
+                    let bestAbsPos: number | undefined
+                    let bestChildCount: number | undefined
+                    let bestScore = -1 // 2: isReceiving, 1: isInitialRender, 0: any response
+
+                    node.descendants((child: PMNode, relPos: number) => {
+                        if (child.type.name !== aiResponseMessageNodeType) return
+                        const absPos = pos + relPos + 1
+                        const attrs = child.attrs as any
+                        const score = attrs?.isReceivingAnimation ? 2 : (attrs?.isInitialRenderAnimation ? 1 : 0)
+                        // Prefer higher score or, if equal, the later (newer) node
+                        if (score > bestScore || (score === bestScore && absPos > (bestAbsPos || 0))) {
+                            bestScore = score
+                            bestAbsPos = absPos + child.nodeSize // end position of node
+                            bestChildCount = child.childCount
+                        }
+                    })
+
+                    if (bestAbsPos !== undefined) {
+                        endOfNodePos = bestAbsPos
+                        childCount = bestChildCount
+                    }
+                }
+
+                return false // stop after this thread
+            })
+
+            if (endOfNodePos !== undefined) return { found: true, endOfNodePos, childCount }
+            return { found: false }
+        }
+
+        // Fallback: no thread specified – pick the most recent receiving response globally
+        let bestEndPos: number | undefined
+        let bestChildCount: number | undefined
+        let bestScore = -1
+        state.doc.descendants((node: PMNode, pos: number) => {
             if (node.type.name !== aiResponseMessageNodeType) return
-
-            endOfNodePos = pos + node.nodeSize
-            childCount = node.childCount
-            found = true
-            return false // Stop searching
+            const attrs = node.attrs as any
+            const score = attrs?.isReceivingAnimation ? 2 : (attrs?.isInitialRenderAnimation ? 1 : 0)
+            const endPos = pos + node.nodeSize
+            if (score > bestScore || (score === bestScore && endPos > (bestEndPos || 0))) {
+                bestScore = score
+                bestEndPos = endPos
+                bestChildCount = node.childCount
+            }
         })
-
-        return { found, endOfNodePos, childCount }
+        if (bestEndPos !== undefined) return { found: true, endOfNodePos: bestEndPos, childCount: bestChildCount }
+        return { found: false }
     }
 }
 
@@ -425,36 +515,39 @@ class AiChatThreadPluginClass {
 
     private startStreaming(view: EditorView): void {
         this.unsubscribeFromSegments = SegmentsReceiver.subscribeToeceiveSegment((event: SegmentEvent) => {
-            const { status, aiProvider, segment } = event
+            const { status, aiProvider, segment, threadId } = event
             const { state, dispatch } = view
 
-            console.log('🚀 SEGMENT RECEIVED:', status, 'aiProvider:', aiProvider)
             switch (status) {
                 case 'START_STREAM':
-                    console.log('🔴 Handling START_STREAM')
-                    this.handleStreamStart(state, dispatch, aiProvider)
+                    console.log('🔴 [PLUGIN] START_STREAM', { threadId, aiProvider })
+                    this.handleStreamStart(state, dispatch, aiProvider, threadId)
                     break
                 case 'STREAMING':
-                    console.log('📡 Handling STREAMING segment')
-                    if (segment) this.handleStreaming(state, dispatch, segment)
+                    if (segment) this.handleStreaming(state, dispatch, segment, threadId, aiProvider)
                     break
                 case 'END_STREAM':
-                    console.log('🟢 Handling END_STREAM')
-                    this.handleStreamEnd(state, dispatch)
+                    console.log('🟢 [PLUGIN] END_STREAM', { threadId })
+                    this.handleStreamEnd(state, dispatch, threadId)
                     break
             }
         })
     }
 
-    private handleStreamStart(state: EditorState, dispatch: (tr: Transaction) => void, aiProvider?: string): void {
-        const threadInfo = PositionFinder.findThreadInsertionPoint(state)
+    private handleStreamStart(state: EditorState, dispatch: (tr: Transaction) => void, aiProvider?: string, threadId?: string): void {
+        const threadInfo = PositionFinder.findThreadInsertionPoint(state, threadId)
         if (!threadInfo) return
 
         const { insertPos, trailingEmptyParagraphPos } = threadInfo
+        
+        // Generate unique stream ID for this stream session
+        const streamId = `${threadId || 'global'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        
         const aiResponseNode = state.schema.nodes[aiResponseMessageNodeType].create({
             isInitialRenderAnimation: true,
             isReceivingAnimation: true,
-            aiProvider
+            aiProvider,
+            streamId // Mark this node with unique stream ID
         })
 
         try {
@@ -474,23 +567,38 @@ class AiChatThreadPluginClass {
             }
 
             tr.setSelection(TextSelection.create(tr.doc, cursorPos))
-            tr.setMeta('setReceiving', true)
-            console.log('🔴 STREAM START: Setting isReceiving to true via setMeta')
+
+            // Set receiving state for this specific thread AND store the stream ID
+            if (threadId) {
+                tr.setMeta('setReceiving', { threadId, receiving: true, streamId })
+                console.log('🔴 [PLUGIN] Response node created', { threadId, streamId, pos: insertPos })
+            }
             dispatch(tr)
         } catch (error) {
             console.error('Error inserting aiResponseMessage:', error)
         }
     }
 
-    private handleStreaming(state: EditorState, dispatch: (tr: Transaction) => void, segment: SegmentEvent['segment']): void {
+    private handleStreaming(
+        state: EditorState,
+        dispatch: (tr: Transaction) => void,
+        segment: SegmentEvent['segment'],
+        threadId?: string,
+        aiProvider?: string
+    ): void {
         if (!segment) return
 
-        let tr = state.tr
-        const responseInfo = PositionFinder.findResponseNode(state)
+        // Get the active streamId for this thread from plugin state
+        const pluginState = PLUGIN_KEY.getState(state)
+        const targetStreamId = threadId ? pluginState?.activeStreamIds.get(threadId) : undefined
 
-        // Create response node if missing (fallback)
+        let tr = state.tr
+        const responseInfo = PositionFinder.findResponseNode(state, threadId, targetStreamId)
+
+        // Create response node if missing (fallback) in the correct thread
         if (!responseInfo.found) {
-            this.createResponseFallback(state, dispatch)
+            console.warn('⚠️ [PLUGIN] No response node found!', { threadId, streamId: targetStreamId })
+            this.createResponseFallback(state, dispatch, threadId, aiProvider)
             return
         }
 
@@ -514,21 +622,30 @@ class AiChatThreadPluginClass {
         }
     }
 
-    private handleStreamEnd(state: EditorState, dispatch: (tr: Transaction) => void): void {
-        state.doc.descendants((node, pos) => {
+    private handleStreamEnd(state: EditorState, dispatch: (tr: Transaction) => void, threadId?: string): void {
+        state.doc.descendants((node: PMNode, pos: number) => {
             if (node.type.name === aiResponseMessageNodeType && node.attrs.isInitialRenderAnimation) {
+                // If threadId is provided, verify this response is in the correct thread
+                if (threadId) {
+                    let isInCorrectThread = false
+                    state.doc.nodesBetween(0, pos, (n: PMNode) => {
+                        if (n.type.name === aiChatThreadNodeType && n.attrs?.threadId === threadId) {
+                            isInCorrectThread = true
+                            return false
+                        }
+                    })
+                    if (!isInCorrectThread) return // Skip this response node
+                }
+
                 const tr = state.tr.setNodeMarkup(pos, undefined, {
                     ...node.attrs,
                     isInitialRenderAnimation: false,
                     isReceivingAnimation: false
                 })
 
-                // Only set isReceiving to false if debug mode is off
-                if (!IS_RECEIVING_TEMP_DEBUG_STATE) {
-                    tr.setMeta('setReceiving', false)
-                    console.log('🟢 STREAM END: Setting isReceiving to false via setMeta')
-                } else {
-                    console.log('🟡 STREAM END: Debug mode ON - keeping isReceiving state active for CSS inspection')
+                // Only set receiving to false if debug mode is off
+                if (!IS_RECEIVING_TEMP_DEBUG_STATE && threadId) {
+                    tr.setMeta('setReceiving', { threadId, receiving: false })
                 }
 
                 dispatch(tr)
@@ -537,15 +654,15 @@ class AiChatThreadPluginClass {
         })
     }
 
-    private createResponseFallback(state: EditorState, dispatch: (tr: Transaction) => void): void {
-        const threadInfo = PositionFinder.findThreadInsertionPoint(state)
+    private createResponseFallback(state: EditorState, dispatch: (tr: Transaction) => void, threadId?: string, aiProvider?: string): void {
+        const threadInfo = PositionFinder.findThreadInsertionPoint(state, threadId)
         if (!threadInfo) return
 
         const { insertPos, trailingEmptyParagraphPos } = threadInfo
         const responseNode = state.schema.nodes[aiResponseMessageNodeType].create({
             isInitialRenderAnimation: true,
             isReceivingAnimation: true,
-            aiProvider: 'Anthropic'
+            aiProvider: aiProvider || 'Anthropic'
         })
 
         let tr = state.tr.insert(insertPos, responseNode)
@@ -576,10 +693,11 @@ class AiChatThreadPluginClass {
         const decorations: Decoration[] = []
 
         // Find all ai-chat-thread nodes and add receiving state styling ONLY
-        state.doc.descendants((node, pos) => {
+        state.doc.descendants((node: PMNode, pos: number) => {
             if (node.type.name === 'aiChatThread') {
                 let cssClass = 'ai-chat-thread'
-                if (pluginState.isReceiving) {
+                const threadId = node.attrs?.threadId
+                if (threadId && pluginState.receivingThreadIds.has(threadId)) {
                     cssClass += ' receiving'
                 }
 
@@ -601,7 +719,7 @@ class AiChatThreadPluginClass {
         const decorations: Decoration[] = []
 
         // Find all ai-chat-thread nodes and add boundary visibility to ALL threads (always visible)
-        state.doc.descendants((node, pos) => {
+        state.doc.descendants((node: PMNode, pos: number) => {
             if (node.type.name === 'aiChatThread') {
                 // Apply boundary visibility class to all threads
                 decorations.push(
@@ -623,7 +741,7 @@ class AiChatThreadPluginClass {
     private createPlaceholders(state: EditorState): DecorationSet {
         const decorations: Decoration[] = []
 
-        state.doc.descendants((node, pos) => {
+        state.doc.descendants((node: PMNode, pos: number) => {
             // Title placeholder
             if (node.type.name === documentTitleNodeType && node.content.size === 0) {
                 decorations.push(
@@ -691,36 +809,60 @@ class AiChatThreadPluginClass {
         tr = tr.setSelection(TextSelection.create(tr.doc, cursorPos))
 
         return tr
-    }    private handleChatRequest(newState: EditorState): void {
-        // Extract aiModel, threadContext, and threadId from the active thread
-        const { selection } = newState
-        const $from = selection.$from
+    }    private handleChatRequest(newState: EditorState, transaction: Transaction): void {
+        // Get threadId and nodePos from meta (passed from button click)
+        const meta = transaction.getMeta(USE_AI_CHAT_META)
+        const threadIdFromMeta = meta?.threadId
+        const nodePosFromMeta = meta?.nodePos
 
-        // Find the containing aiChatThread
+        console.log('🎯 [SUBMIT] Button clicked', { threadIdFromMeta, nodePosFromMeta })
+
+        // Find the thread node by position
         let threadNode = null
-        for (let depth = $from.depth; depth >= 0; depth--) {
-            const node = $from.node(depth)
-            if (node.type.name === 'aiChatThread') {
-                threadNode = node
-                break
+        if (nodePosFromMeta !== undefined) {
+            // nodePos is the position of the thread node itself
+            threadNode = newState.doc.nodeAt(nodePosFromMeta)
+            console.log('📍 [SUBMIT] Found thread by nodePos', { 
+                nodeType: threadNode?.type?.name,
+                threadId: threadNode?.attrs?.threadId,
+                aiModel: threadNode?.attrs?.aiModel
+            })
+        }
+
+        // Fallback: try to find by cursor position if meta missing
+        if (!threadNode || threadNode.type.name !== 'aiChatThread') {
+            console.log('⚠️ [SUBMIT] Using cursor fallback')
+            const { selection } = newState
+            const $from = selection.$from
+            for (let depth = $from.depth; depth >= 0; depth--) {
+                const node = $from.node(depth)
+                if (node.type.name === 'aiChatThread') {
+                    threadNode = node
+                    break
+                }
             }
         }
 
-        // Use thread node's aiModel, threadContext, and threadId
+        // Use thread node's attributes
         const aiModel = threadNode?.attrs?.aiModel || ''
         const threadContext = threadNode?.attrs?.threadContext || 'Thread'
-        const threadId = threadNode?.attrs?.threadId || ''
+        const threadId = threadIdFromMeta || threadNode?.attrs?.threadId || ''
 
-        // Extract content based on thread context
-        const threadContent = ContentExtractor.getActiveThreadContent(newState, threadContext)
+        // Validate aiModel is selected
+        if (!aiModel) {
+            console.error('❌ [SUBMIT] Cannot send request - no AI model selected!', { threadId })
+            alert('Please select an AI model from the dropdown before submitting.')
+            return
+        }
+
+        // Extract content based on thread context - PASS nodePos to extract from correct thread!
+        const threadContent = ContentExtractor.getActiveThreadContent(newState, threadContext, nodePosFromMeta)
         const messages = ContentExtractor.toMessages(threadContent)
 
-        console.log('[AI_DBG][SUBMIT] handleChatRequest', {
+        console.log('🚀 [SUBMIT] Sending to AI', {
+            threadId,
             aiModel,
             threadContext,
-            threadId,
-            threadHasNode: !!threadNode,
-            threadAttrs: threadNode?.attrs,
             messagesCount: messages.length
         })
         this.sendAiRequestHandler({ messages, aiModel, threadId })
@@ -743,7 +885,8 @@ class AiChatThreadPluginClass {
 
             state: {
                 init: (): AiChatThreadPluginState => ({
-                    isReceiving: IS_RECEIVING_TEMP_DEBUG_STATE,
+                    receivingThreadIds: new Set<string>(),
+                    activeStreamIds: new Map<string, string>(),
                     insideBackticks: false,
                     backtickBuffer: '',
                     insideCodeBlock: false,
@@ -752,14 +895,28 @@ class AiChatThreadPluginClass {
                     hoveredThreadId: null
                 }),
                 apply: (tr: Transaction, prev: AiChatThreadPluginState): AiChatThreadPluginState => {
-                    // Handle receiving state toggle
+                    // Handle receiving state toggle per thread
                     const receivingMeta = tr.getMeta('setReceiving')
                     if (receivingMeta !== undefined) {
-                        console.log('📡 PLUGIN STATE APPLY: receivingMeta =', receivingMeta, 'prev.isReceiving =', prev.isReceiving, '-> new isReceiving =', receivingMeta)
-                        return {
-                            ...prev,
-                            isReceiving: receivingMeta,
-                            decorations: prev.decorations.map(tr.mapping, tr.doc)
+                        const { threadId, receiving, streamId } = receivingMeta
+                        if (threadId) {
+                            const newSet = new Set(prev.receivingThreadIds)
+                            const newStreamMap = new Map(prev.activeStreamIds)
+                            if (receiving) {
+                                newSet.add(threadId)
+                                if (streamId) {
+                                    newStreamMap.set(threadId, streamId)
+                                }
+                            } else {
+                                newSet.delete(threadId)
+                                newStreamMap.delete(threadId)
+                            }
+                            return {
+                                ...prev,
+                                receivingThreadIds: newSet,
+                                activeStreamIds: newStreamMap,
+                                decorations: prev.decorations.map(tr.mapping, tr.doc)
+                            }
                         }
                     }
 
@@ -801,7 +958,7 @@ class AiChatThreadPluginClass {
                 // Handle AI chat requests
                 const chatTransaction = transactions.find(tr => tr.getMeta(USE_AI_CHAT_META))
                 if (chatTransaction) {
-                    this.handleChatRequest(newState)
+                    this.handleChatRequest(newState, chatTransaction)
                 }
 
                 // Handle AI chat stop requests
@@ -937,8 +1094,8 @@ class AiChatThreadPluginClass {
                     const placeholders = this.createPlaceholders(state)
                     const allDecorations = [...placeholders.find()]
 
-                    // Independent receiving state system
-                    if (pluginState?.isReceiving) {
+                    // Independent receiving state system - show receiving state for threads that are receiving
+                    if (pluginState && pluginState.receivingThreadIds.size > 0) {
                         const receivingDecorations = this.createReceivingStateDecorations(state, pluginState)
                         allDecorations.push(...receivingDecorations)
                     }

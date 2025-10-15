@@ -88,7 +88,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
     const modelSelectorDropdown = createAiModelSelectorDropdown(view, node, getPos, threadId)
 
     // Create AI submit button
-    const submitButton = createAiSubmitButton(view, threadId)
+    const submitButton = createAiSubmitButton(view, threadId, getPos)
 
     // Create thread boundary indicator for context visualization
     const threadBoundaryIndicator = createThreadBoundaryIndicator(dom, view, threadId)
@@ -411,22 +411,22 @@ function createThreadContextDropdown(view, node, getPos, threadId) {
 }
 
 // Helper function to create AI submit button
-function createAiSubmitButton(view, threadId) {
+function createAiSubmitButton(view, threadId, getPos) {
     // Cache the click handler to avoid recreation
     const handleClick = (e) => {
         e.preventDefault()
         e.stopPropagation()
 
-        // Get plugin state to check if receiving
+        // Get plugin state to check if this specific thread is receiving
         const pluginState = AI_CHAT_THREAD_PLUGIN_KEY.getState(view.state)
 
-        if (pluginState?.isReceiving) {
+        if (pluginState?.receivingThreadIds.has(threadId)) {
             // Dispatch stop transaction - plugin will handle the logic
             const tr = view.state.tr.setMeta(STOP_AI_CHAT_META, { threadId })
             view.dispatch(tr)
         } else {
-            // Trigger AI chat submission
-            const tr = view.state.tr.setMeta(USE_AI_CHAT_META, true)
+            // Trigger AI chat submission - PASS THE THREAD ID!
+            const tr = view.state.tr.setMeta(USE_AI_CHAT_META, { threadId, nodePos: getPos() })
             view.dispatch(tr)
         }
     }

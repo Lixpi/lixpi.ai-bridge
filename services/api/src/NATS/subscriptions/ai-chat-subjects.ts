@@ -38,12 +38,14 @@ export const aiChatSubjects = [
                 messages,
                 aiModel,
                 threadId,
+                requestId,
                 documentId,
                 organizationId
             } = data as {
                 user: { userId: string; stripeCustomerId: string }
                 documentId: string
                 organizationId: string
+                requestId?: string
             } & AiChatSendMessagePayload
 
             const [provider, model] = (aiModel as string).split(':')
@@ -57,8 +59,16 @@ export const aiChatSubjects = [
                 return
             }
 
-            // Create composite instance key using both documentId and threadId
-            const instanceKey = `${documentId}:${threadId}`
+            // Create unique instance key per request to allow parallel processing
+            const instanceKey = requestId ? `${documentId}:${threadId}:${requestId}` : `${documentId}:${threadId}`
+            
+            infoStr([
+                chalk.cyan('🚀 [AI_CHAT] NEW REQUEST'),
+                ' :: instanceKey:',
+                chalk.yellow(instanceKey),
+                ' :: provider:',
+                chalk.green(provider)
+            ])
 
             // Anthropic ---------------------------------------------------------------------------------------
             if (provider === 'Anthropic') {
@@ -71,12 +81,10 @@ export const aiChatSubjects = [
 
                         if (content.status === 'END_STREAM') {
                             infoStr([
-                                chalk.green('Socket.IO -> '),
-                                'emitters :: ',
-                                chalk.green(AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE),
-                                '  :   :: END_STREAM :: unsubscribe() and removeInstance(',
-                                instanceKey,
-                                ')'
+                                chalk.green('✅ [AI_CHAT] STREAM COMPLETE'),
+                                ' :: instanceKey:',
+                                chalk.yellow(instanceKey),
+                                ' :: Cleaning up'
                             ])
                             unsubscribe();
                             AnthropicChatService.removeInstance(instanceKey);
@@ -94,6 +102,7 @@ export const aiChatSubjects = [
                         }
                     })
                 } catch (error) {
+                    console.error('❌ [AI_CHAT] Anthropic error for instanceKey:', instanceKey, error)
                     natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, { error: error instanceof Error ? error.message : String(error) })
                 }
 
@@ -112,12 +121,10 @@ export const aiChatSubjects = [
 
                         if (content.status === 'END_STREAM') {
                             infoStr([
-                                chalk.green('Socket.IO -> '),
-                                'emitters :: ',
-                                chalk.green(AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE),
-                                '  :   :: END_STREAM :: unsubscribe() and removeInstance(',
-                                instanceKey,
-                                ')'
+                                chalk.green('✅ [AI_CHAT] STREAM COMPLETE'),
+                                ' :: instanceKey:',
+                                chalk.yellow(instanceKey),
+                                ' :: Cleaning up'
                             ])
                             unsubscribe();
                             OpenAiChatService.removeInstance(instanceKey);
@@ -136,6 +143,7 @@ export const aiChatSubjects = [
                     })
 
                 } catch (error) {
+                    console.error('❌ [AI_CHAT] OpenAI error for instanceKey:', instanceKey, error)
                     natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, { error: error instanceof Error ? error.message : String(error) })
                 }
             }
