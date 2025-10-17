@@ -138,8 +138,13 @@ sequenceDiagram
 
 **`aiChatThread`** - Container for entire conversation
 - Content: `(paragraph | code_block | aiResponseMessage)+`
-- Attributes: `threadId: string | null`, `status: 'active'|'paused'|'completed'`
-- DOM: `div.ai-chat-thread-wrapper[data-thread-id][data-status]`
+- Attributes:
+  - `threadId: string | null` - Unique identifier for the thread
+  - `status: 'active'|'paused'|'completed'` - Thread lifecycle state
+  - `aiModel: string` - Selected AI model (e.g., "Anthropic:claude-3-5-sonnet")
+  - `threadContext: string` - Context scope ('Thread' or 'Document')
+  - `isCollapsed: boolean` - Whether thread content is visually hidden (default: false)
+- DOM: `div.ai-chat-thread-wrapper[data-thread-id][data-status][data-ai-model][data-thread-context][data-is-collapsed]`
 
 **`aiResponseMessage`** - Individual AI responses
 - Content: `(paragraph | block)*` (empty allowed for streaming shell)
@@ -300,9 +305,47 @@ Users see:
 - A floating "send" button that appears on hover
 - Keyboard shortcuts (Cmd/Ctrl + Enter) with visual feedback
 - Thread boundaries when hovering (shows conversation scope)
+- **Collapsible threads**: Click the thread boundary indicator icon to collapse/expand thread content
+  - Collapsed threads hide content visually but still receive AI streaming updates
+  - The `contentDOM` remains in the DOM tree with `display: none`, ensuring ProseMirror can update it
+  - Decorations apply a `collapsed` class to the wrapper, which triggers CSS hiding
+  - This maintains document integrity while providing a clean UI for managing long conversations
 - Different avatars for different AI providers
 - Smooth animations as responses stream in
 - A "stop" button while AI is responding (currently TODO)
+
+## Collapsible Threads
+
+Threads can be collapsed to hide their content while preserving the ability to receive streaming updates.
+
+### How It Works
+
+**State Management:**
+- The `isCollapsed` boolean attribute is stored directly on the `aiChatThread` node
+- Clicking the thread boundary indicator dispatches a transaction with `toggleCollapse` meta
+- The plugin's `appendTransaction` handler updates the node's `isCollapsed` attribute
+- Decorations apply a `collapsed` CSS class based on the attribute value
+
+**Visual Behavior:**
+- CSS `display: none` hides `.ai-chat-thread-content` when wrapper has `collapsed` class
+- Controls remain visible with reduced opacity (0.5) for easy expansion
+- The boundary indicator remains clickable to toggle state
+
+**Critical Design Choice:**
+The `contentDOM` stays in the DOM tree even when collapsed. This ensures:
+1. **Streaming continues**: ProseMirror can insert AI response nodes into collapsed threads
+2. **No document corruption**: The document structure remains consistent
+3. **Fast toggle**: Expanding/collapsing is just a CSS change, no DOM reconstruction
+
+**Implementation Flow:**
+```
+User clicks boundary → dispatch tr.setMeta('toggleCollapse', {nodePos})
+→ appendTransaction updates node.attrs.isCollapsed
+→ createCollapsedStateDecorations adds 'collapsed' class
+→ CSS hides content (but keeps in DOM)
+```
+
+This pattern follows our decoration-first approach: visual states come from classes via decorations, not by manipulating the document structure.
 
 ## Files in this plugin
 

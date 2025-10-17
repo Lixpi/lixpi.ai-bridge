@@ -25,7 +25,9 @@ export const aiChatThreadNodeSpec = {
         // Leave aiModel blank initially; we'll assign first available model from store when models load
         aiModel: { default: '' },
         // Thread context determines scope of content extraction: 'Thread' or 'Document'
-        threadContext: { default: 'Thread' }
+        threadContext: { default: 'Thread' },
+        // Collapsed state - content is hidden but still receives streaming updates
+        isCollapsed: { default: false }
     },
     parseDOM: [
         {
@@ -34,7 +36,8 @@ export const aiChatThreadNodeSpec = {
                 threadId: dom.getAttribute('data-thread-id'),
                 status: dom.getAttribute('data-status') || 'active',
                 aiModel: dom.getAttribute('data-ai-model') || '',
-                threadContext: dom.getAttribute('data-thread-context') || 'Thread'
+                threadContext: dom.getAttribute('data-thread-context') || 'Thread',
+                isCollapsed: dom.getAttribute('data-is-collapsed') === 'true'
             })
         }
     ],
@@ -45,7 +48,8 @@ export const aiChatThreadNodeSpec = {
             'data-thread-id': node.attrs.threadId,
             'data-status': node.attrs.status,
             'data-ai-model': node.attrs.aiModel,
-            'data-thread-context': node.attrs.threadContext
+            'data-thread-context': node.attrs.threadContext,
+            'data-is-collapsed': node.attrs.isCollapsed
         },
         0
     ]
@@ -91,7 +95,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
     const submitButton = createAiSubmitButton(view, threadId, getPos)
 
     // Create thread boundary indicator for context visualization
-    const threadBoundaryIndicator = createThreadBoundaryIndicator(dom, view, threadId)
+    const threadBoundaryIndicator = createThreadBoundaryIndicator(dom, view, threadId, getPos)
 
     // Append controls to controls container (flex layout: context, model, submit)
     controlsContainer.appendChild(threadContextDropdown.dom)
@@ -148,6 +152,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
             // Update attributes if changed
             dom.setAttribute('data-thread-id', updatedNode.attrs.threadId)
             dom.setAttribute('data-status', updatedNode.attrs.status)
+            dom.setAttribute('data-is-collapsed', updatedNode.attrs.isCollapsed)
 
             // Auto-assign threadId if missing
             if (!updatedNode.attrs.threadId) {
@@ -239,7 +244,7 @@ function setupContentFocus(contentDOM, view, getPos) {
 }
 
 // Helper function to create thread boundary indicator
-function createThreadBoundaryIndicator(wrapperDOM, view, threadId) {
+function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos) {
     // Create the boundary line element (append to wrapper so it can span full thread height)
     const boundaryLine = html`
         <div className="ai-thread-boundary-indicator-line"></div>
@@ -249,12 +254,14 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId) {
     // Cache event handlers
     const handleEnter = () => view.dispatch(view.state.tr.setMeta('hoverThread', threadId))
     const handleLeave = () => view.dispatch(view.state.tr.setMeta('hoverThread', null))
+    const handleClick = () => view.dispatch(view.state.tr.setMeta('toggleCollapse', { threadId, nodePos: getPos() }))
 
     return html`
         <div
             className="ai-thread-boundary-indicator"
             onmouseenter=${handleEnter}
             onmouseleave=${handleLeave}
+            onclick=${handleClick}
         >
             <div className="ai-thread-boundary-icon" innerHTML=${chatThreadBoundariesInfoIcon}></div>
             ${createThreadInfoDropdown()}

@@ -654,6 +654,26 @@ class AiChatThreadPluginClass {
         return decorations
     }
 
+    // ========== COLLAPSED STATE SYSTEM ==========
+
+    private createCollapsedStateDecorations(state: EditorState): Decoration[] {
+        const decorations: Decoration[] = []
+
+        // Find all ai-chat-thread nodes and add collapsed class if isCollapsed is true
+        state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (node.type.name === 'aiChatThread' && node.attrs.isCollapsed) {
+                // Apply collapsed class - content will be hidden by CSS but still in DOM for streaming
+                decorations.push(
+                    Decoration.node(pos, pos + node.nodeSize, {
+                        class: 'collapsed'
+                    })
+                )
+            }
+        })
+
+        return decorations
+    }
+
     // ========== DROPDOWN STATE HANDLING ==========
     // Note: Dropdown decorations and state are now handled by the dropdown primitive plugin
 
@@ -842,6 +862,22 @@ class AiChatThreadPluginClass {
                 const insertTransaction = transactions.find(tr => tr.getMeta(INSERT_THREAD_META))
                 if (insertTransaction) {
                     return this.handleInsertThread(insertTransaction, newState)
+                }
+
+                // Handle collapse toggle
+                const collapseTransaction = transactions.find(tr => tr.getMeta('toggleCollapse'))
+                if (collapseTransaction) {
+                    const { nodePos } = collapseTransaction.getMeta('toggleCollapse')
+                    if (typeof nodePos === 'number') {
+                        const threadNode = newState.doc.nodeAt(nodePos)
+                        if (threadNode && threadNode.type.name === 'aiChatThread') {
+                            const tr = newState.tr
+                            const newAttrs = { ...threadNode.attrs, isCollapsed: !threadNode.attrs.isCollapsed }
+                            tr.setNodeMarkup(nodePos, undefined, newAttrs)
+                            documentStore.setMetaValues({ requiresSave: true })
+                            return tr
+                        }
+                    }
                 }                // Handle deferred dropdown attr updates after dropdown selection
                 const dropdownTx = transactions.find(tr => tr.getMeta('dropdownOptionSelected'))
                 if (dropdownTx) {
@@ -962,6 +998,10 @@ class AiChatThreadPluginClass {
                     // Independent thread boundary system - always visible
                     const boundaryDecorations = this.createThreadBoundaryDecorations(state, pluginState)
                     allDecorations.push(...boundaryDecorations)
+
+                    // Independent collapsed state system - hide content for collapsed threads
+                    const collapsedDecorations = this.createCollapsedStateDecorations(state)
+                    allDecorations.push(...collapsedDecorations)
 
                     // Note: Dropdown decorations are now handled by the dropdown primitive plugin
 

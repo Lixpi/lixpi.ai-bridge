@@ -3,10 +3,13 @@
 @import '../../../../sass/components/tag-pill-dropdown';
 @import '../primitives/dropdown/dropdown.scss';
 
+$aiChatThreadMinHeight: 50px;
+
 // ========== AI CHAT THREAD WRAPPER ==========
 .ai-chat-thread-wrapper {
     position: relative;
     margin-top: 2rem;
+    min-height: $aiChatThreadMinHeight;
 
     // ===== THREAD CONTENT =====
     .ai-chat-thread-content {
@@ -53,7 +56,7 @@
         background: $steelBlue;
         opacity: 0;
         transform: scaleY(0);
-        min-height: 50px;
+        min-height: $aiChatThreadMinHeight;
         transform-origin: top;
         transition: pupOutTransition(all, 200ms);
         z-index: 5;
@@ -287,6 +290,18 @@
                     }
                 }
             }
+        }
+    }
+
+    // ===== COLLAPSED STATE =====
+    // When collapsed, hide content visually but keep it in DOM for streaming
+    &.collapsed {
+        .ai-chat-thread-content {
+            display: none;
+        }
+
+        .ai-chat-thread-controls {
+            display: none;
         }
     }
 }
