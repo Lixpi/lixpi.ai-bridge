@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { v4 as uuidv4 } from 'uuid'
-import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon } from '../../../../svgIcons/index.ts'
+import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon, eyeIcon, eyeSlashIcon } from '../../../../svgIcons/index.ts'
 import { TextSelection } from 'prosemirror-state'
 import { AI_CHAT_THREAD_PLUGIN_KEY, USE_AI_CHAT_META, STOP_AI_CHAT_META } from './aiChatThreadPluginConstants.ts'
 import { html } from '../../components/domTemplates.ts'
@@ -95,7 +95,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
     const submitButton = createAiSubmitButton(view, threadId, getPos)
 
     // Create thread boundary indicator for context visualization
-    const threadBoundaryIndicator = createThreadBoundaryIndicator(dom, view, threadId, getPos)
+    const { boundaryIndicator: threadBoundaryIndicator, collapseToggleIcon } = createThreadBoundaryIndicator(dom, view, threadId, getPos, node.attrs.isCollapsed)
 
     // Append controls to controls container (flex layout: context, model, submit)
     controlsContainer.appendChild(threadContextDropdown.dom)
@@ -216,6 +216,17 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
                 })
             }
 
+            // Sync isCollapsed change to collapse toggle icon
+            if (node.attrs.isCollapsed !== updatedNode.attrs.isCollapsed) {
+                console.log('[AI_DBG][THREAD.nodeView.update] isCollapsed attr changed', { from: node.attrs.isCollapsed, to: updatedNode.attrs.isCollapsed, threadId: updatedNode.attrs.threadId })
+
+                if (updatedNode.attrs.isCollapsed) {
+                    collapseToggleIcon.classList.add('is-collapsed')
+                } else {
+                    collapseToggleIcon.classList.remove('is-collapsed')
+                }
+            }
+
             node = updatedNode
 
             console.log('[AI_DBG][THREAD.nodeView.update] ACCEPTED - returning true')
@@ -244,7 +255,7 @@ function setupContentFocus(contentDOM, view, getPos) {
 }
 
 // Helper function to create thread boundary indicator
-function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos) {
+function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCollapsed) {
     // Create the boundary line element (append to wrapper so it can span full thread height)
     const boundaryLine = html`
         <div className="ai-thread-boundary-indicator-line"></div>
@@ -254,19 +265,37 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos) {
     // Cache event handlers
     const handleEnter = () => view.dispatch(view.state.tr.setMeta('hoverThread', threadId))
     const handleLeave = () => view.dispatch(view.state.tr.setMeta('hoverThread', null))
-    const handleClick = () => view.dispatch(view.state.tr.setMeta('toggleCollapse', { threadId, nodePos: getPos() }))
+    const handleCollapseToggle = (e) => {
+        e.stopPropagation()
+        view.dispatch(view.state.tr.setMeta('toggleCollapse', { threadId, nodePos: getPos() }))
+    }
 
-    return html`
+    // Create the collapse toggle icon (eye/eyeSlash) that appears on hover
+    const collapseToggleIcon = html`
+        <div className="ai-thread-collapse-toggle" onclick=${handleCollapseToggle}>
+            <div className="collapse-icon-expanded" innerHTML=${eyeSlashIcon}></div>
+            <div className="collapse-icon-collapsed" innerHTML=${eyeIcon}></div>
+        </div>
+    `
+
+    // Set initial collapsed class based on state
+    if (isCollapsed) {
+        collapseToggleIcon.classList.add('is-collapsed')
+    }
+
+    const boundaryIndicator = html`
         <div
             className="ai-thread-boundary-indicator"
             onmouseenter=${handleEnter}
             onmouseleave=${handleLeave}
-            onclick=${handleClick}
         >
             <div className="ai-thread-boundary-icon" innerHTML=${chatThreadBoundariesInfoIcon}></div>
+            ${collapseToggleIcon}
             ${createThreadInfoDropdown()}
         </div>
     `
+
+    return { boundaryIndicator, collapseToggleIcon }
 }
 
 // Helper to create a small info dropdown near the boundary indicator

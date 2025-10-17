@@ -19,17 +19,31 @@ $aiChatThreadMinHeight: 50px;
     // ===== THREAD BOUNDARY SYSTEM =====
     .ai-thread-boundary-indicator {
         position: absolute;
-        right: -47px;
+        right: -71px;
         top: -6px;
-        width: 32px;
+        // width: 32px;
+        width: 60px;
         height: 32px;
+        // border: 1px solid red;
         display: flex;
         align-items: center;
         justify-content: center;
         background: transparent;
         border-radius: 50%;
         z-index: 3;
-        cursor: pointer;
+        // cursor: pointer;
+
+        // Add invisible hover area that extends to cover the collapse toggle
+        &::after {
+            content: '';
+            position: absolute;
+            width: 60px; // Extended width to cover both elements
+            height: 52px;
+            pointer-events: auto; // Extends hover area
+            // background: rgba(189, 173, 141, .2);
+            z-index: 0; // Behind children so they can receive clicks
+            cursor: default;
+        }
 
         .ai-thread-boundary-icon {
             width: 20px;
@@ -37,13 +51,65 @@ $aiChatThreadMinHeight: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            pointer-events: none;
+            position: relative;
+            z-index: 1; // Above ::after
+            cursor: pointer;
 
             svg {
                 width: 20px;
                 height: 20px;
                 fill: $nightBlue;
+                transition: hoverTransition(all, 150ms);
             }
+        }
+
+        // Collapse toggle icon - appears on hover
+        .ai-thread-collapse-toggle {
+            margin-left: .15rem;
+            width: 20px;
+            height: 20px;
+            opacity: 0;
+            transition: hoverTransition(opacity, 200ms);
+            cursor: pointer;
+            position: relative;
+            z-index: 2; // Above ::after so it can receive clicks
+
+            // Show expanded icon by default
+            .collapse-icon-expanded {
+                display: block;
+            }
+
+            .collapse-icon-collapsed {
+                display: none;
+            }
+
+            svg {
+                width: 20px;
+                height: 20px;
+                fill: $nightBlue;
+                transition: hoverTransition(fill, 150ms);
+            }
+
+            // When collapsed, swap icons
+            &.is-collapsed {
+                .collapse-icon-expanded {
+                    display: none;
+                }
+
+                .collapse-icon-collapsed {
+                    display: block;
+                }
+            }
+
+            &:hover svg {
+                fill: $steelBlue;
+            }
+        }
+
+        // Show collapse toggle on boundary indicator hover
+        &:hover .ai-thread-collapse-toggle {
+            opacity: 1;
+            pointer-events: auto;
         }
     }
 
@@ -76,9 +142,10 @@ $aiChatThreadMinHeight: 50px;
     // ===== INFO DROPDOWN =====
     .ai-thread-info-dropdown {
         position: absolute;
-        right: 0;
+        right: 1rem;
         top: 0;
         pointer-events: none;
+        // display: none;
 
         @include dropdownChipStructure((
             triggerHeight: 24px,
@@ -109,7 +176,7 @@ $aiChatThreadMinHeight: 50px;
                 position: absolute;
                 right: 50px;
                 top: 6px;
-                z-index: 999;
+                z-index: 999999;
             }
 
             .submenu {
@@ -319,12 +386,40 @@ $aiChatThreadMinHeight: 50px;
                     rgba(255, 255, 255, 1) 100%
                 );
                 pointer-events: none;
-                z-index: 10;
+                z-index: 2;
             }
+        }
+
+        .ai-thread-boundary-indicator {
+            .ai-thread-boundary-icon {
+                svg {
+                    fill: lighten($nightBlue, 20%);
+                }
+            }
+
+        }
+
+
+        .ai-thread-boundary-indicator-line {
+            background: lighten($steelBlue, 20%)
         }
 
         .ai-chat-thread-controls {
             display: none;
+        }
+
+        &:hover {
+            cursor: pointer;
+            .ai-thread-boundary-indicator {
+                .ai-thread-boundary-icon {
+                    svg {
+                        fill: $nightBlue;
+                    }
+                }
+            }
+            .ai-thread-boundary-indicator-line {
+                background: $steelBlue;
+            }
         }
     }
 }
