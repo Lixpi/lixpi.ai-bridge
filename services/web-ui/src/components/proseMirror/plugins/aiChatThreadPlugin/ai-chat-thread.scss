@@ -38,11 +38,11 @@ $aiChatThreadMinHeight: 50px;
             content: '';
             position: absolute;
             width: 60px; // Extended width to cover both elements
-            height: 52px;
+            height: 62px;
             pointer-events: auto; // Extends hover area
             // background: rgba(189, 173, 141, .2);
             z-index: 0; // Behind children so they can receive clicks
-            cursor: default;
+            // cursor: move;
         }
 
         .ai-thread-boundary-icon {
@@ -292,14 +292,12 @@ $aiChatThreadMinHeight: 50px;
         }
     }
 
-    // Boundary indicator hover
-    .ai-thread-boundary-indicator:hover {
-        .ai-thread-info-dropdown {
-            pointer-events: auto;
+    // Info dropdown visibility on click (not hover)
+    .ai-thread-info-dropdown.dropdown-visible {
+        pointer-events: auto;
 
-            .dots-dropdown-menu .submenu-wrapper {
-                display: block;
-            }
+        .dots-dropdown-menu .submenu-wrapper {
+            display: block;
         }
     }
 
@@ -409,7 +407,7 @@ $aiChatThreadMinHeight: 50px;
         }
 
         &:hover {
-            cursor: pointer;
+            cursor: move;
             .ai-thread-boundary-indicator {
                 .ai-thread-boundary-icon {
                     svg {

@@ -270,6 +270,15 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
         view.dispatch(view.state.tr.setMeta('toggleCollapse', { threadId, nodePos: getPos() }))
     }
 
+    // Create the info dropdown
+    const infoDropdown = createThreadInfoDropdown()
+
+    // Click handler for boundary icon to toggle info dropdown
+    const handleBoundaryIconClick = (e) => {
+        e.stopPropagation()
+        infoDropdown.classList.toggle('dropdown-visible')
+    }
+
     // Create the collapse toggle icon (eye/eyeSlash) that appears on hover
     const collapseToggleIcon = html`
         <div className="ai-thread-collapse-toggle" onclick=${handleCollapseToggle}>
@@ -289,9 +298,9 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
             onmouseenter=${handleEnter}
             onmouseleave=${handleLeave}
         >
-            <div className="ai-thread-boundary-icon" innerHTML=${chatThreadBoundariesInfoIcon}></div>
+            <div className="ai-thread-boundary-icon" innerHTML=${chatThreadBoundariesInfoIcon} onclick=${handleBoundaryIconClick}></div>
             ${collapseToggleIcon}
-            ${createThreadInfoDropdown()}
+            ${infoDropdown}
         </div>
     `
 
