@@ -1,6 +1,7 @@
 // AI Chat Thread Styles
 @import '../../ProseMirrorMixings.scss';
 @import '../../../../sass/components/tag-pill-dropdown';
+@import '../../../../sass/components/animations';
 @import '../primitives/dropdown/dropdown.scss';
 
 $aiChatThreadMinHeight: 50px;
@@ -59,7 +60,7 @@ $aiChatThreadMinHeight: 50px;
                 width: 20px;
                 height: 20px;
                 fill: $nightBlue;
-                transition: hoverTransition(all, 150ms);
+                transition: pupOutTransition(all, 150ms);
             }
         }
 
@@ -74,35 +75,23 @@ $aiChatThreadMinHeight: 50px;
             position: relative;
             z-index: 2; // Above ::after so it can receive clicks
 
-            // Show expanded icon by default
-            .collapse-icon-expanded {
+            .collapse-icon {
                 display: block;
-            }
-
-            .collapse-icon-collapsed {
-                display: none;
             }
 
             svg {
                 width: 20px;
                 height: 20px;
-                fill: $nightBlue;
-                transition: hoverTransition(fill, 150ms);
+                fill: lighten($nightBlue, 30%); // Lighter in expanded state
             }
 
-            // When collapsed, swap icons
-            &.is-collapsed {
-                .collapse-icon-expanded {
-                    display: none;
-                }
-
-                .collapse-icon-collapsed {
-                    display: block;
-                }
-            }
-
-            &:hover svg {
-                fill: $steelBlue;
+            // Click feedback animation - collapsing (going from expanded to collapsed)
+            &.click-feedback svg {
+                @include clickToggleFeedbackAnimation((
+                    startColor: lighten($nightBlue, 30%),
+                    flashColor: lighten($nightBlue, 15%),
+                    endColor: $nightBlue
+                ));
             }
         }
 
@@ -395,6 +384,19 @@ $aiChatThreadMinHeight: 50px;
                 }
             }
 
+            // When collapsed, use darker color for toggle icon
+            .ai-thread-collapse-toggle svg {
+                fill: $nightBlue; // Darker in collapsed state
+            }
+
+            // Click feedback animation - expanding (going from collapsed to expanded)
+            .ai-thread-collapse-toggle.click-feedback svg {
+                @include clickToggleFeedbackAnimation((
+                    startColor: $nightBlue,
+                    flashColor: lighten($nightBlue, 15%),
+                    endColor: lighten($nightBlue, 30%)
+                ));
+            }
         }
 
 
@@ -409,11 +411,11 @@ $aiChatThreadMinHeight: 50px;
         &:hover {
             cursor: move;
             .ai-thread-boundary-indicator {
-                .ai-thread-boundary-icon {
-                    svg {
-                        fill: $nightBlue;
-                    }
-                }
+                // .ai-thread-boundary-icon {
+                //     svg {
+                //         fill: $nightBlue;
+                //     }
+                // }
             }
             .ai-thread-boundary-indicator-line {
                 background: $steelBlue;

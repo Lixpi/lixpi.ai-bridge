@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { v4 as uuidv4 } from 'uuid'
-import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon, eyeIcon, eyeSlashIcon } from '../../../../svgIcons/index.ts'
+import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon, eyeSlashIcon } from '../../../../svgIcons/index.ts'
 import { TextSelection } from 'prosemirror-state'
 import { AI_CHAT_THREAD_PLUGIN_KEY, USE_AI_CHAT_META, STOP_AI_CHAT_META } from './aiChatThreadPluginConstants.ts'
 import { html } from '../../components/domTemplates.ts'
@@ -219,12 +219,8 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
             // Sync isCollapsed change to collapse toggle icon
             if (node.attrs.isCollapsed !== updatedNode.attrs.isCollapsed) {
                 console.log('[AI_DBG][THREAD.nodeView.update] isCollapsed attr changed', { from: node.attrs.isCollapsed, to: updatedNode.attrs.isCollapsed, threadId: updatedNode.attrs.threadId })
-
-                if (updatedNode.attrs.isCollapsed) {
-                    collapseToggleIcon.classList.add('is-collapsed')
-                } else {
-                    collapseToggleIcon.classList.remove('is-collapsed')
-                }
+                // Note: The .collapsed class on wrapper is managed by decorations in the plugin
+                // We don't need to manually sync any classes here
             }
 
             node = updatedNode
@@ -265,8 +261,19 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
     // Cache event handlers
     const handleEnter = () => view.dispatch(view.state.tr.setMeta('hoverThread', threadId))
     const handleLeave = () => view.dispatch(view.state.tr.setMeta('hoverThread', null))
+
+    // Will be populated after creating the collapse toggle element
+    let collapseToggleIcon
+
     const handleCollapseToggle = (e) => {
         e.stopPropagation()
+
+        // Add click feedback animation
+        collapseToggleIcon.classList.add('click-feedback')
+        setTimeout(() => {
+            collapseToggleIcon.classList.remove('click-feedback')
+        }, 300) // Match animation duration
+
         view.dispatch(view.state.tr.setMeta('toggleCollapse', { threadId, nodePos: getPos() }))
     }
 
@@ -279,18 +286,15 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
         infoDropdown.classList.toggle('dropdown-visible')
     }
 
-    // Create the collapse toggle icon (eye/eyeSlash) that appears on hover
-    const collapseToggleIcon = html`
+    // Create the collapse toggle icon - uses eyeSlashIcon with color changes based on state
+    collapseToggleIcon = html`
         <div className="ai-thread-collapse-toggle" onclick=${handleCollapseToggle}>
-            <div className="collapse-icon-expanded" innerHTML=${eyeSlashIcon}></div>
-            <div className="collapse-icon-collapsed" innerHTML=${eyeIcon}></div>
+            <div className="collapse-icon" innerHTML=${eyeSlashIcon}></div>
         </div>
     `
 
-    // Set initial collapsed class based on state
-    if (isCollapsed) {
-        collapseToggleIcon.classList.add('is-collapsed')
-    }
+    // Note: The collapsed state color is managed by CSS based on the .collapsed class
+    // on the wrapper, which is applied via decorations in the plugin
 
     const boundaryIndicator = html`
         <div
