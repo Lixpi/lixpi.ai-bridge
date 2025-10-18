@@ -305,10 +305,11 @@ Users see:
 - A floating "send" button that appears on hover
 - Keyboard shortcuts (Cmd/Ctrl + Enter) with visual feedback
 - Thread boundaries when hovering (shows conversation scope)
-- **Collapsible threads**: Click the thread boundary indicator icon to collapse/expand thread content
+- **Collapsible threads**: A collapse toggle icon (eye slash) appears on hover next to the boundary indicator
+  - Click the toggle icon to collapse/expand thread content with iOS-style feedback animation
   - Collapsed threads hide content visually but still receive AI streaming updates
-  - The `contentDOM` remains in the DOM tree with `display: none`, ensuring ProseMirror can update it
-  - Decorations apply a `collapsed` class to the wrapper, which triggers CSS hiding
+  - Icon color changes based on state: lighter when expanded, darker when collapsed
+  - Smooth color transitions during collapse/expand actions
   - This maintains document integrity while providing a clean UI for managing long conversations
 - Different avatars for different AI providers
 - Smooth animations as responses stream in
@@ -322,14 +323,21 @@ Threads can be collapsed to hide their content while preserving the ability to r
 
 **State Management:**
 - The `isCollapsed` boolean attribute is stored directly on the `aiChatThread` node
-- Clicking the thread boundary indicator dispatches a transaction with `toggleCollapse` meta
+- A separate collapse toggle icon (eye slash) appears on hover next to the boundary indicator
+- Clicking the toggle icon dispatches a transaction with `toggleCollapse` meta
 - The plugin's `appendTransaction` handler updates the node's `isCollapsed` attribute
-- Decorations apply a `collapsed` CSS class based on the attribute value
+- Decorations apply a `collapsed` CSS class to the wrapper based on the attribute value
 
 **Visual Behavior:**
+- Collapse toggle icon appears only when hovering over the thread boundary area
+- Icon color indicates state: lighter (`lighten($nightBlue, 30%)`) when expanded, darker (`$nightBlue`) when collapsed
+- Click triggers iOS-style feedback animation with smooth color transitions
 - CSS `display: none` hides `.ai-chat-thread-content` when wrapper has `collapsed` class
-- Controls remain visible with reduced opacity (0.5) for easy expansion
-- The boundary indicator remains clickable to toggle state
+- Controls hidden when collapsed for cleaner UI
+- The boundary indicator shows info dropdown on click (separate from collapse functionality)
+
+**Click Feedback Animation:**
+The toggle icon uses a reusable SCSS mixin for iOS-style tactile feedback with smooth color transitions and subtle scale animation.
 
 **Critical Design Choice:**
 The `contentDOM` stays in the DOM tree even when collapsed. This ensures:
@@ -338,12 +346,7 @@ The `contentDOM` stays in the DOM tree even when collapsed. This ensures:
 3. **Fast toggle**: Expanding/collapsing is just a CSS change, no DOM reconstruction
 
 **Implementation Flow:**
-```
-User clicks boundary → dispatch tr.setMeta('toggleCollapse', {nodePos})
-→ appendTransaction updates node.attrs.isCollapsed
-→ createCollapsedStateDecorations adds 'collapsed' class
-→ CSS hides content (but keeps in DOM)
-```
+User clicks toggle icon → transaction updates node attribute → decorations apply CSS class → content hidden but remains in DOM for streaming.
 
 This pattern follows our decoration-first approach: visual states come from classes via decorations, not by manipulating the document structure.
 
@@ -352,7 +355,10 @@ This pattern follows our decoration-first approach: visual states come from clas
 - `aiChatThreadNode.ts` - Thread container node (self-contained):
   - Exports node schema AND its NodeView implementation
   - Uses `html` template literals for clean UI creation
-  - Creates boundary indicator, submit button, and **dropdown UI controls**
+  - Creates boundary indicator with info dropdown (click-triggered)
+  - Creates collapse toggle icon (eye slash) that appears on hover next to boundary indicator
+  - Handles click events for collapse/expand with iOS-style animation feedback
+  - Creates submit button and **dropdown UI controls**
   - `createAiModelSelectorDropdown()` and `createThreadContextDropdown()` use `createPureDropdown()` primitive
   - Dropdowns appended directly to controlsContainer (not inserted via transactions)
   - `ignoreMutation()` prevents NodeView recreation when dropdowns open/close
