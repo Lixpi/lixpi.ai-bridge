@@ -15,6 +15,27 @@ import type {
 import { getDynamoDbTableStageName } from '@lixpi/constants'
 import type { PartialDeep } from 'type-fest'
 
+// Modality metadata constants
+const MODALITY_METADATA = {
+    text: { title: 'Text', shortTitle: 'TXT' },
+    image: { title: 'Image', shortTitle: 'IMG' },
+    audio: { title: 'Audio', shortTitle: 'AUDIO' },
+    voice: { title: 'Voice', shortTitle: 'VOICE' },
+    video: { title: 'Video', shortTitle: 'VID' }
+} as const
+
+// Helper function to generate modalities with metadata from modalities array
+function generateModalitiesWithMetadata(modalities: string[]): Array<{ modality: string; title: string; shortTitle: string }> {
+    return modalities.map(modality => {
+        const metadata = MODALITY_METADATA[modality as keyof typeof MODALITY_METADATA]
+        return {
+            modality,
+            title: metadata?.title || modality.charAt(0).toUpperCase() + modality.slice(1),
+            shortTitle: metadata?.shortTitle || modality.toUpperCase()
+        }
+    })
+}
+
 // OpenAI API types (using SDK types)
 type OpenAIModel = OpenAI.Models.Model
 type AnthropicModel = {
@@ -488,7 +509,7 @@ export class AiModelsSync {
             color: modelDefaults.color,
             iconName: modelDefaults.iconName,
             sortingPosition: modelDefaults.starSortingPosition + sortingPosition,
-            modalities: modelDefaults.modalities,
+            modalities: generateModalitiesWithMetadata(modelDefaults.modalities),
             pricing: modelDefaults.pricing,
             createdAt: now,
             updatedAt: now
@@ -525,7 +546,7 @@ export class AiModelsSync {
             color: modelDefaults.color,
             iconName: modelDefaults.iconName,
             sortingPosition: modelDefaults.starSortingPosition + sortingPosition,
-            modalities: modelDefaults.modalities,
+            modalities: generateModalitiesWithMetadata(modelDefaults.modalities),
             pricing: modelDefaults.pricing,
             createdAt: now,
             updatedAt: now

@@ -105,7 +105,7 @@ export type AiModel = {
     color: string
     iconName: string
     sortingPosition: number
-    modalities: string[]
+    modalities: Array<{ modality: string; title: string; shortTitle: string }>
     pricing: {
         currency: string
         resaleMargin: string

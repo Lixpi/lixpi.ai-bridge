@@ -15,6 +15,7 @@ type DropdownOption = {
     title: string
     icon?: string
     color?: string
+    tags?: string[]
     [key: string]: any
 }
 
@@ -120,11 +121,18 @@ export function createPureDropdown(config: PureDropdownConfig) {
                     <ul class="submenu">
                         ${options.map(option => html`
                             <li
-                                class="flex justify-start items-center"
+                                class="dropdown-option-item flex justify-start items-center"
                                 onclick=${(e: Event) => optionClickHandler(e, option)}
                             >
-                                ${renderIconForOptions && option.icon ? html`<span innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
-                                ${option.title}
+                                ${renderIconForOptions && option.icon ? html`<span class="option-icon" innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
+                                <div class="option-content">
+                                    <span class="option-title">${option.title}</span>
+                                    ${option.tags && option.tags.length > 0 ? html`
+                                        <div class="option-tags">
+                                            ${option.tags.map(tag => html`<span class="option-tag">${tag}</span>`)}
+                                        </div>
+                                    ` : ''}
+                                </div>
                             </li>
                         `)}
                     </ul>

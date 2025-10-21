@@ -361,7 +361,8 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
         color: aiModel.color,
         aiModel: `${aiModel.provider}:${aiModel.model}`,
         provider: aiModel.provider,
-        model: aiModel.model
+        model: aiModel.model,
+        tags: aiModel.modalities?.map(m => m.shortTitle) || []
     }))
 
     // Find selected value
