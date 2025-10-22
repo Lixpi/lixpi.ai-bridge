@@ -2,6 +2,7 @@
 @use "sass:math";
 @import "../variables";
 @import "../transitions";
+@import "./animations";
 
 // =============================
 // Dropdown Chip (Tag Pill) API
@@ -519,6 +520,15 @@
                             background-color: rgba(100, 150, 255, 0.2);
                             border-color: rgba(100, 150, 255, 0.5);
                             color: rgba(150, 200, 255, 1);
+                        }
+
+                        // Click feedback animation (replaces basic click transition)
+                        &.click-feedback {
+                            @include clickToggleFeedbackAnimation((
+                                startColor: rgba(map-get($s, surfaceFg), 0.65),
+                                flashColor: rgba(map-get($s, surfaceFg), 1),
+                                endColor: rgba(map-get($s, surfaceFg), 0.65)
+                            ));
                         }
                     }
                 }

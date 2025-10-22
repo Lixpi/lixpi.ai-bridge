@@ -272,7 +272,7 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
         collapseToggleIcon.classList.add('click-feedback')
         setTimeout(() => {
             collapseToggleIcon.classList.remove('click-feedback')
-        }, 300) // Match animation duration
+        }, 150) // Match animation duration
 
         view.dispatch(view.state.tr.setMeta('toggleCollapse', { threadId, nodePos: getPos() }))
     }

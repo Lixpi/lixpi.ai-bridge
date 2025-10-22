@@ -123,6 +123,13 @@ export function createPureDropdown(config: PureDropdownConfig) {
         e.preventDefault()
         e.stopPropagation()
 
+        // Visual click feedback
+        const target = e.currentTarget as HTMLElement
+        if (target) {
+            target.classList.add('click-feedback')
+            setTimeout(() => target.classList.remove('click-feedback'), 150)
+        }
+
         if (activeFilterTags.has(tag)) {
             activeFilterTags.delete(tag)
         } else {
