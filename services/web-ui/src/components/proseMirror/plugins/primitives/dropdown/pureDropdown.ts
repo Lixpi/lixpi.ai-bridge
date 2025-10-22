@@ -197,7 +197,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
                 <nav class="submenu-wrapper render-position-${renderPosition}" contenteditable="false">
                     ${enableTagFilter && availableTags.length > 0 ? html`
                         <div class="tag-filter" onmousedown=${preventProseMirrorEdit}>
-                            <div class="tag-filter-title">Filter by capability:</div>
+                            <div class="tag-filter-title">Filter by modality:</div>
                             <div class="tag-filter-list">
                                 ${availableTags.map(tag => html`
                                     <span

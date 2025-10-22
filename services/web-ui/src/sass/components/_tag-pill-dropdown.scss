@@ -487,7 +487,6 @@
                     font-weight: 500;
                     color: rgba(map-get($s, surfaceFg), 0.5);
                     margin-bottom: 0.5rem;
-                    text-transform: uppercase;
                     letter-spacing: 0.5px;
                 }
 
@@ -501,7 +500,6 @@
                         padding: 0.25rem 0.6rem;
                         font-size: 0.7rem;
                         font-weight: 500;
-                        text-transform: uppercase;
                         background-color: color.adjust(map-get($s, surfaceBg), $lightness: 3%);
                         border: 1px solid color.adjust(map-get($s, surfaceBg), $lightness: 8%);
                         border-radius: 0.25rem;
