@@ -379,12 +379,13 @@
 
 // 4) Theme (all colors and lightness adjustments)
 @mixin dropdownChipTheme($config: ()) {
-        $defaults: (
+    $defaults: (
         surfaceBg: $offWhite,          // submenu background
         surfaceFg: $nightBlue,         // submenu text color
         glyphBase: null,               // default icon fill for trigger; falls back to surfaceBg
         triggerBg: null,               // ripple/underlay; falls back to surfaceBg
         itemIconColor: #151515,
+    submenuRadius: 4px,            // keep in sync with structure default
         borderLightnessAdjustment: -10%,
         hoverLightnessAdjustment: -6%,
         hoverGlyphFill: null,          // optional color for trigger icon on hover
@@ -548,10 +549,15 @@
                 }
             }
 
-            // When filter is present, don't apply top radius to first list item
-            &:has(.tag-filter) .submenu li:first-child {
-                border-top-left-radius: 0;
-                border-top-right-radius: 0;
+            // When filter is present, remove any rounding from the first option item
+            // and flatten the UL top corners so the filter owns the rounded header.
+            &:has(.tag-filter) {
+                // The filter owns the top rounding; UL and first LI must be flat on top.
+                .submenu {
+                    border-top-left-radius: 0;
+                    border-top-right-radius: 0;
+                }
+                .submenu li:first-child { border-radius: 0; }
             }
         }
 
