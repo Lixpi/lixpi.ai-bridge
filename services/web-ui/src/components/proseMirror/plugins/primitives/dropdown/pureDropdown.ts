@@ -31,6 +31,8 @@ type PureDropdownConfig = {
     renderIconForSelectedValue?: boolean
     renderIconForOptions?: boolean
     renderTitleForSelectedValue?: boolean
+    enableTagFilter?: boolean
+    availableTags?: string[]
     onSelect: (option: DropdownOption) => void
 }
 
@@ -47,11 +49,15 @@ export function createPureDropdown(config: PureDropdownConfig) {
         renderIconForSelectedValue = true,
         renderIconForOptions = true,
         renderTitleForSelectedValue = true,
+        enableTagFilter = false,
+        availableTags = [],
         onSelect
     } = config
 
     let currentSelectedValue = selectedValue
     let submenuRef: HTMLElement | null = null
+    let activeFilterTags: Set<string> = new Set()
+    let allOptions = [...options]
 
     // Handle toggle
     const toggleHandler = (e: Event) => {
@@ -101,6 +107,72 @@ export function createPureDropdown(config: PureDropdownConfig) {
         }
     }
 
+    // Filter options based on active tags
+    const getFilteredOptions = () => {
+        if (!enableTagFilter || activeFilterTags.size === 0) {
+            return allOptions
+        }
+        return allOptions.filter(option => {
+            if (!option.tags || option.tags.length === 0) return false
+            return Array.from(activeFilterTags).every(filterTag => option.tags.includes(filterTag))
+        })
+    }
+
+    // Handle tag filter click
+    const handleTagFilterClick = (e: Event, tag: string) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (activeFilterTags.has(tag)) {
+            activeFilterTags.delete(tag)
+        } else {
+            activeFilterTags.add(tag)
+        }
+
+        // Re-render options list
+        renderOptionsList()
+
+        // Update tag filter UI
+        updateTagFilterUI()
+    }
+
+    // Render options list based on current filter
+    const renderOptionsList = () => {
+        const submenuList = dom.querySelector('.submenu')
+        if (!submenuList) return
+
+        const filteredOptions = getFilteredOptions()
+
+        submenuList.innerHTML = ''
+        filteredOptions.forEach(option => {
+            const li = html`
+                <li
+                    class="dropdown-option-item flex justify-start items-center"
+                    onclick=${(e: Event) => optionClickHandler(e, option)}
+                >
+                    ${renderIconForOptions && option.icon ? html`<span class="option-icon" innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
+                    <div class="option-content">
+                        <span class="option-title">${option.title}</span>
+                    </div>
+                </li>
+            ` as HTMLElement
+            submenuList.appendChild(li)
+        })
+    }
+
+    // Update tag filter UI to show active state
+    const updateTagFilterUI = () => {
+        const tagFilterElements = dom.querySelectorAll('.tag-filter-item')
+        tagFilterElements.forEach(el => {
+            const tag = el.getAttribute('data-tag')
+            if (tag && activeFilterTags.has(tag)) {
+                el.classList.add('active')
+            } else {
+                el.classList.remove('active')
+            }
+        })
+    }
+
     // Build DOM
     const dom = html`
         <div class="dropdown-menu-tag-pill-wrapper theme-${theme}" data-dropdown-id="${id}" contenteditable="false">
@@ -118,6 +190,20 @@ export function createPureDropdown(config: PureDropdownConfig) {
                     </span>
                 </button>
                 <nav class="submenu-wrapper render-position-${renderPosition}" contenteditable="false">
+                    ${enableTagFilter && availableTags.length > 0 ? html`
+                        <div class="tag-filter" onmousedown=${preventProseMirrorEdit}>
+                            <div class="tag-filter-title">Filter by capability:</div>
+                            <div class="tag-filter-list">
+                                ${availableTags.map(tag => html`
+                                    <span
+                                        class="tag-filter-item"
+                                        data-tag="${tag}"
+                                        onclick=${(e: Event) => handleTagFilterClick(e, tag)}
+                                    >${tag}</span>
+                                `)}
+                            </div>
+                        </div>
+                    ` : ''}
                     <ul class="submenu">
                         ${options.map(option => html`
                             <li
@@ -127,11 +213,6 @@ export function createPureDropdown(config: PureDropdownConfig) {
                                 ${renderIconForOptions && option.icon ? html`<span class="option-icon" innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
                                 <div class="option-content">
                                     <span class="option-title">${option.title}</span>
-                                    ${option.tags && option.tags.length > 0 ? html`
-                                        <div class="option-tags">
-                                            ${option.tags.map(tag => html`<span class="option-tag">${tag}</span>`)}
-                                        </div>
-                                    ` : ''}
                                 </div>
                             </li>
                         `)}

@@ -365,6 +365,13 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
         tags: aiModel.modalities?.map(m => m.shortTitle) || []
     }))
 
+    // Extract all unique tags from all models for the filter
+    const allTags = new Set<string>()
+    aiModelsData.forEach(aiModel => {
+        aiModel.modalities?.forEach(m => allTags.add(m.shortTitle))
+    })
+    const availableTags = Array.from(allTags).sort()
+
     // Find selected value
     let selectedValue = aiModelsSelectorDropdownOptions.find(model => model.aiModel === currentAiModel)
 
@@ -390,6 +397,8 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
         ignoreColorValuesForSelectedValue: false,
         renderIconForSelectedValue: false,
         renderIconForOptions: true,
+        enableTagFilter: true,
+        availableTags,
         onSelect: (option) => {
             console.log('[AI_DBG][THREAD.modelDropdown] onSelect', { threadId, option })
 

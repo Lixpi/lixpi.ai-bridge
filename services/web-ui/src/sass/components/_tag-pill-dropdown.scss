@@ -337,6 +337,32 @@
                 }
             }
 
+            li.dropdown-option-item {
+                display: flex;
+                justify-content: flex-start;
+                align-items: flex-start;
+                gap: 0.5rem;
+
+                .option-icon {
+                    flex-shrink: 0;
+                    align-self: flex-start;
+                }
+
+                .option-content {
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex: 1;
+                    gap: 0.5rem;
+
+                    .option-title {
+                        display: block;
+                        flex-shrink: 0;
+                    }
+                }
+            }
+
             // Ensure top/bottom items visually conform to submenu radius even when overflow is visible
             li:first-child {
                 border-top-left-radius: map-get($s, submenuRadius);
@@ -468,6 +494,64 @@
             // Muted color for header meta that adapts to theme foreground
             li[data-type='header'] .header-text .header-meta {
                 color: rgba(map-get($s, surfaceFg), 0.75);
+            }
+        }
+
+        .submenu-wrapper {
+            .tag-filter {
+                padding: 0.75rem 1rem;
+                border-bottom: 1px solid color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
+                background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
+                border-top-left-radius: map-get($s, submenuRadius);
+                border-top-right-radius: map-get($s, submenuRadius);
+
+                .tag-filter-title {
+                    font-size: 0.75rem;
+                    font-weight: 500;
+                    color: rgba(map-get($s, surfaceFg), 0.5);
+                    margin-bottom: 0.5rem;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+
+                .tag-filter-list {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.4rem;
+
+                    .tag-filter-item {
+                        display: inline-block;
+                        padding: 0.25rem 0.6rem;
+                        font-size: 0.7rem;
+                        font-weight: 500;
+                        text-transform: uppercase;
+                        background-color: color.adjust(map-get($s, surfaceBg), $lightness: 3%);
+                        border: 1px solid color.adjust(map-get($s, surfaceBg), $lightness: 8%);
+                        border-radius: 0.25rem;
+                        cursor: pointer;
+                        transition: all 0.15s ease;
+                        opacity: 0.6;
+
+                        &:hover {
+                            opacity: 1;
+                            background-color: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, hoverLightnessAdjustment));
+                            border-color: color.adjust(map-get($s, surfaceBg), $lightness: 15%);
+                        }
+
+                        &.active {
+                            opacity: 1;
+                            background-color: rgba(100, 150, 255, 0.2);
+                            border-color: rgba(100, 150, 255, 0.5);
+                            color: rgba(150, 200, 255, 1);
+                        }
+                    }
+                }
+            }
+
+            // When filter is present, don't apply top radius to first list item
+            &:has(.tag-filter) .submenu li:first-child {
+                border-top-left-radius: 0;
+                border-top-right-radius: 0;
             }
         }
 
