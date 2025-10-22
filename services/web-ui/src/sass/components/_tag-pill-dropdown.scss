@@ -229,92 +229,92 @@
             box-shadow: map-get($s, submenuShadow);
             user-select: none;
 
-                    // Arrow scaffolding; theme sets colors. Supports top/bottom/left/right.
-                    $side: map-get($s, arrowSide);
-                    $crossEdgeProvided: map-get($s, arrowCrossEdge);
-                    $crossOffset: map-get($s, arrowCrossOffset);
-                    $outerX: nth(map-get($s, arrowOuterSize), 1);
-                    $outerY: nth(map-get($s, arrowOuterSize), 2);
-                    $innerX: nth(map-get($s, arrowInnerSize), 1);
-                    $innerY: nth(map-get($s, arrowInnerSize), 2);
+            // Arrow scaffolding; theme sets colors. Supports top/bottom/left/right.
+            $side: map-get($s, arrowSide);
+            $crossEdgeProvided: map-get($s, arrowCrossEdge);
+            $crossOffset: map-get($s, arrowCrossOffset);
+            $outerX: nth(map-get($s, arrowOuterSize), 1);
+            $outerY: nth(map-get($s, arrowOuterSize), 2);
+            $innerX: nth(map-get($s, arrowInnerSize), 1);
+            $innerY: nth(map-get($s, arrowInnerSize), 2);
 
-                    // Auto compute defaults
-                    $crossEdge: if($crossEdgeProvided != null,
-                        $crossEdgeProvided,
-                        if($side == 'left' or $side == 'right', 'top', 'right')
-                    );
-                    $mainOffsetProvided: map-get($s, arrowMainOffset);
-                    $mainOffset: if($mainOffsetProvided != null, $mainOffsetProvided, -$outerY);
+            // Auto compute defaults
+            $crossEdge: if($crossEdgeProvided != null,
+                $crossEdgeProvided,
+                if($side == 'left' or $side == 'right', 'top', 'right')
+            );
+            $mainOffsetProvided: map-get($s, arrowMainOffset);
+            $mainOffset: if($mainOffsetProvided != null, $mainOffsetProvided, -$outerY);
 
-                    &:before,
-                    &:after,
-                    li:first-of-type:after {
-                        content: "";
-                        position: absolute;
-                        z-index: 99;
+            &:before,
+            &:after,
+            li:first-of-type:after {
+                content: "";
+                position: absolute;
+                z-index: 99;
 
-                        // place along the cross edge
-                        #{$crossEdge}: $crossOffset;
-                    }
+                // place along the cross edge
+                #{$crossEdge}: $crossOffset;
+            }
 
-                    // Outer arrow (border)
-                    &:before {
-                        border-style: solid;
-                        margin-top: if($side == 'top' or $side == 'bottom', map-get($s, arrowOuterMarginAdjust), 0);
-                        margin-left: if($side == 'left' or $side == 'right', map-get($s, arrowOuterMarginAdjust), 0);
+            // Outer arrow (border)
+            &:before {
+                border-style: solid;
+                margin-top: if($side == 'top' or $side == 'bottom', map-get($s, arrowOuterMarginAdjust), 0);
+                margin-left: if($side == 'left' or $side == 'right', map-get($s, arrowOuterMarginAdjust), 0);
 
-                        // main side offset for OUTER (border) arrow
-                        @if $side == 'top' { top: $mainOffset; }
-                        @else if $side == 'bottom' { bottom: $mainOffset; }
-                        @else if $side == 'left' { left: $mainOffset; }
-                        @else if $side == 'right' { right: $mainOffset; }
+                // main side offset for OUTER (border) arrow
+                @if $side == 'top' { top: $mainOffset; }
+                @else if $side == 'bottom' { bottom: $mainOffset; }
+                @else if $side == 'left' { left: $mainOffset; }
+                @else if $side == 'right' { right: $mainOffset; }
 
-                        @if $side == 'top' {
-                            border-width: 0 map-get($s, arrowOuterSize);
-                        } @else if $side == 'bottom' {
-                            border-width: nth(map-get($s, arrowOuterSize), 2) nth(map-get($s, arrowOuterSize), 1) 0;
-                        } @else if $side == 'left' {
-                            border-width: nth(map-get($s, arrowOuterSize), 1) nth(map-get($s, arrowOuterSize), 2) nth(map-get($s, arrowOuterSize), 1) 0;
-                        } @else if $side == 'right' {
-                            border-width: nth(map-get($s, arrowOuterSize), 1) 0 nth(map-get($s, arrowOuterSize), 1) nth(map-get($s, arrowOuterSize), 2);
-                        }
-                    }
+                @if $side == 'top' {
+                    border-width: 0 map-get($s, arrowOuterSize);
+                } @else if $side == 'bottom' {
+                    border-width: nth(map-get($s, arrowOuterSize), 2) nth(map-get($s, arrowOuterSize), 1) 0;
+                } @else if $side == 'left' {
+                    border-width: nth(map-get($s, arrowOuterSize), 1) nth(map-get($s, arrowOuterSize), 2) nth(map-get($s, arrowOuterSize), 1) 0;
+                } @else if $side == 'right' {
+                    border-width: nth(map-get($s, arrowOuterSize), 1) 0 nth(map-get($s, arrowOuterSize), 1) nth(map-get($s, arrowOuterSize), 2);
+                }
+            }
 
-                    // Inner arrow (fill)
-                    &:after,
-                    li:first-of-type:after {
-                        border-style: solid;
+            // Inner arrow (fill)
+            &:after,
+            li:first-of-type:after {
+                border-style: solid;
 
-                        // Inner (fill) arrow needs to be inset by 2px from outer to create border effect
-                        $innerProvided: map-get($s, arrowInnerMainOffset);
-                        $innerMainOffset: if($innerProvided != null, $innerProvided, -$innerY + 2px + map-get($s, arrowInnerMainAdjust));
+                // Inner (fill) arrow needs to be inset by 2px from outer to create border effect
+                $innerProvided: map-get($s, arrowInnerMainOffset);
+                $innerMainOffset: if($innerProvided != null, $innerProvided, -$innerY + 2px + map-get($s, arrowInnerMainAdjust));
 
-                        // Cross-axis centering: shift inner by half the width difference
-                        $crossProvided: map-get($s, arrowInnerCrossAdjust);
-                        $crossAuto: $outerX - $innerX;
-                        $crossAdjust: if($crossProvided != null, $crossProvided, $crossAuto);
+                // Cross-axis centering: shift inner by half the width difference
+                $crossProvided: map-get($s, arrowInnerCrossAdjust);
+                $crossAuto: $outerX - $innerX;
+                $crossAdjust: if($crossProvided != null, $crossProvided, $crossAuto);
 
-                        @if $side == 'top' { top: $innerMainOffset; }
-                        @else if $side == 'bottom' { bottom: $innerMainOffset; }
-                        @else if $side == 'left' { left: $innerMainOffset; }
-                        @else if $side == 'right' { right: $innerMainOffset; }
+                @if $side == 'top' { top: $innerMainOffset; }
+                @else if $side == 'bottom' { bottom: $innerMainOffset; }
+                @else if $side == 'left' { left: $innerMainOffset; }
+                @else if $side == 'right' { right: $innerMainOffset; }
 
-                        // Apply cross-axis adjustment based on the chosen cross edge
-                        @if $crossEdge == 'top' { top: $crossOffset + $crossAdjust; }
-                        @else if $crossEdge == 'bottom' { bottom: $crossOffset + $crossAdjust; }
-                        @else if $crossEdge == 'left' { left: $crossOffset + $crossAdjust; }
-                        @else if $crossEdge == 'right' { right: $crossOffset + $crossAdjust; }
+                // Apply cross-axis adjustment based on the chosen cross edge
+                @if $crossEdge == 'top' { top: $crossOffset + $crossAdjust; }
+                @else if $crossEdge == 'bottom' { bottom: $crossOffset + $crossAdjust; }
+                @else if $crossEdge == 'left' { left: $crossOffset + $crossAdjust; }
+                @else if $crossEdge == 'right' { right: $crossOffset + $crossAdjust; }
 
-                        @if $side == 'top' {
-                            border-width: 0 map-get($s, arrowInnerSize);
-                        } @else if $side == 'bottom' {
-                            border-width: nth(map-get($s, arrowInnerSize), 2) nth(map-get($s, arrowInnerSize), 1) 0;
-                        } @else if $side == 'left' {
-                            border-width: nth(map-get($s, arrowInnerSize), 1) nth(map-get($s, arrowInnerSize), 2) nth(map-get($s, arrowInnerSize), 1) 0;
-                        } @else if $side == 'right' {
-                            border-width: nth(map-get($s, arrowInnerSize), 1) 0 nth(map-get($s, arrowInnerSize), 1) nth(map-get($s, arrowInnerSize), 2);
-                        }
-                    }
+                @if $side == 'top' {
+                    border-width: 0 map-get($s, arrowInnerSize);
+                } @else if $side == 'bottom' {
+                    border-width: nth(map-get($s, arrowInnerSize), 2) nth(map-get($s, arrowInnerSize), 1) 0;
+                } @else if $side == 'left' {
+                    border-width: nth(map-get($s, arrowInnerSize), 1) nth(map-get($s, arrowInnerSize), 2) nth(map-get($s, arrowInnerSize), 1) 0;
+                } @else if $side == 'right' {
+                    border-width: nth(map-get($s, arrowInnerSize), 1) 0 nth(map-get($s, arrowInnerSize), 1) nth(map-get($s, arrowInnerSize), 2);
+                }
+            }
 
             li:first-of-type:hover:after {
                 z-index: 999;
@@ -334,32 +334,6 @@
                     width: map-get($s, itemIconSize);
                     padding: 0;
                     margin: map-get($s, itemIconMargin);
-                }
-            }
-
-            li.dropdown-option-item {
-                display: flex;
-                justify-content: flex-start;
-                align-items: flex-start;
-                gap: 0.5rem;
-
-                .option-icon {
-                    flex-shrink: 0;
-                    align-self: flex-start;
-                }
-
-                .option-content {
-                    display: flex;
-                    flex-direction: row;
-                    align-items: center;
-                    justify-content: space-between;
-                    flex: 1;
-                    gap: 0.5rem;
-
-                    .option-title {
-                        display: block;
-                        flex-shrink: 0;
-                    }
                 }
             }
 
@@ -385,7 +359,7 @@
         glyphBase: null,               // default icon fill for trigger; falls back to surfaceBg
         triggerBg: null,               // ripple/underlay; falls back to surfaceBg
         itemIconColor: #151515,
-    submenuRadius: 4px,            // keep in sync with structure default
+        submenuRadius: 4px,            // keep in sync with structure default
         borderLightnessAdjustment: -10%,
         hoverLightnessAdjustment: -6%,
         hoverGlyphFill: null,          // optional color for trigger icon on hover
@@ -414,40 +388,41 @@
             }
         }
 
-            .submenu {
+        .submenu {
             background: map-get($s, surfaceBg);
             color: map-get($s, surfaceFg);
             border: .06rem solid color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
-                $arrowSide: map-get($s, arrowSide);
 
-                // Color the correct arrow side
+            $arrowSide: map-get($s, arrowSide);
+
+            // Color the correct arrow side
+            @if $arrowSide == 'top' {
+                &:before { border-color: transparent transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)); }
+                &:after, li:first-of-type:after { border-color: transparent transparent map-get($s, surfaceBg); }
+            } @else if $arrowSide == 'bottom' {
+                &:before { border-color: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)) transparent transparent transparent; }
+                &:after, li:first-of-type:after { border-color: map-get($s, surfaceBg) transparent transparent transparent; }
+            } @else if $arrowSide == 'left' {
+                &:before { border-color: transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)) transparent transparent; }
+                &:after, li:first-of-type:after { border-color: transparent map-get($s, surfaceBg) transparent transparent; }
+            } @else if $arrowSide == 'right' {
+                &:before { border-color: transparent transparent transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)); }
+                &:after, li:first-of-type:after { border-color: transparent transparent transparent map-get($s, surfaceBg); }
+            }
+
+            // When a header item exists, make the inner arrow match the header bg (darker strip)
+            &.with-header {
+                $headerBg: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
                 @if $arrowSide == 'top' {
-                    &:before { border-color: transparent transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)); }
-                    &:after, li:first-of-type:after { border-color: transparent transparent map-get($s, surfaceBg); }
+                    &:after, li:first-of-type:after { border-color: transparent transparent $headerBg; }
                 } @else if $arrowSide == 'bottom' {
-                    &:before { border-color: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)) transparent transparent transparent; }
-                    &:after, li:first-of-type:after { border-color: map-get($s, surfaceBg) transparent transparent transparent; }
+                    &:after, li:first-of-type:after { border-color: $headerBg transparent transparent transparent; }
                 } @else if $arrowSide == 'left' {
-                    &:before { border-color: transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)) transparent transparent; }
-                    &:after, li:first-of-type:after { border-color: transparent map-get($s, surfaceBg) transparent transparent; }
+                    &:after, li:first-of-type:after { border-color: transparent $headerBg transparent transparent; }
                 } @else if $arrowSide == 'right' {
-                    &:before { border-color: transparent transparent transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)); }
-                    &:after, li:first-of-type:after { border-color: transparent transparent transparent map-get($s, surfaceBg); }
+                    &:after, li:first-of-type:after { border-color: transparent transparent transparent $headerBg; }
                 }
-
-                // When a header item exists, make the inner arrow match the header bg (darker strip)
-                &.with-header {
-                    $headerBg: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
-                    @if $arrowSide == 'top' {
-                        &:after, li:first-of-type:after { border-color: transparent transparent $headerBg; }
-                    } @else if $arrowSide == 'bottom' {
-                        &:after, li:first-of-type:after { border-color: $headerBg transparent transparent transparent; }
-                    } @else if $arrowSide == 'left' {
-                        &:after, li:first-of-type:after { border-color: transparent $headerBg transparent transparent; }
-                    } @else if $arrowSide == 'right' {
-                        &:after, li:first-of-type:after { border-color: transparent transparent transparent $headerBg; }
-                    }
-                }
+            }
 
             // Only change arrow fill on first item hover if the first item is NOT a header
             li:first-of-type:not([data-type='header']):hover:after {

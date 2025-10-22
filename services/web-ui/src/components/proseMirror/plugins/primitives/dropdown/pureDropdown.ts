@@ -136,7 +136,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
         updateTagFilterUI()
     }
 
-    // Render options list based on current filter
+    // Render options list based on current filter (single source of truth)
     const renderOptionsList = () => {
         const submenuList = dom.querySelector('.submenu')
         if (!submenuList) return
@@ -147,13 +147,11 @@ export function createPureDropdown(config: PureDropdownConfig) {
         filteredOptions.forEach(option => {
             const li = html`
                 <li
-                    class="dropdown-option-item flex justify-start items-center"
+                    class="flex justify-start items-center"
                     onclick=${(e: Event) => optionClickHandler(e, option)}
                 >
-                    ${renderIconForOptions && option.icon ? html`<span class="option-icon" innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
-                    <div class="option-content">
-                        <span class="option-title">${option.title}</span>
-                    </div>
+                    ${renderIconForOptions && option.icon ? html`<span innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
+                    ${option.title}
                 </li>
             ` as HTMLElement
             submenuList.appendChild(li)
@@ -204,19 +202,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
                             </div>
                         </div>
                     ` : ''}
-                    <ul class="submenu">
-                        ${options.map(option => html`
-                            <li
-                                class="dropdown-option-item flex justify-start items-center"
-                                onclick=${(e: Event) => optionClickHandler(e, option)}
-                            >
-                                ${renderIconForOptions && option.icon ? html`<span class="option-icon" innerHTML=${ignoreColorValuesForOptions ? option.icon : injectFillColor(option.icon, option.color)}></span>` : ''}
-                                <div class="option-content">
-                                    <span class="option-title">${option.title}</span>
-                                </div>
-                            </li>
-                        `)}
-                    </ul>
+                    <ul class="submenu"></ul>
                 </nav>
             </span>
         </div>
@@ -259,6 +245,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
 
     // Initialize display
     updateSelectedDisplay()
+    renderOptionsList()
 
     // Add window click listener
     document.addEventListener('click', handleWindowClick)
