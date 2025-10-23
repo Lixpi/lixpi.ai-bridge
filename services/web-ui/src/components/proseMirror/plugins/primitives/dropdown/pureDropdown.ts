@@ -196,16 +196,18 @@ export function createPureDropdown(config: PureDropdownConfig) {
                 </button>
                 <nav class="submenu-wrapper render-position-${renderPosition}" contenteditable="false">
                     ${enableTagFilter && availableTags.length > 0 ? html`
-                        <div class="tag-filter" onmousedown=${preventProseMirrorEdit}>
-                            <div class="tag-filter-title">Filter by modality:</div>
-                            <div class="tag-filter-list">
-                                ${availableTags.map(tag => html`
-                                    <span
-                                        class="tag-filter-item"
-                                        data-tag="${tag}"
-                                        onclick=${(e: Event) => handleTagFilterClick(e, tag)}
-                                    >${tag}</span>
-                                `)}
+                        <div class="submenu-header">
+                            <div class="tag-filter" onmousedown=${preventProseMirrorEdit}>
+                                <div class="tag-filter-title">Filter by modality:</div>
+                                <div class="tag-filter-list">
+                                    ${availableTags.map(tag => html`
+                                        <span
+                                            class="tag-filter-item"
+                                            data-tag="${tag}"
+                                            onclick=${(e: Event) => handleTagFilterClick(e, tag)}
+                                        >${tag}</span>
+                                    `)}
+                                </div>
                             </div>
                         </div>
                     ` : ''}

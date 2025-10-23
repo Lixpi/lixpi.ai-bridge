@@ -3,6 +3,7 @@
 @import "../variables";
 @import "../transitions";
 @import "./animations";
+@import "../themes/minimalist-chic";
 
 // =============================
 // Dropdown Chip (Tag Pill) API
@@ -107,7 +108,7 @@
         hoverDuration: 70ms,
         hoverEasing: cubic-bezier(0.19, 1, 0.22, 1),
         submenuRadius: 4px,
-        submenuShadow: .05rem .05rem 7px 0px rgba(0,0,0,.5),
+        submenuShadow: 0.05rem 0.05rem 7px 0px rgba(0,0,0,0.5),
         submenuOverflow: hidden,
         // Arrow configuration (side-aware)
         arrowSide: 'top',            // 'top' | 'bottom' | 'left' | 'right'
@@ -227,7 +228,7 @@
             overflow: map-get($s, submenuOverflow);
             border-radius: map-get($s, submenuRadius);
             margin: 0;
-            box-shadow: map-get($s, submenuShadow);
+            // box-shadow: map-get($s, submenuShadow);
             user-select: none;
 
             // Arrow scaffolding; theme sets colors. Supports top/bottom/left/right.
@@ -361,6 +362,7 @@
         triggerBg: null,               // ripple/underlay; falls back to surfaceBg
         itemIconColor: #151515,
         submenuRadius: 4px,            // keep in sync with structure default
+        submenuShadow: 0.05rem 0.05rem 7px 0px rgba(0,0,0,0.5),  // keep in sync with structure default
         borderLightnessAdjustment: -10%,
         hoverLightnessAdjustment: -6%,
         hoverGlyphFill: null,          // optional color for trigger icon on hover
@@ -475,17 +477,20 @@
         }
 
         .submenu-wrapper {
-            .tag-filter {
-                padding: 0.75rem 1rem;
-                border-bottom: 1px solid color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
-                background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
+            box-shadow: map-get($s, submenuShadow);
+            .submenu-header {
                 border-top-left-radius: map-get($s, submenuRadius);
                 border-top-right-radius: map-get($s, submenuRadius);
+                background: map-get($s, surfaceBg);
+                padding: .5rem .5rem;
+            }
 
+            .tag-filter {
+                margin-bottom: .3rem;;
                 .tag-filter-title {
                     font-size: 0.75rem;
                     font-weight: 500;
-                    color: rgba(map-get($s, surfaceFg), 0.5);
+                    color: $offWhite;
                     margin-bottom: 0.5rem;
                     letter-spacing: 0.5px;
                 }
@@ -497,15 +502,16 @@
 
                     .tag-filter-item {
                         display: inline-block;
-                        padding: 0.25rem 0.6rem;
+                        padding: 0.15rem 0.3rem;
                         font-size: 0.7rem;
                         font-weight: 500;
-                        background-color: color.adjust(map-get($s, surfaceBg), $lightness: 3%);
+                        // background-color: color.adjust(map-get($s, surfaceBg), $lightness: 3%);
                         border: 1px solid color.adjust(map-get($s, surfaceBg), $lightness: 8%);
                         border-radius: 0.25rem;
                         cursor: pointer;
                         transition: all 0.15s ease;
                         opacity: 0.6;
+                        color: $offWhite;
 
                         &:hover {
                             opacity: 1;
@@ -532,10 +538,10 @@
                 }
             }
 
-            // When filter is present, remove any rounding from the first option item
-            // and flatten the UL top corners so the filter owns the rounded header.
-            &:has(.tag-filter) {
-                // The filter owns the top rounding; UL and first LI must be flat on top.
+            // When submenu header is present, remove any rounding from the first option item
+            // and flatten the UL top corners so the header owns the rounded top.
+            &:has(.submenu-header) {
+                // The header owns the top rounding; UL and first LI must be flat on top.
                 .submenu {
                     border-top-left-radius: 0;
                     border-top-right-radius: 0;
@@ -580,6 +586,7 @@
     glyphBase: $offWhite,
     triggerBg: $offWhite,
     itemIconColor: #151515,
+    submenuShadow: $dropdownLightThemeSubmenuBoxShadow,
     borderLightnessAdjustment: -10%,
     hoverLightnessAdjustment: -6%,
     hoverGlyphFill: $nightBlue,
@@ -594,6 +601,7 @@
     glyphBase: $steelBlue,
     triggerBg: transparent,
     itemIconColor: $offWhite,
+    submenuShadow: $dropdownDarkThemeSubmenuBoxShadow,
     borderLightnessAdjustment: -10%,
     hoverLightnessAdjustment: -6%,
     hoverGlyphFill: null,
