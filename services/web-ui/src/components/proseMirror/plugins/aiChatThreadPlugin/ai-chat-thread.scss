@@ -136,23 +136,37 @@ $aiChatThreadMinHeight: 50px;
         pointer-events: none;
         // display: none;
 
-        @include dropdownChipStructure((
+        // Trigger button
+        @include dropdownTriggerStructure((
             triggerHeight: 24px,
             svgSize: 1.0rem,
             iconSize: 14px,
-            triggerPadding: 0.15rem 0.25rem,
-            submenuOverflow: visible,
-            arrowSide: 'right'
+            triggerPadding: 0.15rem 0.25rem
         ));
-        @include dropdownChipSubmenuPlacement((
+
+        // Dropdown items
+        @include dropdownItemsStructure();
+
+        // Bubble container (right-side arrow)
+        @include infoBubblePlacement((
             rightOffset: 0px,
             topOffset: 32px
         ));
+        @include infoBubbleStructure((
+            bubbleOverflow: visible,
+            arrowSide: 'right'
+        ));
 
         &.theme-dark {
-            @include tagPillDropdownDarkTheme((
-                arrowSide: 'right'
+            @include infoBubbleTheme((
+                arrowSide: 'right',
+                surfaceBg: $steelBlue,
+                surfaceFg: $offWhite,
+                bubbleShadow: $dropdownDarkThemeSubmenuBoxShadow,
+                borderLightnessAdjustment: -10%,
+                hoverLightnessAdjustment: -6%
             ));
+            @include tagPillDropdownDarkTheme();
         }
 
         .dots-dropdown-menu {

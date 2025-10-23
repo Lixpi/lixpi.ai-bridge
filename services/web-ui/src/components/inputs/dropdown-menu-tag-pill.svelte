@@ -99,19 +99,43 @@ const injectFillColor = (svg, color) => {
     @import '../../sass/components/tag-pill-dropdown';
 
     .dropdown-menu-tag-pill-wrapper {
-        // Position wrapper only (no structural styles)
+        // Position wrapper
         @include dropdownChipWrapperPosition((
             position: absolute,
             right: 0,
             top: -1px // TODO hack for current prosemirror menubar placement
         ));
 
-        // Common structure + submenu placement
-        @include dropdownChipStructure();
-        @include dropdownChipSubmenuPlacement();
+        // Trigger button
+        @include dropdownTriggerStructure();
+
+        // Dropdown items
+        @include dropdownItemsStructure();
+
+        // Bubble container
+        @include infoBubblePlacement();
+        @include infoBubbleStructure();
 
         // Themes
-        &.theme-light { @include tagPillDropdownLightTheme(); }
-        &.theme-dark  { @include tagPillDropdownDarkTheme(); }
+        &.theme-light {
+            @include infoBubbleTheme((
+                surfaceBg: $offWhite,
+                surfaceFg: $nightBlue,
+                bubbleShadow: $dropdownLightThemeSubmenuBoxShadow,
+                borderLightnessAdjustment: -10%,
+                hoverLightnessAdjustment: -6%
+            ));
+            @include tagPillDropdownLightTheme();
+        }
+        &.theme-dark {
+            @include infoBubbleTheme((
+                surfaceBg: $steelBlue,
+                surfaceFg: $offWhite,
+                bubbleShadow: $dropdownDarkThemeSubmenuBoxShadow,
+                borderLightnessAdjustment: -10%,
+                hoverLightnessAdjustment: -6%
+            ));
+            @include tagPillDropdownDarkTheme();
+        }
     }
 </style>

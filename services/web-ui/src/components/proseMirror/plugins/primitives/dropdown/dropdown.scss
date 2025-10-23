@@ -4,29 +4,50 @@
 
 /* Dropdown Plugin Styles */
 .dropdown-menu-tag-pill-wrapper {
-    // Common structure + submenu placement
+    // Wrapper position
     @include dropdownChipWrapperPosition((
         position: relative
     ));
-    @include dropdownChipStructure((
+
+    // Trigger button
+    @include dropdownTriggerStructure((
         fontSize: .9rem,
         fontWeight: 400,
-        itemFontSize: .83rem,
         iconMargin: 0 .3rem 0 .2rem,
         triggerPadding: 0
     ));
-    @include dropdownChipSubmenuPlacement();
+
+    // Dropdown items
+    @include dropdownItemsStructure((
+        itemFontSize: .83rem
+    ));
+
+    // Bubble container
+    @include infoBubblePlacement();
+    @include infoBubbleStructure();
 
     // Themes
     &.theme-light {
-        @include tagPillDropdownLightTheme((
-            // itemIconColor: red
+        @include infoBubbleTheme((
+            surfaceBg: $offWhite,
+            surfaceFg: $nightBlue,
+            bubbleShadow: $dropdownLightThemeSubmenuBoxShadow,
+            borderLightnessAdjustment: -10%,
+            hoverLightnessAdjustment: -6%,
+            itemFontSize: .83rem
         ));
+        @include tagPillDropdownLightTheme();
     }
     &.theme-dark  {
-        @include tagPillDropdownDarkTheme((
-            // itemIconColor: blue
+        @include infoBubbleTheme((
+            surfaceBg: $steelBlue,
+            surfaceFg: $offWhite,
+            bubbleShadow: $dropdownDarkThemeSubmenuBoxShadow,
+            borderLightnessAdjustment: -10%,
+            hoverLightnessAdjustment: -6%,
+            itemFontSize: .83rem
         ));
+        @include tagPillDropdownDarkTheme();
     }
 
     // Hidden by default; shown when parent gets .dropdown-open class

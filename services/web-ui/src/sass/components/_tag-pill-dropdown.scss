@@ -4,45 +4,29 @@
 @import "../transitions";
 @import "./animations";
 @import "../themes/minimalist-chic";
+@import "./info-bubble";
 
 // =============================
-// Dropdown Chip (Tag Pill) API
+// Dropdown Chip (Tag Pill) Component
 // =============================
-// Goals:
-// - Zero duplication between themes
-// - Fully modular (structure | positioning | theme)
-// - Reusable for similar components
-// - Named-argument API via $config map
-
-// Arrow configuration (side-aware)
-// -------------------------------------------------
-// The dropdown arrow is rendered via pseudo-elements in dropdownChipStructure +
-// colored in dropdownChipTheme. Configure exclusively through the mixin API;
-// avoid local &:before/:after overrides.
+// A dropdown component with a clickable trigger button that shows a floating menu.
+// This component handles ONLY the TRIGGER BUTTON and DROPDOWN ITEMS.
+// The floating container (bubble) is handled by infoBubble mixins.
 //
-// Structure mixin keys (with meaningful defaults):
-//   arrowSide: 'top' | 'bottom' | 'left' | 'right'
-//   arrowCrossEdge: when arrowSide is 'top'/'bottom' -> 'left'|'right'
-//                   when arrowSide is 'left'/'right' -> 'top'|'bottom'
-//   arrowCrossOffset: distance from the chosen cross edge (e.g., 12px)
-//   arrowMainOffset: distance from the main side; negative value overlaps border (e.g., -2px)
-//   arrowOuterSize: outer triangle size (x y) used for border edge (e.g., 8px 11px)
-//   arrowInnerSize: inner triangle size (x y) used for fill (e.g., 6px 9px)
-//   submenuOverflow: set to visible if arrow needs to protrude outside submenu
+// Architecture:
+// - Trigger button: dropdownTriggerStructure + dropdownTriggerTheme
+// - Floating container: infoBubblePlacement + infoBubbleStructure + infoBubbleTheme
+// - Dropdown items: dropdownItemsStructure + dropdownItemsTheme
+// - Tag filter: dropdownTagFilter (optional feature)
 //
-// Theme mixin key:
-//   arrowSide: must match structure arrowSide so the correct border edge is colored
-//
-// Minimal usage example (right-side arrow, near top):
-//   @include dropdownChipStructure((
-//     submenuOverflow: visible,
-//     arrowSide: 'right',
-//     arrowCrossEdge: 'top',
-//     arrowCrossOffset: 12px,
-//     arrowMainOffset: -2px
-//   ));
-//   @include dropdownChipSubmenuPlacement(( rightOffset: 0px, topOffset: 32px ));
-//   @include tagPillDropdownDarkTheme(( arrowSide: 'right' ));
+// Usage Example:
+//   @include dropdownChipWrapperPosition((position: relative));
+//   @include dropdownTriggerStructure((fontSize: .9rem));
+//   @include dropdownItemsStructure((itemFontSize: .83rem));
+//   @include infoBubblePlacement((rightOffset: 0px, topOffset: 32px));
+//   @include infoBubbleStructure((arrowSide: 'top', bubbleOverflow: visible));
+//   @include infoBubbleTheme((arrowSide: 'top', surfaceBg: #333, surfaceFg: #fff));
+//   @include tagPillDropdownDarkTheme();
 
 // 1) Wrapper positioning (no structural styles)
 @mixin dropdownChipWrapperPosition($config: ()) {
@@ -68,34 +52,9 @@
     }
 }
 
-// 2) Submenu placement (position of the flyout relative to trigger)
-@mixin dropdownChipSubmenuPlacement($config: ()) {
-    $defaults: (
-    rightOffset: 1px,
-    topOffset: 37px,
-    bottomOffset: 37px,
-    zIndex: 999
-    );
-
-    $s: map-merge($defaults, $config);
-
-    .submenu-wrapper {
-        position: absolute;
-        right: map-get($s, rightOffset);
-        z-index: map-get($s, zIndex);
-
-        &.render-position-top {
-            bottom: map-get($s, bottomOffset);
-        }
-
-        &.render-position-bottom {
-            top: map-get($s, topOffset);
-        }
-    }
-}
-
-// 3) Structure (layout + motion; no colors)
-@mixin dropdownChipStructure($config: ()) {
+// 2) Trigger button structure (layout + motion; no colors)
+// ONLY handles the trigger button - bubble is separate
+@mixin dropdownTriggerStructure($config: ()) {
     $defaults: (
         svgSize: 1.3rem,
         triggerHeight: 23px,
@@ -106,26 +65,7 @@
         iconMargin: 0 .4rem 0 .2rem,
         iconSize: 16px,
         hoverDuration: 70ms,
-        hoverEasing: cubic-bezier(0.19, 1, 0.22, 1),
-        submenuRadius: 4px,
-        submenuShadow: 0.05rem 0.05rem 7px 0px rgba(0,0,0,0.5),
-        submenuOverflow: hidden,
-        // Arrow configuration (side-aware)
-        arrowSide: 'top',            // 'top' | 'bottom' | 'left' | 'right'
-        arrowCrossEdge: null,        // auto: top/bottom -> 'right', left/right -> 'top'
-        arrowCrossOffset: 8px,       // distance from the chosen cross edge (moved 5px toward center)
-        arrowMainOffset: null,       // auto: protrude by outer triangle size along main side
-        arrowOuterSize: 9px 9px,    // x y (wider base for less pointy look)
-        arrowInnerSize: 9px 9px,    // widened inner to match outer base with subtle border
-        arrowInnerMainOffset: null,  // auto from inner size; lets inner sit slightly inside vs. outer
-        arrowInnerMainAdjust: 0px,   // fine-tune inset of inner arrow along main side
-        arrowInnerCrossAdjust: null, // fine-tune centering of inner vs outer along cross-axis; auto if null
-        arrowOuterMarginAdjust: 0px,
-        itemPadding: .4rem .7rem .4rem .4rem,
-        itemFontSize: .9rem,
-        itemIconSize: .8rem,
-        itemIconMargin: 0 .4rem 0 0,
-        itemTransition: all 30ms cubic-bezier(0.19, 1, 0.22, 1)
+        hoverEasing: cubic-bezier(0.19, 1, 0.22, 1)
     );
     $s: map-merge($defaults, $config);
 
@@ -219,160 +159,55 @@
                 display: block;
             }
         }
+    }
+}
 
-        .submenu {
-            width: 100%;
-            white-space: nowrap;
-            padding: 0; // reset UL default padding to remove left gap
-            list-style: none; // remove bullets/gutters
-            overflow: map-get($s, submenuOverflow);
-            border-radius: map-get($s, submenuRadius);
+// 3) Dropdown items structure
+// Structure for list items inside the bubble
+@mixin dropdownItemsStructure($config: ()) {
+    $defaults: (
+        itemPadding: .4rem .7rem .4rem .4rem,
+        itemFontSize: .9rem,
+        itemIconSize: .8rem,
+        itemIconMargin: 0 .4rem 0 0,
+        itemTransition: all 30ms cubic-bezier(0.19, 1, 0.22, 1)
+    );
+    $s: map-merge($defaults, $config);
+
+    .submenu {
+        li {
             margin: 0;
-            // box-shadow: map-get($s, submenuShadow);
-            user-select: none;
+            padding: map-get($s, itemPadding);
+            vertical-align: middle;
+            font-size: map-get($s, itemFontSize);
+            text-transform: capitalize;
+            cursor: pointer;
+            transition: map-get($s, itemTransition);
 
-            // Arrow scaffolding; theme sets colors. Supports top/bottom/left/right.
-            $side: map-get($s, arrowSide);
-            $crossEdgeProvided: map-get($s, arrowCrossEdge);
-            $crossOffset: map-get($s, arrowCrossOffset);
-            $outerX: nth(map-get($s, arrowOuterSize), 1);
-            $outerY: nth(map-get($s, arrowOuterSize), 2);
-            $innerX: nth(map-get($s, arrowInnerSize), 1);
-            $innerY: nth(map-get($s, arrowInnerSize), 2);
-
-            // Auto compute defaults
-            $crossEdge: if($crossEdgeProvided != null,
-                $crossEdgeProvided,
-                if($side == 'left' or $side == 'right', 'top', 'right')
-            );
-            $mainOffsetProvided: map-get($s, arrowMainOffset);
-            $mainOffset: if($mainOffsetProvided != null, $mainOffsetProvided, -$outerY);
-
-            &:before,
-            &:after,
-            li:first-of-type:after {
-                content: "";
-                position: absolute;
-                z-index: 99;
-
-                // place along the cross edge
-                #{$crossEdge}: $crossOffset;
-            }
-
-            // Outer arrow (border)
-            &:before {
-                border-style: solid;
-                margin-top: if($side == 'top' or $side == 'bottom', map-get($s, arrowOuterMarginAdjust), 0);
-                margin-left: if($side == 'left' or $side == 'right', map-get($s, arrowOuterMarginAdjust), 0);
-
-                // main side offset for OUTER (border) arrow
-                @if $side == 'top' { top: $mainOffset; }
-                @else if $side == 'bottom' { bottom: $mainOffset; }
-                @else if $side == 'left' { left: $mainOffset; }
-                @else if $side == 'right' { right: $mainOffset; }
-
-                @if $side == 'top' {
-                    border-width: 0 map-get($s, arrowOuterSize);
-                } @else if $side == 'bottom' {
-                    border-width: nth(map-get($s, arrowOuterSize), 2) nth(map-get($s, arrowOuterSize), 1) 0;
-                } @else if $side == 'left' {
-                    border-width: nth(map-get($s, arrowOuterSize), 1) nth(map-get($s, arrowOuterSize), 2) nth(map-get($s, arrowOuterSize), 1) 0;
-                } @else if $side == 'right' {
-                    border-width: nth(map-get($s, arrowOuterSize), 1) 0 nth(map-get($s, arrowOuterSize), 1) nth(map-get($s, arrowOuterSize), 2);
-                }
-            }
-
-            // Inner arrow (fill)
-            &:after,
-            li:first-of-type:after {
-                border-style: solid;
-
-                // Inner (fill) arrow needs to be inset by 2px from outer to create border effect
-                $innerProvided: map-get($s, arrowInnerMainOffset);
-                $innerMainOffset: if($innerProvided != null, $innerProvided, -$innerY + 2px + map-get($s, arrowInnerMainAdjust));
-
-                // Cross-axis centering: shift inner by half the width difference
-                $crossProvided: map-get($s, arrowInnerCrossAdjust);
-                $crossAuto: $outerX - $innerX;
-                $crossAdjust: if($crossProvided != null, $crossProvided, $crossAuto);
-
-                @if $side == 'top' { top: $innerMainOffset; }
-                @else if $side == 'bottom' { bottom: $innerMainOffset; }
-                @else if $side == 'left' { left: $innerMainOffset; }
-                @else if $side == 'right' { right: $innerMainOffset; }
-
-                // Apply cross-axis adjustment based on the chosen cross edge
-                @if $crossEdge == 'top' { top: $crossOffset + $crossAdjust; }
-                @else if $crossEdge == 'bottom' { bottom: $crossOffset + $crossAdjust; }
-                @else if $crossEdge == 'left' { left: $crossOffset + $crossAdjust; }
-                @else if $crossEdge == 'right' { right: $crossOffset + $crossAdjust; }
-
-                @if $side == 'top' {
-                    border-width: 0 map-get($s, arrowInnerSize);
-                } @else if $side == 'bottom' {
-                    border-width: nth(map-get($s, arrowInnerSize), 2) nth(map-get($s, arrowInnerSize), 1) 0;
-                } @else if $side == 'left' {
-                    border-width: nth(map-get($s, arrowInnerSize), 1) nth(map-get($s, arrowInnerSize), 2) nth(map-get($s, arrowInnerSize), 1) 0;
-                } @else if $side == 'right' {
-                    border-width: nth(map-get($s, arrowInnerSize), 1) 0 nth(map-get($s, arrowInnerSize), 1) nth(map-get($s, arrowInnerSize), 2);
-                }
-            }
-
-            li:first-of-type:hover:after {
-                z-index: 999;
-            }
-
-            li {
-                margin: 0;
-                padding: map-get($s, itemPadding);
-                vertical-align: middle;
-                font-size: map-get($s, itemFontSize);
-                text-transform: capitalize;
-                cursor: pointer;
-                transition: map-get($s, itemTransition);
-
-                :global(svg) {
-                    height: map-get($s, itemIconSize);
-                    width: map-get($s, itemIconSize);
-                    padding: 0;
-                    margin: map-get($s, itemIconMargin);
-                }
-            }
-
-            // Ensure top/bottom items visually conform to submenu radius even when overflow is visible
-            li:first-child {
-                border-top-left-radius: map-get($s, submenuRadius);
-                border-top-right-radius: map-get($s, submenuRadius);
-            }
-
-            li:last-child {
-                border-bottom-left-radius: map-get($s, submenuRadius);
-                border-bottom-right-radius: map-get($s, submenuRadius);
+            :global(svg) {
+                height: map-get($s, itemIconSize);
+                width: map-get($s, itemIconSize);
+                padding: 0;
+                margin: map-get($s, itemIconMargin);
             }
         }
     }
 }
 
-// 4) Theme (all colors and lightness adjustments)
-@mixin dropdownChipTheme($config: ()) {
+// 4) Trigger button theming
+// ONLY handles trigger button colors - bubble is separate
+@mixin dropdownTriggerTheme($config: ()) {
     $defaults: (
-        surfaceBg: $offWhite,          // submenu background
-        surfaceFg: $nightBlue,         // submenu text color
-        glyphBase: null,               // default icon fill for trigger; falls back to surfaceBg
-        triggerBg: null,               // ripple/underlay; falls back to surfaceBg
-        itemIconColor: #151515,
-        submenuRadius: 4px,            // keep in sync with structure default
-        submenuShadow: 0.05rem 0.05rem 7px 0px rgba(0,0,0,0.5),  // keep in sync with structure default
-        borderLightnessAdjustment: -10%,
-        hoverLightnessAdjustment: -6%,
+        glyphBase: null,               // default icon fill for trigger
+        triggerBg: null,               // ripple/underlay
         hoverGlyphFill: null,          // optional color for trigger icon on hover
-        activeIndicatorFill: null,     // color of state-indicator icon when active; falls back to glyphBase
-        invertIndicatorOnActive: false, // whether to flip chevron when active
-        arrowSide: 'top'
+        activeIndicatorFill: null,     // color of state-indicator icon when active
+        invertIndicatorOnActive: false // whether to flip chevron when active
     );
     $s: map-merge($defaults, $config);
 
     .dots-dropdown-menu {
+        // Trigger button icon theming
         :global(svg) {
             fill: map-get($s, glyphBase);
         }
@@ -391,165 +226,7 @@
             }
         }
 
-        .submenu {
-            background: map-get($s, surfaceBg);
-            color: map-get($s, surfaceFg);
-            border: .06rem solid color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
-
-            $arrowSide: map-get($s, arrowSide);
-
-            // Color the correct arrow side
-            @if $arrowSide == 'top' {
-                &:before { border-color: transparent transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)); }
-                &:after, li:first-of-type:after { border-color: transparent transparent map-get($s, surfaceBg); }
-            } @else if $arrowSide == 'bottom' {
-                &:before { border-color: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)) transparent transparent transparent; }
-                &:after, li:first-of-type:after { border-color: map-get($s, surfaceBg) transparent transparent transparent; }
-            } @else if $arrowSide == 'left' {
-                &:before { border-color: transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)) transparent transparent; }
-                &:after, li:first-of-type:after { border-color: transparent map-get($s, surfaceBg) transparent transparent; }
-            } @else if $arrowSide == 'right' {
-                &:before { border-color: transparent transparent transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment)); }
-                &:after, li:first-of-type:after { border-color: transparent transparent transparent map-get($s, surfaceBg); }
-            }
-
-            // When a header item exists, make the inner arrow match the header bg (darker strip)
-            &.with-header {
-                $headerBg: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
-                @if $arrowSide == 'top' {
-                    &:after, li:first-of-type:after { border-color: transparent transparent $headerBg; }
-                } @else if $arrowSide == 'bottom' {
-                    &:after, li:first-of-type:after { border-color: $headerBg transparent transparent transparent; }
-                } @else if $arrowSide == 'left' {
-                    &:after, li:first-of-type:after { border-color: transparent $headerBg transparent transparent; }
-                } @else if $arrowSide == 'right' {
-                    &:after, li:first-of-type:after { border-color: transparent transparent transparent $headerBg; }
-                }
-            }
-
-            // Only change arrow fill on first item hover if the first item is NOT a header
-            li:first-of-type:not([data-type='header']):hover:after {
-                border-color: transparent transparent color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, hoverLightnessAdjustment));
-            }
-
-            // Optional header item (darker strip). Use data-type="header" on li.
-            // Background matches the arrow border/background edge color for visual cohesion.
-            li[data-type='header'] {
-                background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
-                cursor: default;
-                align-items: flex-start; // allow meta to stack under title
-
-                &:hover {
-                    background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
-                }
-
-                .header-text {
-                    display: flex;
-                    flex-direction: column;
-                    line-height: 1.15;
-                    gap: .15rem;
-
-                    // .header-title inherits li font size/weight
-                    .header-meta {
-                        // even smaller than item text
-                        font-size: calc(#{map-get($s, itemFontSize)} - 0.35rem);
-                        opacity: .8; // fallback if theme color not applied
-                        text-transform: none;
-                        margin: .1rem 0;
-                    }
-                }
-            }
-
-            li {
-                &:hover {
-                    background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, hoverLightnessAdjustment));
-                }
-
-                :global(svg) {
-                    fill: map-get($s, itemIconColor);
-                }
-            }
-
-            // Muted color for header meta that adapts to theme foreground
-            li[data-type='header'] .header-text .header-meta {
-                color: rgba(map-get($s, surfaceFg), 0.75);
-            }
-        }
-
-        .submenu-wrapper {
-            box-shadow: map-get($s, submenuShadow);
-            .submenu-header {
-                border-top-left-radius: map-get($s, submenuRadius);
-                border-top-right-radius: map-get($s, submenuRadius);
-                background: map-get($s, surfaceBg);
-                padding: .5rem .5rem;
-            }
-
-            .tag-filter {
-                margin-bottom: .3rem;;
-                .tag-filter-title {
-                    font-size: 0.75rem;
-                    font-weight: 500;
-                    color: $offWhite;
-                    margin-bottom: 0.5rem;
-                    letter-spacing: 0.5px;
-                }
-
-                .tag-filter-list {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 0.4rem;
-
-                    .tag-filter-item {
-                        display: inline-block;
-                        padding: 0.15rem 0.3rem;
-                        font-size: 0.7rem;
-                        font-weight: 500;
-                        // background-color: color.adjust(map-get($s, surfaceBg), $lightness: 3%);
-                        border: 1px solid color.adjust(map-get($s, surfaceBg), $lightness: 8%);
-                        border-radius: 0.25rem;
-                        cursor: pointer;
-                        transition: all 0.15s ease;
-                        opacity: 0.6;
-                        color: $offWhite;
-
-                        &:hover {
-                            opacity: 1;
-                            background-color: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, hoverLightnessAdjustment));
-                            border-color: color.adjust(map-get($s, surfaceBg), $lightness: 15%);
-                        }
-
-                        &.active {
-                            opacity: 1;
-                            background-color: rgba(100, 150, 255, 0.2);
-                            border-color: rgba(100, 150, 255, 0.5);
-                            color: rgba(150, 200, 255, 1);
-                        }
-
-                        // Click feedback animation (replaces basic click transition)
-                        &.click-feedback {
-                            @include clickToggleFeedbackAnimation((
-                                startColor: rgba(map-get($s, surfaceFg), 0.65),
-                                flashColor: rgba(map-get($s, surfaceFg), 1),
-                                endColor: rgba(map-get($s, surfaceFg), 0.65)
-                            ));
-                        }
-                    }
-                }
-            }
-
-            // When submenu header is present, remove any rounding from the first option item
-            // and flatten the UL top corners so the header owns the rounded top.
-            &:has(.submenu-header) {
-                // The header owns the top rounding; UL and first LI must be flat on top.
-                .submenu {
-                    border-top-left-radius: 0;
-                    border-top-right-radius: 0;
-                }
-                .submenu li:first-child { border-radius: 0; }
-            }
-        }
-
+        // Active state for trigger button
         &.is-active {
             button {
                 @if map-get($s, invertIndicatorOnActive) {
@@ -574,49 +251,137 @@
     }
 }
 
-// -----------------------------
-// Backward-compatible aliases
-// -----------------------------
-@mixin tagPillDropdownBase($config: ()) { @include dropdownChipStructure($config); }
-@mixin tagPillDropdownSubmenu($config: ()) { @include dropdownChipSubmenuPlacement($config); }
-@mixin tagPillDropdownLightTheme($config: ()) {
-    @include dropdownChipTheme(map-merge((
-    surfaceBg: $offWhite,
-    surfaceFg: $nightBlue,
-    glyphBase: $offWhite,
-    triggerBg: $offWhite,
-    itemIconColor: #151515,
-    submenuShadow: $dropdownLightThemeSubmenuBoxShadow,
-    borderLightnessAdjustment: -10%,
-    hoverLightnessAdjustment: -6%,
-    hoverGlyphFill: $nightBlue,
-    activeIndicatorFill: $offWhite,
-    invertIndicatorOnActive: false
-    ), $config));
+// 5) Dropdown items theming
+// Theme for list items inside the bubble
+@mixin dropdownItemsTheme($config: ()) {
+    $defaults: (
+        surfaceBg: #fff,
+        itemIconColor: #151515,
+        hoverLightnessAdjustment: -6%
+    );
+    $s: map-merge($defaults, $config);
+
+    .submenu {
+        li {
+            &:hover {
+                background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, hoverLightnessAdjustment));
+            }
+
+            :global(svg) {
+                fill: map-get($s, itemIconColor);
+            }
+        }
+    }
 }
-@mixin tagPillDropdownDarkTheme($config: ()) {
-    @include dropdownChipTheme(map-merge((
-    surfaceBg: $steelBlue,
-    surfaceFg: $offWhite,
-    glyphBase: $steelBlue,
-    triggerBg: transparent,
-    itemIconColor: $offWhite,
-    submenuShadow: $dropdownDarkThemeSubmenuBoxShadow,
-    borderLightnessAdjustment: -10%,
-    hoverLightnessAdjustment: -6%,
-    hoverGlyphFill: null,
-    activeIndicatorFill: $steelBlue,
-    invertIndicatorOnActive: true
+
+// 6) Tag filter styling (specific feature)
+@mixin dropdownTagFilter($config: ()) {
+    $defaults: (
+        surfaceBg: #fff,
+        surfaceFg: #333,
+        hoverLightnessAdjustment: -6%
+    );
+    $s: map-merge($defaults, $config);
+
+    .submenu-wrapper {
+        .tag-filter {
+            margin-bottom: .3rem;
+
+            .tag-filter-title {
+                font-size: 0.75rem;
+                font-weight: 500;
+                color: $offWhite;
+                margin-bottom: 0.5rem;
+                letter-spacing: 0.5px;
+            }
+
+            .tag-filter-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.4rem;
+
+                .tag-filter-item {
+                    display: inline-block;
+                    padding: 0.15rem 0.3rem;
+                    font-size: 0.7rem;
+                    font-weight: 500;
+                    border: 1px solid color.adjust(map-get($s, surfaceBg), $lightness: 8%);
+                    border-radius: 0.25rem;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                    opacity: 0.6;
+                    color: $offWhite;
+
+                    &:hover {
+                        opacity: 1;
+                        background-color: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, hoverLightnessAdjustment));
+                        border-color: color.adjust(map-get($s, surfaceBg), $lightness: 15%);
+                    }
+
+                    &.active {
+                        opacity: 1;
+                        background-color: rgba(100, 150, 255, 0.2);
+                        border-color: rgba(100, 150, 255, 0.5);
+                        color: rgba(150, 200, 255, 1);
+                    }
+
+                    // Click feedback animation
+                    &.click-feedback {
+                        @include clickToggleFeedbackAnimation((
+                            startColor: rgba(map-get($s, surfaceFg), 0.65),
+                            flashColor: rgba(map-get($s, surfaceFg), 1),
+                            endColor: rgba(map-get($s, surfaceFg), 0.65)
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
+// -----------------------------
+// Convenience theme presets
+// -----------------------------
+@mixin tagPillDropdownLightTheme($config: ()) {
+    @include dropdownTriggerTheme(map-merge((
+        glyphBase: $offWhite,
+        triggerBg: $offWhite,
+        hoverGlyphFill: $nightBlue,
+        activeIndicatorFill: $offWhite,
+        invertIndicatorOnActive: false
+    ), $config));
+
+    @include dropdownItemsTheme(map-merge((
+        surfaceBg: $offWhite,
+        itemIconColor: #151515,
+        hoverLightnessAdjustment: -6%
+    ), $config));
+
+    @include dropdownTagFilter(map-merge((
+        surfaceBg: $offWhite,
+        surfaceFg: $nightBlue,
+        hoverLightnessAdjustment: -6%
     ), $config));
 }
 
-// Convenience one-shot mixin if needed
-@mixin tagPillDropdown($config: ()) {
-    $defaults: ( theme: 'light' );
-    $s: map-merge($defaults, $config);
-    $theme: map-get($s, theme);
-    @include dropdownChipStructure($s);
-    @include dropdownChipSubmenuPlacement($s);
-    @if $theme == 'light' { @include tagPillDropdownLightTheme($s); }
-    @else if $theme == 'dark' { @include tagPillDropdownDarkTheme($s); }
+@mixin tagPillDropdownDarkTheme($config: ()) {
+    @include dropdownTriggerTheme(map-merge((
+        glyphBase: $steelBlue,
+        triggerBg: transparent,
+        hoverGlyphFill: null,
+        activeIndicatorFill: $steelBlue,
+        invertIndicatorOnActive: true
+    ), $config));
+
+    @include dropdownItemsTheme(map-merge((
+        surfaceBg: $steelBlue,
+        itemIconColor: $offWhite,
+        hoverLightnessAdjustment: -6%
+    ), $config));
+
+    @include dropdownTagFilter(map-merge((
+        surfaceBg: $steelBlue,
+        surfaceFg: $offWhite,
+        hoverLightnessAdjustment: -6%
+    ), $config));
 }
