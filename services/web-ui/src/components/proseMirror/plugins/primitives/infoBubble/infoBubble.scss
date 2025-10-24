@@ -1,0 +1,37 @@
+/* Import base infoBubble styles */
+@import '../../../../../sass/components/_info-bubble.scss';
+
+/* InfoBubble Primitive Styles */
+.info-bubble-wrapper {
+    position: relative;
+
+    @include infoBubblePlacement();
+    @include infoBubbleStructure();
+
+    &.theme-light {
+        @include infoBubbleTheme((
+            surfaceBg: $offWhite,
+            surfaceFg: $nightBlue,
+            bubbleShadow: $dropdownLightThemeSubmenuBoxShadow,
+            borderLightnessAdjustment: -10%
+        ));
+    }
+
+    &.theme-dark {
+        @include infoBubbleTheme((
+            surfaceBg: $steelBlue,
+            surfaceFg: $offWhite,
+            bubbleShadow: $dropdownDarkThemeSubmenuBoxShadow,
+            borderLightnessAdjustment: -10%
+        ));
+    }
+
+    // Hidden by default
+    .bubble-wrapper {
+        display: none;
+
+        &.visible {
+            display: block;
+        }
+    }
+}
