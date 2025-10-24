@@ -103,12 +103,10 @@ const injectFillColor = (svg, color) => {
     @import '../../sass/components/tag-pill-dropdown';
 
     .dropdown-menu-tag-pill-wrapper {
-        // Position wrapper
-        @include dropdownChipWrapperPosition((
-            position: absolute,
-            right: 0,
-            top: -1px // TODO hack for current prosemirror menubar placement
-        ));
+        // Position wrapper for absolute bubble positioning
+        position: absolute;
+        right: 0;
+        top: -1px; // TODO hack for current prosemirror menubar placement
 
         // Trigger button
         @include dropdownTriggerStructure();
@@ -126,8 +124,7 @@ const injectFillColor = (svg, color) => {
                 surfaceBg: $offWhite,
                 surfaceFg: $nightBlue,
                 bubbleShadow: $dropdownLightThemeSubmenuBoxShadow,
-                borderLightnessAdjustment: -10%,
-                hoverLightnessAdjustment: -6%
+                borderLightnessAdjustment: -10%
             ));
             @include tagPillDropdownLightTheme();
         }
@@ -136,8 +133,7 @@ const injectFillColor = (svg, color) => {
                 surfaceBg: $steelBlue,
                 surfaceFg: $offWhite,
                 bubbleShadow: $dropdownDarkThemeSubmenuBoxShadow,
-                borderLightnessAdjustment: -10%,
-                hoverLightnessAdjustment: -6%
+                borderLightnessAdjustment: -10%
             ));
             @include tagPillDropdownDarkTheme();
         }

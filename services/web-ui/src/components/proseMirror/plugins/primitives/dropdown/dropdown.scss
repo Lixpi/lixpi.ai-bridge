@@ -4,10 +4,8 @@
 
 /* Dropdown Plugin Styles */
 .dropdown-menu-tag-pill-wrapper {
-    // Wrapper position
-    @include dropdownChipWrapperPosition((
-        position: relative
-    ));
+    // Wrapper needs to be positioned for absolutely positioned bubble
+    position: relative;
 
     // Trigger button
     @include dropdownTriggerStructure((
@@ -22,39 +20,12 @@
         itemFontSize: .83rem
     ));
 
-    // Bubble container
-    @include infoBubblePlacement();
-    @include infoBubbleStructure();
-
-    // Themes
+    // Dropdown-specific themes (items and trigger only)
     &.theme-light {
-        @include infoBubbleTheme((
-            surfaceBg: $offWhite,
-            surfaceFg: $nightBlue,
-            bubbleShadow: $dropdownLightThemeSubmenuBoxShadow,
-            borderLightnessAdjustment: -10%,
-            hoverLightnessAdjustment: -6%,
-            itemFontSize: .83rem
-        ));
         @include tagPillDropdownLightTheme();
     }
-    &.theme-dark  {
-        @include infoBubbleTheme((
-            surfaceBg: $steelBlue,
-            surfaceFg: $offWhite,
-            bubbleShadow: $dropdownDarkThemeSubmenuBoxShadow,
-            borderLightnessAdjustment: -10%,
-            hoverLightnessAdjustment: -6%,
-            itemFontSize: .83rem
-        ));
+    &.theme-dark {
         @include tagPillDropdownDarkTheme();
-    }
-
-    // Hidden by default; shown when parent gets .dropdown-open class
-    .dots-dropdown-menu {
-        .bubble-wrapper {
-            display: none;
-        }
     }
 }
 

@@ -20,7 +20,6 @@
 // - Tag filter: dropdownTagFilter (optional feature)
 //
 // Usage Example:
-//   @include dropdownChipWrapperPosition((position: relative));
 //   @include dropdownTriggerStructure((fontSize: .9rem));
 //   @include dropdownItemsStructure((itemFontSize: .83rem));
 //   @include infoBubblePlacement((rightOffset: 0px, topOffset: 32px));
@@ -28,32 +27,7 @@
 //   @include infoBubbleTheme((arrowSide: 'top', surfaceBg: #333, surfaceFg: #fff));
 //   @include tagPillDropdownDarkTheme();
 
-// 1) Wrapper positioning (no structural styles)
-@mixin dropdownChipWrapperPosition($config: ()) {
-    $defaults: (
-    position: relative,
-    top: auto,
-    right: auto,
-    bottom: auto,
-    left: auto,
-    zIndex: null
-    );
-
-    $s: map-merge($defaults, $config);
-
-    position: map-get($s, position);
-    top: map-get($s, top);
-    right: map-get($s, right);
-    bottom: map-get($s, bottom);
-    left: map-get($s, left);
-
-    @if map-get($s, zIndex) {
-        z-index: map-get($s, zIndex);
-    }
-}
-
-// 2) Trigger button structure (layout + motion; no colors)
-// ONLY handles the trigger button - bubble is separate
+// 1) Trigger button structure (layout + motion; no colors)
 @mixin dropdownTriggerStructure($config: ()) {
     $defaults: (
         svgSize: 1.3rem,
@@ -162,7 +136,7 @@
     }
 }
 
-// 3) Dropdown items structure
+// 2) Dropdown items structure
 // Structure for list items inside the bubble body
 @mixin dropdownItemsStructure($config: ()) {
     $defaults: (
