@@ -7,6 +7,7 @@ import { html } from '../../components/domTemplates.ts'
 import { aiModelsStore } from '../../../../stores/aiModelsStore.js'
 import { documentStore } from '../../../../stores/documentStore.js'
 import { createPureDropdown } from '../primitives/dropdown/index.ts'
+import { createInfoBubble } from '../primitives/infoBubble/index.ts'
 
 export const aiChatThreadNodeType = 'aiChatThread'
 
@@ -277,13 +278,17 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
         view.dispatch(view.state.tr.setMeta('toggleCollapse', { threadId, nodePos: getPos() }))
     }
 
-    // Create the info dropdown
-    const infoDropdown = createThreadInfoDropdown()
+    // Create the info bubble
+    const infoBubble = createThreadInfoBubble()
 
-    // Click handler for boundary icon to toggle info dropdown
+    // Click handler for boundary icon to toggle info bubble
     const handleBoundaryIconClick = (e) => {
         e.stopPropagation()
-        infoDropdown.classList.toggle('dropdown-visible')
+        if (infoBubble.dom.querySelector('.bubble-wrapper').classList.contains('visible')) {
+            infoBubble.hide()
+        } else {
+            infoBubble.show()
+        }
     }
 
     // Create the collapse toggle icon - uses eyeSlashIcon with color changes based on state
@@ -304,37 +309,40 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
         >
             <div className="ai-thread-boundary-icon" innerHTML=${chatThreadBoundariesInfoIcon} onclick=${handleBoundaryIconClick}></div>
             ${collapseToggleIcon}
-            ${infoDropdown}
+            <div className="ai-thread-info-bubble">
+                ${infoBubble.dom}
+            </div>
         </div>
     `
 
     return { boundaryIndicator, collapseToggleIcon }
 }
 
-// Helper to create a small info dropdown near the boundary indicator
-function createThreadInfoDropdown() {
-    return html`
-        <div className="ai-thread-info-dropdown theme-dark">
-            <span className="dots-dropdown-menu">
-                <button className="dropdown-trigger-hidden"></button>
-                <nav className="submenu-wrapper render-position-bottom">
-                    <ul className="submenu with-header">
-                        <li className="flex justify-start items-center" data-type="header">
-                            <span innerHTML=${aiRobotFaceIcon}></span>
-                            <span className="header-text">
-                                <span className="header-title">AI Thread context</span>
-                                <span className="header-meta">AI generated title will be here</span>
-                            </span>
-                        </li>
-                        <li className="flex justify-start items-center">Add thread below</li>
-                        <li className="flex justify-start items-center">Add thread above</li>
-                        <li className="flex justify-start items-center">Merge with prev thread</li>
-                        <li className="flex justify-start items-center">Merge with thread below</li>
-                    </ul>
-                </nav>
-            </span>
+// Helper to create a small info bubble near the boundary indicator
+function createThreadInfoBubble() {
+    const headerContent = html`
+        <div class="flex justify-start items-center" style="gap: 0.5rem;">
+            <span innerHTML=${aiRobotFaceIcon}></span>
+            <div style="display: flex; flex-direction: column; line-height: 1.15; gap: 0.15rem;">
+                <span style="font-size: 0.9rem; font-weight: 500;">AI Thread Context</span>
+                <span style="font-size: 0.55rem; opacity: 0.8; text-transform: none; margin: 0.1rem 0;">AI generated title will be here</span>
+            </div>
         </div>
-    `
+    ` as HTMLElement
+
+    const bodyContent = html`
+        <h3>Content placeholder</h3>
+    ` as HTMLElement
+
+    return createInfoBubble({
+        id: 'thread-info-bubble',
+        theme: 'dark',
+        renderPosition: 'bottom',
+        arrowSide: 'right',
+        headerContent,
+        bodyContent,
+        visible: false
+    })
 }
 
 // Note: Dropdowns are UI controls (outside document schema), not document nodes

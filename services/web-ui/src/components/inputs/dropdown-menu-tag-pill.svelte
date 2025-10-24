@@ -47,7 +47,7 @@ const injectFillColor = (svg, color) => {
 
 <svelte:window onclick={handleWindowClick}/>
 
-<div class="dropdown-menu-tag-pill-wrapper theme-{theme}">
+<div class="dropdown-menu-tag-pill-wrapper theme-{theme}" data-arrow-side="top">
     <span class="dots-dropdown-menu" class:is-active={submenuState[id]} onclick={(e) => { e.stopPropagation() }} bind:this={submenuRef}>
         <button class="flex justify-between items-center" onclick={(e)=> toggleSubmenuHandler(e, id)}>
             <span class="selected-option-icon flex items-center">
@@ -61,35 +61,39 @@ const injectFillColor = (svg, color) => {
         </button>
         {#if submenuState[id] && dropdownOptions.length > 0}
             <nav
-                class="submenu-wrapper render-position-{renderPosition}"
+                class="bubble-wrapper render-position-{renderPosition}"
                 in:popOutTransition|global={{duration: 300}}
                 out:popOutTransition|global={{duration: 300}}
             >
-                <ul class="submenu" class:with-header={dropdownOptions.some(o => o.type === 'header')}>
-                    {#each dropdownOptions as option}
-                        {#if option.type === 'header'}
-                            <li class="flex justify-start items-center" data-type="header">
-                                {#if option.icon}
-                                    {@html option.icon}
+                <div class="bubble-container" class:with-header={dropdownOptions.some(o => o.type === 'header')}>
+                    <div class="bubble-body">
+                        <ul class="submenu">
+                            {#each dropdownOptions as option}
+                                {#if option.type === 'header'}
+                                    <li class="flex justify-start items-center" data-type="header">
+                                        {#if option.icon}
+                                            {@html option.icon}
+                                        {/if}
+                                        <span class="header-text">
+                                            <span class="header-title">{option.title}</span>
+                                            {#if option.meta}
+                                                <span class="header-meta">{option.meta}</span>
+                                            {/if}
+                                        </span>
+                                    </li>
+                                {:else}
+                                    <li class="flex justify-start items-center" onclick={(e) => onClickHandler(e, id, option.onClick)}>
+                                        {#if option.icon}
+                                            {@html option.icon}
+                                            <!-- {@html injectFillColor(option.icon, option.iconColor)} -->
+                                        {/if}
+                                        {option.title}
+                                    </li>
                                 {/if}
-                                <span class="header-text">
-                                    <span class="header-title">{option.title}</span>
-                                    {#if option.meta}
-                                        <span class="header-meta">{option.meta}</span>
-                                    {/if}
-                                </span>
-                            </li>
-                        {:else}
-                            <li class="flex justify-start items-center" onclick={(e) => onClickHandler(e, id, option.onClick)}>
-                                {#if option.icon}
-                                    {@html option.icon}
-                                    <!-- {@html injectFillColor(option.icon, option.iconColor)} -->
-                                {/if}
-                                {option.title}
-                            </li>
-                        {/if}
-                    {/each}
-                </ul>
+                            {/each}
+                        </ul>
+                    </div>
+                </div>
             </nav>
         {/if}
     </span>

@@ -163,7 +163,7 @@
 }
 
 // 3) Dropdown items structure
-// Structure for list items inside the bubble
+// Structure for list items inside the bubble body
 @mixin dropdownItemsStructure($config: ()) {
     $defaults: (
         itemPadding: .4rem .7rem .4rem .4rem,
@@ -174,21 +174,59 @@
     );
     $s: map-merge($defaults, $config);
 
-    .submenu {
-        li {
+    // Map dropdown's .submenu to infoBubble's .bubble-body child
+    .bubble-body {
+        .submenu {
+            list-style: none;
+            padding: 0;
             margin: 0;
-            padding: map-get($s, itemPadding);
-            vertical-align: middle;
-            font-size: map-get($s, itemFontSize);
-            text-transform: capitalize;
-            cursor: pointer;
-            transition: map-get($s, itemTransition);
 
-            :global(svg) {
-                height: map-get($s, itemIconSize);
-                width: map-get($s, itemIconSize);
-                padding: 0;
-                margin: map-get($s, itemIconMargin);
+            li {
+                margin: 0;
+                padding: map-get($s, itemPadding);
+                vertical-align: middle;
+                font-size: map-get($s, itemFontSize);
+                text-transform: capitalize;
+                cursor: pointer;
+                transition: map-get($s, itemTransition);
+
+                :global(svg) {
+                    height: map-get($s, itemIconSize);
+                    width: map-get($s, itemIconSize);
+                    padding: 0;
+                    margin: map-get($s, itemIconMargin);
+                }
+            }
+
+            // Support for header item (darker strip at top of list)
+            li[data-type='header'] {
+                cursor: default;
+                align-items: flex-start;
+
+                .header-text {
+                    display: flex;
+                    flex-direction: column;
+                    line-height: 1.15;
+                    gap: .15rem;
+
+                    .header-meta {
+                        font-size: calc(#{map-get($s, itemFontSize)} - 0.35rem);
+                        opacity: .8;
+                        text-transform: none;
+                        margin: .1rem 0;
+                    }
+                }
+            }
+
+            // Ensure top/bottom items visually conform to bubble radius
+            li:first-child {
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }
+
+            li:last-child {
+                border-bottom-left-radius: 4px;
+                border-bottom-right-radius: 4px;
             }
         }
     }
@@ -252,38 +290,60 @@
 }
 
 // 5) Dropdown items theming
-// Theme for list items inside the bubble
+// Theme for list items inside the bubble body
 @mixin dropdownItemsTheme($config: ()) {
     $defaults: (
         surfaceBg: #fff,
+        surfaceFg: #333,
         itemIconColor: #151515,
+        borderLightnessAdjustment: -10%,
         hoverLightnessAdjustment: -6%
     );
     $s: map-merge($defaults, $config);
 
-    .submenu {
-        li {
-            &:hover {
-                background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, hoverLightnessAdjustment));
+    .bubble-body {
+        .submenu {
+            li {
+                &:hover {
+                    background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, hoverLightnessAdjustment));
+                }
+
+                :global(svg) {
+                    fill: map-get($s, itemIconColor);
+                }
             }
 
-            :global(svg) {
-                fill: map-get($s, itemIconColor);
+            // Header item theming
+            li[data-type='header'] {
+                background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
+
+                &:hover {
+                    background: color.adjust(map-get($s, surfaceBg), $lightness: map-get($s, borderLightnessAdjustment));
+                }
+
+                .header-text .header-meta {
+                    color: rgba(map-get($s, surfaceFg), 0.75);
+                }
             }
+
+            // Note: .with-header class can be added to .bubble-container to indicate header presence,
+            // allowing infoBubbleTheme to adjust arrow color to match header background
         }
     }
 }
 
-// 6) Tag filter styling (specific feature)
+// 6) Tag filter styling (uses infoBubble's .bubble-header)
 @mixin dropdownTagFilter($config: ()) {
     $defaults: (
         surfaceBg: #fff,
         surfaceFg: #333,
-        hoverLightnessAdjustment: -6%
+        hoverLightnessAdjustment: -6%,
+        borderLightnessAdjustment: -10%
     );
     $s: map-merge($defaults, $config);
 
-    .submenu-wrapper {
+    // Map dropdown's tag-filter to infoBubble's .bubble-header
+    .bubble-header {
         .tag-filter {
             margin-bottom: .3rem;
 

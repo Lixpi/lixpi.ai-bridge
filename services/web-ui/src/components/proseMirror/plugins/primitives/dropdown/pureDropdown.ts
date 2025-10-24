@@ -2,6 +2,7 @@
 import { html } from '../../../components/domTemplates.ts'
 import { chevronDownIcon } from '../../../../../svgIcons/index.ts'
 import { dropdownStateManager } from './dropdownStateManager.ts'
+import { createInfoBubble } from '../infoBubble/pureInfoBubble.ts'
 
 // Inject fill color utility (same as original dropdown)
 function injectFillColor(svg: string, color: string): string {
@@ -178,9 +179,39 @@ export function createPureDropdown(config: PureDropdownConfig) {
         })
     }
 
-    // Build DOM
+    // Build header content (if tag filter enabled)
+    const headerContent = enableTagFilter && availableTags.length > 0 ? html`
+        <div class="tag-filter" onmousedown=${preventProseMirrorEdit}>
+            <div class="tag-filter-title">Filter by modality:</div>
+            <div class="tag-filter-list">
+                ${availableTags.map(tag => html`
+                    <span
+                        class="tag-filter-item"
+                        data-tag="${tag}"
+                        onclick=${(e: Event) => handleTagFilterClick(e, tag)}
+                    >${tag}</span>
+                `)}
+            </div>
+        </div>
+    ` : null
+
+    // Build body content (dropdown items)
+    const bodyContent = html`<ul class="submenu"></ul>`
+
+    // Create info bubble
+    const infoBubble = createInfoBubble({
+        id: `dropdown-${id}`,
+        theme,
+        renderPosition,
+        arrowSide: 'top',
+        headerContent,
+        bodyContent,
+        visible: false
+    })
+
+    // Build dropdown wrapper
     const dom = html`
-        <div class="dropdown-menu-tag-pill-wrapper theme-${theme}" data-dropdown-id="${id}" contenteditable="false">
+        <div class="dropdown-menu-tag-pill-wrapper theme-${theme}" data-dropdown-id="${id}" data-arrow-side="top" contenteditable="false">
             <span class="dots-dropdown-menu">
                 <button
                     class="flex justify-between items-center"
@@ -194,31 +225,16 @@ export function createPureDropdown(config: PureDropdownConfig) {
                         <span innerHTML=${buttonIcon}></span>
                     </span>
                 </button>
-                <nav class="submenu-wrapper render-position-${renderPosition}" contenteditable="false">
-                    ${enableTagFilter && availableTags.length > 0 ? html`
-                        <div class="submenu-header">
-                            <div class="tag-filter" onmousedown=${preventProseMirrorEdit}>
-                                <div class="tag-filter-title">Filter by modality:</div>
-                                <div class="tag-filter-list">
-                                    ${availableTags.map(tag => html`
-                                        <span
-                                            class="tag-filter-item"
-                                            data-tag="${tag}"
-                                            onclick=${(e: Event) => handleTagFilterClick(e, tag)}
-                                        >${tag}</span>
-                                    `)}
-                                </div>
-                            </div>
-                        </div>
-                    ` : ''}
-                    <ul class="submenu"></ul>
-                </nav>
             </span>
         </div>
     ` as HTMLElement
 
-    submenuRef = dom.querySelector('.dots-dropdown-menu')
-    const submenuWrapper = dom.querySelector('.submenu-wrapper') as HTMLElement
+    // Append info bubble to dropdown
+    const dropdownMenu = dom.querySelector('.dots-dropdown-menu')
+    dropdownMenu.appendChild(infoBubble.dom)
+
+    submenuRef = dropdownMenu
+    const submenuWrapper = infoBubble.dom.querySelector('.bubble-wrapper') as HTMLElement
 
     // Update selected value display
     const updateSelectedDisplay = () => {
@@ -246,8 +262,10 @@ export function createPureDropdown(config: PureDropdownConfig) {
     // Subscribe to open/close state
     const unsubscribe = dropdownStateManager.subscribe(id, (isOpen) => {
         console.log('[AI_DBG][PURE_DROPDOWN.stateChange]', { id, isOpen })
-        if (submenuWrapper) {
-            submenuWrapper.style.display = isOpen ? 'block' : 'none'
+        if (isOpen) {
+            infoBubble.show()
+        } else {
+            infoBubble.hide()
         }
         dom.classList.toggle('dropdown-open', isOpen)
     })
@@ -271,6 +289,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
             // Close dropdown if it was open
             dropdownStateManager.close(id)
             unsubscribe()
+            infoBubble.destroy()
             document.removeEventListener('click', handleWindowClick)
         }
     }

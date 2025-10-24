@@ -52,7 +52,7 @@
 
     // Hidden by default; shown when parent gets .dropdown-open class
     .dots-dropdown-menu {
-        .submenu-wrapper {
+        .bubble-wrapper {
             display: none;
         }
     }
@@ -62,7 +62,7 @@
 .dropdown-open {
     .dropdown-menu-tag-pill-wrapper {
         .dots-dropdown-menu {
-            .submenu-wrapper {
+            .bubble-wrapper {
                 display: block;
                 animation: popOut 300ms cubic-bezier(0.19, 1, 0.22, 1);
             }
