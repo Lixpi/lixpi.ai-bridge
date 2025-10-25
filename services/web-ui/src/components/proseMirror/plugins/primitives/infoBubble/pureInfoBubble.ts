@@ -53,12 +53,12 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     // Internal close method (called by state manager)
     const closeInternal = () => {
         if (!isVisible) return
-        
+
         isVisible = false
         if (bubbleWrapper) {
             bubbleWrapper.classList.remove('visible')
         }
-        
+
         infoBubbleStateManager.close(id)
         onClose?.()
     }
@@ -66,12 +66,12 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     // Public API
     const open = () => {
         if (isVisible) return
-        
+
         isVisible = true
         if (bubbleWrapper) {
             bubbleWrapper.classList.add('visible')
         }
-        
+
         infoBubbleStateManager.open(id)
         onOpen?.()
     }
@@ -103,7 +103,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     // Handle click outside to close
     const handleWindowClick = (e: Event) => {
         if (!closeOnClickOutside || !isVisible) return
-        
+
         // Check if click is outside both anchor and bubble
         const path = e.composedPath()
         if (!path.includes(anchor) && !path.includes(dom)) {
@@ -113,7 +113,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
 
     // Attach anchor click handler
     anchor.addEventListener('click', handleAnchorClick)
-    
+
     // Attach window click handler
     if (closeOnClickOutside) {
         document.addEventListener('click', handleWindowClick)
@@ -133,10 +133,10 @@ export function createInfoBubble(config: InfoBubbleConfig) {
         if (closeOnClickOutside) {
             document.removeEventListener('click', handleWindowClick)
         }
-        
+
         // Unregister from state manager
         infoBubbleStateManager.unregister(id)
-        
+
         // Remove DOM
         dom.remove()
     }

@@ -14,12 +14,12 @@ class InfoBubbleStateManager {
 
     open(id: string): void {
         const previousId = this.openBubbleId
-        
+
         // Close previously open bubble if different
         if (previousId && previousId !== id) {
             this.bubbles.get(previousId)?.close()
         }
-        
+
         this.openBubbleId = id
     }
 

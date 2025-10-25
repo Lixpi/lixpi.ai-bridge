@@ -136,6 +136,11 @@ $aiChatThreadMinHeight: 50px;
         right: 50px;
         top: 6px;
         z-index: 999999;
+
+        svg {
+            max-width: 30px;
+            max-height: 30px;
+        }
     }
 
     // ===== AI CHAT THREAD CONTROLS CONTAINER =====

@@ -55,13 +55,13 @@ createInfoBubble({
   onClose?: () => void,                   // NEW: Called when bubble closes
   closeOnClickOutside?: boolean           // NEW: Default true
 })
-// Returns: { 
-//   dom: HTMLElement, 
+// Returns: {
+//   dom: HTMLElement,
 //   open: () => void,      // NEW: Was show()
 //   close: () => void,     // NEW: Was hide()
 //   toggle: () => void,    // NEW: Toggle open/close
 //   isOpen: () => boolean, // NEW: Check state
-//   destroy: () => void 
+//   destroy: () => void
 // }
 ```
 
@@ -189,7 +189,7 @@ const dropdown = createPureDropdown({
   onSelect: (option) => {
     // Update selection
     updateState(option)
-    
+
     // Tell infoBubble to close
     infoBubble.close()
   }
@@ -216,11 +216,11 @@ document.addEventListener('click', handleClickOutside)
 
 **New API:**
 ```typescript
-const bubble = createInfoBubble({ 
-  id, 
+const bubble = createInfoBubble({
+  id,
   anchor: button,  // Pass button as anchor
-  headerContent, 
-  bodyContent 
+  headerContent,
+  bodyContent
 })
 // That's it! Click handling is automatic
 ```
