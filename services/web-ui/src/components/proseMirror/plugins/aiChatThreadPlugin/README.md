@@ -179,7 +179,7 @@ The thread NodeView includes two dropdowns for configuring the AI conversation:
 Both dropdowns are **UI controls outside the document schema**:
 - **Not part of the document schema** - Zero NodeSpec involvement, never serialized
 - **Rendered directly to controls container** - No transactions, no decorations needed
-- **State managed via singleton** - `dropdownStateManager` handles open/close coordination
+- **State managed via singleton** - `infoBubbleStateManager` handles open/close coordination
 - **Created by DOM factory** - `createPureDropdown()` from `primitives/dropdown`
 - **Reusable primitive** - Same dropdown used across different plugins
 
@@ -382,7 +382,7 @@ This pattern follows our decoration-first approach: visual states come from clas
 
 - `../primitives/dropdown/` - Dropdown primitive (outside document schema):
   - `pureDropdown.ts` - Factory function creating dropdowns with {dom, update, destroy} API
-  - `dropdownStateManager.ts` - Singleton coordinating open/close state (mutual exclusion)
+  - Uses `infoBubble` primitive for state management
   - `index.ts` - Clean exports
   - Zero ProseMirror dependencies - framework-agnostic pure DOM
   - Used by aiChatThreadNode for AI model and context selectors

@@ -21,9 +21,8 @@ plugins/
 	primitives/                   # reusable UI primitives
 		dropdown/                 # dropdown component (outside doc schema)
 			README.md             # comprehensive dropdown docs
-			pureDropdown.ts       # factory returning {dom, update, destroy}
-			dropdownStateManager.ts  # singleton for open/close coordination
-			index.ts              # exports
+			pureDropdown.ts          # factory function (creates dropdown DOM + binds to infoBubble)
+			index.ts                 # public API
 
 	README.md                   # this file (shared patterns)
 
@@ -58,7 +57,7 @@ These primitives are presentational controls, not semantic content. Think toolba
 
 - **`dropdown/`** - Dropdown menus with singleton state management (outside document schema)
   - Factory pattern: `createPureDropdown(config)` returns `{dom, update, destroy}`
-  - State coordinator: `dropdownStateManager` for mutual exclusion (one open at a time)
+  - State managed by infoBubbleStateManager for mutual exclusion (one open at a time)
   - Used by AI Chat Thread for model and context selection
   - Zero ProseMirror dependencies in the dropdown code itself
   - See `primitives/dropdown/README.md` for complete API reference and migration guide
@@ -191,7 +190,7 @@ Decorations add CSS classes to document nodes without modifying the document its
 - Editor controls (not document content)
 - Any UI that should never be serialized
 
-State is managed directly (element properties) or via singleton coordinators (like `dropdownStateManager`), not decorations.
+State is managed directly (element properties) or via singleton coordinators (like `infoBubbleStateManager`), not decorations.
 
 ### Decoration Pattern (for document-related UI state)
 

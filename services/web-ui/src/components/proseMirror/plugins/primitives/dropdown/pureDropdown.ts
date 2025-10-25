@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { html } from '../../../components/domTemplates.ts'
 import { chevronDownIcon } from '../../../../../svgIcons/index.ts'
-import { dropdownStateManager } from './dropdownStateManager.ts'
 import { createInfoBubble } from '../infoBubble/pureInfoBubble.ts'
 
 // Inject fill color utility (same as original dropdown)
@@ -56,23 +55,9 @@ export function createPureDropdown(config: PureDropdownConfig) {
     } = config
 
     let currentSelectedValue = selectedValue
-    let submenuRef: HTMLElement | null = null
     let activeFilterTags: Set<string> = new Set()
     let allOptions = [...options]
-
-    // Handle toggle
-    const toggleHandler = (e: Event) => {
-        console.log('[AI_DBG][PURE_DROPDOWN.toggle]', { id })
-        e.preventDefault()
-        e.stopPropagation()
-        e.stopImmediatePropagation()
-
-        if (dropdownStateManager.isOpen(id)) {
-            dropdownStateManager.close(id)
-        } else {
-            dropdownStateManager.open(id)
-        }
-    }
+    let infoBubble: any = null // Will be initialized after button is created
 
     // Prevent ProseMirror from handling mousedown on dropdown
     const preventProseMirrorEdit = (e: Event) => {
@@ -91,21 +76,14 @@ export function createPureDropdown(config: PureDropdownConfig) {
         // Update local state
         currentSelectedValue = option
 
-        // Close dropdown
-        dropdownStateManager.close(id)
+        // Close dropdown via infoBubble
+        infoBubble?.close()
 
         // Notify parent
         onSelect(option)
 
         // Update visual
         updateSelectedDisplay()
-    }
-
-    // Handle window click to close
-    const handleWindowClick = (e: Event) => {
-        if (submenuRef && !e.composedPath().includes(submenuRef)) {
-            dropdownStateManager.close(id)
-        }
     }
 
     // Filter options based on active tags
@@ -198,24 +176,12 @@ export function createPureDropdown(config: PureDropdownConfig) {
     // Build body content (dropdown items)
     const bodyContent = html`<ul class="submenu"></ul>`
 
-    // Create info bubble
-    const infoBubble = createInfoBubble({
-        id: `dropdown-${id}`,
-        theme,
-        renderPosition,
-        arrowSide: 'top',
-        headerContent,
-        bodyContent,
-        visible: false
-    })
-
-    // Build dropdown wrapper
+    // Build dropdown wrapper with button first
     const dom = html`
         <div class="dropdown-menu-tag-pill-wrapper theme-${theme}" data-dropdown-id="${id}" data-arrow-side="top" contenteditable="false">
             <span class="dots-dropdown-menu">
                 <button
                     class="flex justify-between items-center"
-                    onclick=${toggleHandler}
                     onmousedown=${preventProseMirrorEdit}
                     contenteditable="false"
                 >
@@ -229,12 +195,32 @@ export function createPureDropdown(config: PureDropdownConfig) {
         </div>
     ` as HTMLElement
 
+    // Get button reference to use as anchor
+    const button = dom.querySelector('button') as HTMLElement
+
+    // Create info bubble with button as anchor
+    infoBubble = createInfoBubble({
+        id: `dropdown-${id}`,
+        anchor: button,
+        theme,
+        renderPosition,
+        arrowSide: 'top',
+        headerContent,
+        bodyContent,
+        visible: false,
+        onOpen: () => {
+            console.log('[AI_DBG][PURE_DROPDOWN.opened]', { id })
+            dom.classList.add('dropdown-open')
+        },
+        onClose: () => {
+            console.log('[AI_DBG][PURE_DROPDOWN.closed]', { id })
+            dom.classList.remove('dropdown-open')
+        }
+    })
+
     // Append info bubble to dropdown
     const dropdownMenu = dom.querySelector('.dots-dropdown-menu')
     dropdownMenu.appendChild(infoBubble.dom)
-
-    submenuRef = dropdownMenu
-    const submenuWrapper = infoBubble.dom.querySelector('.bubble-wrapper') as HTMLElement
 
     // Update selected value display
     const updateSelectedDisplay = () => {
@@ -259,23 +245,9 @@ export function createPureDropdown(config: PureDropdownConfig) {
         }
     }
 
-    // Subscribe to open/close state
-    const unsubscribe = dropdownStateManager.subscribe(id, (isOpen) => {
-        console.log('[AI_DBG][PURE_DROPDOWN.stateChange]', { id, isOpen })
-        if (isOpen) {
-            infoBubble.show()
-        } else {
-            infoBubble.hide()
-        }
-        dom.classList.toggle('dropdown-open', isOpen)
-    })
-
     // Initialize display
     updateSelectedDisplay()
     renderOptionsList()
-
-    // Add window click listener
-    document.addEventListener('click', handleWindowClick)
 
     return {
         dom,
@@ -286,11 +258,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
         },
         destroy: () => {
             console.log('[AI_DBG][PURE_DROPDOWN.destroy]', { id })
-            // Close dropdown if it was open
-            dropdownStateManager.close(id)
-            unsubscribe()
-            infoBubble.destroy()
-            document.removeEventListener('click', handleWindowClick)
+            infoBubble?.destroy()
         }
     }
 }

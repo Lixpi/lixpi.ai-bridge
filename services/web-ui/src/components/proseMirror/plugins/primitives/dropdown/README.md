@@ -4,13 +4,23 @@ Dropdown menus for ProseMirror NodeViews. Lives outside the document schema – 
 
 ## What it is
 
-A factory function that creates dropdown UI controls. Used by AI Chat Thread for model/context selection. Zero ProseMirror dependencies – just DOM + state coordinator.
+A factory function that creates dropdown UI controls. Used by AI Chat Thread for model/context selection. **Built on top of the InfoBubble primitive** - dropdown provides the button and options, infoBubble handles all state management.
 
 **Key points:**
 - Not a document node (no NodeSpec)
 - Appended directly to your controls container
-- State managed by singleton (`dropdownStateManager`)
+- Uses InfoBubble for state management
 - Returns `{dom, update, destroy}`
+
+## Architecture
+
+Dropdown uses `infoBubble` primitive, which handles:
+- Open/closed state
+- Click handling on button
+- Click-outside-to-close
+- Mutual exclusion (only one dropdown open at a time)
+
+**Dropdown's only responsibility**: Provide button (anchor) and content (options list).
 
 ## Why not document nodes?
 
@@ -29,41 +39,64 @@ Now: direct DOM append to controls container. Renders instantly where you put it
 ```typescript
 createPureDropdown({
   id: 'unique-id',
-  selectedValue: 'current-value',
+  selectedValue: { title: 'Option 1', icon: svgString, color: '#color' },
   options: [
-    { value: 'val1', label: 'Label 1', icon: svgString, iconBgColor: '#color' }
+    { title: 'Option 1', icon: svgString, color: '#color' },
+    { title: 'Option 2', icon: svgString, color: '#color' }
   ],
-  onSelect: (value) => { /* dispatch transaction to update node attrs */ },
+  onSelect: (option) => { /* dispatch transaction to update node attrs */ },
   theme?: 'dark' | 'light',
   renderPosition?: 'top' | 'bottom',
   buttonIcon?: svgString,
-  ignoreColorValues?: ['val1', 'val2']
+  ignoreColorValuesForOptions?: boolean,
+  ignoreColorValuesForSelectedValue?: boolean,
+  renderIconForSelectedValue?: boolean,
+  renderIconForOptions?: boolean,
+  renderTitleForSelectedValue?: boolean,
+  enableTagFilter?: boolean,
+  availableTags?: ['tag1', 'tag2']
 })
-// Returns: { dom: HTMLElement, update: (val) => void, destroy: () => void }
+// Returns: { dom: HTMLElement, update: (option) => void, destroy: () => void }
 ```
 
-### `dropdownStateManager`
+### Configuration
 
-Singleton. Ensures only one dropdown open at a time.
+- `id`: Unique identifier
+- `selectedValue`: Currently selected option object
+- `options`: Array of option objects
+- `onSelect`: Callback when option selected (receives selected option)
+- `theme`: 'dark' or 'light' (default: 'dark')
+- `renderPosition`: 'top' or 'bottom' (default: 'bottom')
+- `buttonIcon`: SVG icon for dropdown button (default: chevron)
+- `enableTagFilter`: Show tag filter in dropdown header (default: false)
+- `availableTags`: Tags for filtering options
 
-```typescript
-dropdownStateManager.open(id)        // Opens this, closes others
-dropdownStateManager.close(id)       // Close specific
-dropdownStateManager.closeAll()      // Close all
-dropdownStateManager.isOpen(id)      // Check state
-dropdownStateManager.subscribe(id, callback)  // Listen to changes, returns unsubscribe fn
-```
+### Return Value
 
-## Usage pattern
+- `dom`: HTMLElement to append to your container
+- `update(option)`: Update selected value display
+- `destroy()`: Clean up (automatically handled by infoBubble)
+
+## Usage Pattern
 
 ```typescript
 class MyNodeView implements NodeView {
   dropdown = createPureDropdown({
     id: 'my-dropdown',
-    selectedValue: node.attrs.value,
-    options: [...],
-    onSelect: (val) => {
-      view.dispatch(view.state.tr.setNodeMarkup(getPos(), null, {...node.attrs, value: val}))
+    selectedValue: node.attrs.selectedOption,
+    options: [
+      { title: 'Option 1', icon: icon1, color: '#ff0000' },
+      { title: 'Option 2', icon: icon2, color: '#00ff00' }
+    ],
+    onSelect: (option) => {
+      // Update node attribute via transaction
+      view.dispatch(
+        view.state.tr.setNodeMarkup(
+          getPos(),
+          null,
+          { ...node.attrs, selectedOption: option }
+        )
+      )
     }
   })
 
@@ -72,7 +105,7 @@ class MyNodeView implements NodeView {
   }
 
   update(node) {
-    this.dropdown.update(node.attrs.value)
+    this.dropdown.update(node.attrs.selectedOption)
     return true
   }
 
@@ -89,7 +122,29 @@ class MyNodeView implements NodeView {
 
 See `aiChatThreadNode.ts` for real example.
 
-## Common issues
+## State Management
+
+**Dropdown does NOT manage state.** InfoBubble handles everything:
+- Button click → InfoBubble toggles open/close
+- Click outside → InfoBubble closes
+- Mutual exclusion → InfoBubble state manager ensures only one dropdown open
+
+**When option selected:**
+```typescript
+onSelect: (option) => {
+  updateState(option)       // Update your state
+  // InfoBubble closes automatically via its internal logic
+}
+```
+
+**No need to:**
+- Track open/closed state
+- Implement window click handler
+- Subscribe to state changes
+
+**InfoBubble does all of this automatically.**
+
+## Common Issues
 
 **Dropdown closes immediately after opening**
 - Forgot `ignoreMutation()` in NodeView. PM sees DOM changes and recreates your NodeView.
@@ -101,3 +156,32 @@ See `aiChatThreadNode.ts` for real example.
 
 **State not updating**
 - Forgot to call `dropdown.update()` in NodeView's `update()` method.
+
+**Multiple dropdowns open at once**
+- This should not happen - infoBubble state manager enforces mutual exclusion
+- If it does, check that each dropdown has a unique `id`
+
+## Architecture Diagram
+
+```
+Dropdown Primitive
+  ├─ Button (anchor)
+  │   └─ [InfoBubble attaches click handler]
+  │
+  └─ InfoBubble Primitive
+      ├─ State Management
+      │   ├─ Open/Close state
+      │   ├─ Click outside detection
+      │   └─ Mutual exclusion
+      │
+      └─ Content
+          ├─ Header (optional tag filter)
+          └─ Body (options list)
+```
+
+## Notes
+
+- Dropdown is a specialized use case of InfoBubble
+- For simple info panels without selection, use InfoBubble directly
+- InfoBubble handles ALL interaction logic
+- Dropdown only provides specialized content (button + options list)

@@ -278,18 +278,8 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
         view.dispatch(view.state.tr.setMeta('toggleCollapse', { threadId, nodePos: getPos() }))
     }
 
-    // Create the info bubble
-    const infoBubble = createThreadInfoBubble()
-
-    // Click handler for boundary icon to toggle info bubble
-    const handleBoundaryIconClick = (e) => {
-        e.stopPropagation()
-        if (infoBubble.dom.querySelector('.bubble-wrapper').classList.contains('visible')) {
-            infoBubble.hide()
-        } else {
-            infoBubble.show()
-        }
-    }
+    // Create the info bubble and boundary icon (boundary icon is now the anchor)
+    const { boundaryIcon, infoBubble } = createThreadInfoBubble()
 
     // Create the collapse toggle icon - uses eyeSlashIcon with color changes based on state
     collapseToggleIcon = html`
@@ -307,7 +297,7 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
             onmouseenter=${handleEnter}
             onmouseleave=${handleLeave}
         >
-            <div className="ai-thread-boundary-icon" innerHTML=${chatThreadBoundariesInfoIcon} onclick=${handleBoundaryIconClick}></div>
+            ${boundaryIcon}
             ${collapseToggleIcon}
             <div className="ai-thread-info-bubble">
                 ${infoBubble.dom}
@@ -318,6 +308,7 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
     return { boundaryIndicator, collapseToggleIcon }
 }
 
+// Helper to create a small info bubble near the boundary indicator
 // Helper to create a small info bubble near the boundary indicator
 function createThreadInfoBubble() {
     const headerContent = html`
@@ -334,8 +325,15 @@ function createThreadInfoBubble() {
         <h3>Content placeholder</h3>
     ` as HTMLElement
 
-    return createInfoBubble({
+    // Create boundary icon that will act as the anchor
+    const boundaryIcon = html`
+        <div className="ai-thread-boundary-icon" innerHTML=${chatThreadBoundariesInfoIcon}></div>
+    ` as HTMLElement
+
+    // Create info bubble with boundary icon as anchor
+    const infoBubble = createInfoBubble({
         id: 'thread-info-bubble',
+        anchor: boundaryIcon,
         theme: 'dark',
         renderPosition: 'bottom',
         arrowSide: 'right',
@@ -343,6 +341,8 @@ function createThreadInfoBubble() {
         bodyContent,
         visible: false
     })
+
+    return { boundaryIcon, infoBubble }
 }
 
 // Note: Dropdowns are UI controls (outside document schema), not document nodes
