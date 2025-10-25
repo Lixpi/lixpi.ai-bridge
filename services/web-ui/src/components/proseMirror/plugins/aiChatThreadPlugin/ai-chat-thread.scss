@@ -1,6 +1,5 @@
 // AI Chat Thread Styles
 @import '../../ProseMirrorMixings.scss';
-@import '../../../../sass/components/tag-pill-dropdown';
 @import '../../../../sass/components/animations';
 @import '../primitives/dropdown/dropdown.scss';
 @import '../primitives/infoBubble/infoBubble.scss';
@@ -365,13 +364,7 @@ $aiChatThreadMinHeight: 50px;
 
         &:hover {
             cursor: move;
-            .ai-thread-boundary-indicator {
-                // .ai-thread-boundary-icon {
-                //     svg {
-                //         fill: $nightBlue;
-                //     }
-                // }
-            }
+
             .ai-thread-boundary-indicator-line {
                 background: $steelBlue;
             }

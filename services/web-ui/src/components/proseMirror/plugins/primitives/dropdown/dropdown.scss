@@ -1,6 +1,6 @@
 /* Import animations and base dropdown styles */
 @import '../../../../../sass/components/_animations.scss';
-@import '../../../../../sass/components/_tag-pill-dropdown.scss';
+@import './_dropdown-mixins.scss';
 
 /* Dropdown Plugin Styles */
 .dropdown-menu-tag-pill-wrapper {
