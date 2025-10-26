@@ -5,6 +5,7 @@ import { infoBubbleStateManager } from './infoBubbleStateManager.ts'
 type InfoBubbleConfig = {
     id: string
     anchor: HTMLElement
+    positioningAnchor?: HTMLElement
     theme?: 'dark' | 'light'
     arrowSide?: 'top' | 'bottom' | 'left' | 'right'
     headerContent?: HTMLElement
@@ -20,6 +21,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     const {
         id,
         anchor,
+        positioningAnchor,
     theme = 'dark',
         arrowSide = 'top',
         headerContent = null,
@@ -46,6 +48,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     ` as HTMLElement
 
     const bubbleWrapper = dom.querySelector('.bubble-wrapper') as HTMLElement
+    const posAnchorEl = positioningAnchor ?? anchor
 
     const getOffsetX = () => (offset?.x ?? 0)
     const getOffsetY = () => (offset?.y ?? 0)
@@ -54,7 +57,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     const applyPosition = () => {
         if (!bubbleWrapper) return
 
-        const anchorRect = anchor.getBoundingClientRect()
+    const anchorRect = posAnchorEl.getBoundingClientRect()
 
         // Temporarily ensure bubble is measurable
         const wasVisible = bubbleWrapper.classList.contains('visible')
@@ -65,7 +68,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
             restoreVisibility = true
         }
 
-        const bubbleRect = bubbleWrapper.getBoundingClientRect()
+    const bubbleRect = bubbleWrapper.getBoundingClientRect()
         let top = 0
         let left = 0
 
@@ -74,24 +77,24 @@ export function createInfoBubble(config: InfoBubbleConfig) {
 
         switch (arrowSide) {
             case 'top':
-                // Bubble below anchor
+                // Bubble below anchor, horizontally centered to positioning anchor
                 top = anchorRect.bottom + oy
-                left = anchorRect.left + ox
+                left = anchorRect.left + (anchorRect.width - bubbleRect.width) / 2 + ox
                 break
             case 'bottom':
-                // Bubble above anchor
+                // Bubble above anchor, horizontally centered
                 top = anchorRect.top - bubbleRect.height + oy
-                left = anchorRect.left + ox
+                left = anchorRect.left + (anchorRect.width - bubbleRect.width) / 2 + ox
                 break
             case 'left':
-                // Bubble to the right of anchor (arrow on left)
-                top = anchorRect.top + oy
+                // Bubble to the right of anchor, vertically centered
+                top = anchorRect.top + (anchorRect.height - bubbleRect.height) / 2 + oy
                 left = anchorRect.right + ox
                 break
             case 'right':
             default:
-                // Bubble to the left of anchor (arrow on right)
-                top = anchorRect.top + oy
+                // Bubble to the left of anchor, vertically centered
+                top = anchorRect.top + (anchorRect.height - bubbleRect.height) / 2 + oy
                 left = anchorRect.left - bubbleRect.width + ox
                 break
         }

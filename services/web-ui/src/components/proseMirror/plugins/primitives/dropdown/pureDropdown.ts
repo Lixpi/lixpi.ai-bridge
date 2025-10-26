@@ -185,9 +185,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
                 >
                     <span class="selected-option-icon flex items-center"></span>
                     <span class="title"></span>
-                    <span class="state-indicator flex items-center">
-                        <span innerHTML=${buttonIcon}></span>
-                    </span>
+                    <span class="state-indicator flex items-center" innerHTML=${buttonIcon}></span>
                 </button>
             </span>
         </div>
@@ -197,9 +195,11 @@ export function createPureDropdown(config: PureDropdownConfig) {
     const button = dom.querySelector('button') as HTMLElement
 
     // Create info bubble with button as anchor
+    const positioningAnchor = dom.querySelector('.state-indicator') as HTMLElement
     infoBubble = createInfoBubble({
         id: `dropdown-${id}`,
         anchor: button,
+        positioningAnchor,
         theme,
         arrowSide: 'top',
         headerContent,

@@ -45,6 +45,7 @@ Now: direct DOM append to controls container. Renders instantly where you put it
 createInfoBubble({
   id: 'unique-id',
   anchor: HTMLElement,                    // NEW: Element that triggers bubble
+  positioningAnchor?: HTMLElement,        // NEW: Optional element to position/center against (defaults to anchor)
   theme?: 'dark' | 'light',
   arrowSide?: 'top' | 'bottom' | 'left' | 'right',
   headerContent?: HTMLElement,
@@ -69,6 +70,7 @@ createInfoBubble({
 
 - `id`: Unique identifier for this bubble
 - **`anchor`**: **REQUIRED** - HTML element that triggers the bubble (e.g., button, icon)
+ - **`positioningAnchor`**: Optional element used for positioning/centering. Falls back to `anchor`.
 - `theme`: 'dark' or 'light' (default: 'dark')
 - `arrowSide`: Arrow direction - 'top', 'bottom', 'left', or 'right' (default: 'top')
 - `headerContent`: Optional HTML element for header section
@@ -111,10 +113,11 @@ const infoIcon = html`
   <div class="info-icon" innerHTML=${infoIconSvg}></div>
 `
 
-// Create bubble with anchor
+// Create bubble with separate positioning anchor (optional)
 const infoBubble = createInfoBubble({
   id: 'help-tooltip',
   anchor: infoIcon,
+  positioningAnchor: infoIcon, // same element here; could be different in other contexts
   bodyContent: html`<p>Click me for help!</p>`,
   theme: 'dark',
   arrowSide: 'top'
