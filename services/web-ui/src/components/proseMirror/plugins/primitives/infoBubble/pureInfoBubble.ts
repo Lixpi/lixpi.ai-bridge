@@ -22,7 +22,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
         id,
         anchor,
         positioningAnchor,
-    theme = 'dark',
+        theme = 'dark',
         arrowSide = 'top',
         headerContent = null,
         bodyContent,
@@ -30,7 +30,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
         onOpen,
         onClose,
         closeOnClickOutside = true,
-        offset = {}
+        offset = { x: 0, y: 12 } // Default 12px spacing from anchor
     } = config
 
     let isVisible = visible
@@ -48,16 +48,61 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     ` as HTMLElement
 
     const bubbleWrapper = dom.querySelector('.bubble-wrapper') as HTMLElement
+    const bubbleContainer = dom.querySelector('.bubble-container') as HTMLElement
     const posAnchorEl = positioningAnchor ?? anchor
 
-    const getOffsetX = () => (offset?.x ?? 0)
-    const getOffsetY = () => (offset?.y ?? 0)
+    // Calculate final offset based on arrow direction
+    const getEffectiveOffset = () => {
+        const baseX = offset.x ?? 0
+        const baseY = offset.y ?? 12 // Default 12px spacing
+
+        switch (arrowSide) {
+            case 'top':
+                return { x: baseX, y: baseY } // Offset below anchor
+            case 'bottom':
+                return { x: baseX, y: -baseY } // Offset above anchor
+            case 'left':
+                return { x: baseY, y: baseX } // Offset to the right
+            case 'right':
+                return { x: -baseY, y: baseX } // Offset to the left
+            default:
+                return { x: baseX, y: baseY }
+        }
+    }
+
+    // Measure arrow dimensions from actual rendered CSS
+    const measureArrowDimensions = () => {
+        if (!bubbleContainer) return { crossOffset: 8, outerSize: 9 }
+
+        const beforeEl = window.getComputedStyle(bubbleContainer, '::before')
+
+        // Parse border-width to get arrow size
+        const borderWidth = beforeEl.borderWidth
+        const borders = borderWidth.split(' ').map(v => parseFloat(v))
+
+        // For top/bottom arrows: border-width is "0 9px 9px 9px" -> outerSize = 9
+        // For left/right arrows: border-width is "9px 9px 9px 0" -> outerSize = 9
+        const outerSize = Math.max(...borders.filter(b => b > 0))
+
+        // Parse positioning (right or top) to get cross offset
+        let crossOffset = 8 // fallback
+
+        if (arrowSide === 'top' || arrowSide === 'bottom') {
+            const rightValue = beforeEl.right
+            crossOffset = parseFloat(rightValue) || 8
+        } else {
+            const topValue = beforeEl.top
+            crossOffset = parseFloat(topValue) || 8
+        }
+
+        return { crossOffset, outerSize }
+    }
 
     // Compute and apply viewport-relative position using the anchor rect
     const applyPosition = () => {
         if (!bubbleWrapper) return
 
-    const anchorRect = posAnchorEl.getBoundingClientRect()
+        const anchorRect = posAnchorEl.getBoundingClientRect()
 
         // Temporarily ensure bubble is measurable
         const wasVisible = bubbleWrapper.classList.contains('visible')
@@ -68,38 +113,55 @@ export function createInfoBubble(config: InfoBubbleConfig) {
             restoreVisibility = true
         }
 
-    const bubbleRect = bubbleWrapper.getBoundingClientRect()
-        let top = 0
-        let left = 0
+        const bubbleRect = bubbleWrapper.getBoundingClientRect()
 
-        const ox = getOffsetX()
-        const oy = getOffsetY()
+        // Measure arrow dimensions from rendered CSS
+        const { crossOffset, outerSize } = measureArrowDimensions()
+
+        // Calculate center of positioningAnchor
+        const targetCenterX = anchorRect.left + anchorRect.width / 2
+        const targetCenterY = anchorRect.top + anchorRect.height / 2
+
+        // Get effective offset based on arrow direction
+        const effectiveOffset = getEffectiveOffset()
+        const offsetX = effectiveOffset.x
+        const offsetY = effectiveOffset.y
+
+        // Calculate arrow tip position relative to bubble's top-left corner
+        // Arrow is positioned via CSS at right: crossOffset or top: crossOffset
+        // Triangle base width = 2 * outerSize, tip is at center of base
+        let arrowTipOffsetX = 0
+        let arrowTipOffsetY = 0
 
         switch (arrowSide) {
             case 'top':
-                // Bubble below anchor, horizontally centered to positioning anchor
-                top = anchorRect.bottom + oy
-                left = anchorRect.left + (anchorRect.width - bubbleRect.width) / 2 + ox
+                // Arrow on top edge, pointing up, positioned at right: crossOffset
+                // Arrow tip X: from left = bubbleWidth - crossOffset - outerSize (center of triangle base)
+                arrowTipOffsetX = bubbleRect.width - crossOffset - outerSize
+                arrowTipOffsetY = 0
                 break
             case 'bottom':
-                // Bubble above anchor, horizontally centered
-                top = anchorRect.top - bubbleRect.height + oy
-                left = anchorRect.left + (anchorRect.width - bubbleRect.width) / 2 + ox
+                // Arrow on bottom edge, pointing down, positioned at right: crossOffset
+                arrowTipOffsetX = bubbleRect.width - crossOffset - outerSize
+                arrowTipOffsetY = bubbleRect.height
                 break
             case 'left':
-                // Bubble to the right of anchor, vertically centered
-                top = anchorRect.top + (anchorRect.height - bubbleRect.height) / 2 + oy
-                left = anchorRect.right + ox
+                // Arrow on left edge, pointing left, positioned at top: crossOffset
+                arrowTipOffsetX = 0
+                arrowTipOffsetY = crossOffset + outerSize
                 break
             case 'right':
-            default:
-                // Bubble to the left of anchor, vertically centered
-                top = anchorRect.top + (anchorRect.height - bubbleRect.height) / 2 + oy
-                left = anchorRect.left - bubbleRect.width + ox
+                // Arrow on right edge, pointing right, positioned at top: crossOffset
+                arrowTipOffsetX = bubbleRect.width
+                arrowTipOffsetY = crossOffset + outerSize
                 break
         }
 
-        // Clamp within viewport horizontally if needed (simple bounds)
+        // Position bubble so arrow tip aligns with target center
+        let left = targetCenterX - arrowTipOffsetX + offsetX
+        let top = targetCenterY - arrowTipOffsetY + offsetY
+
+        // Clamp within viewport with padding
         const vw = window.innerWidth
         const vh = window.innerHeight
         left = Math.max(4, Math.min(left, vw - bubbleRect.width - 4))
