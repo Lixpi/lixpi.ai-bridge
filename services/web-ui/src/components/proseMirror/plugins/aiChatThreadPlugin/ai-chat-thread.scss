@@ -129,14 +129,9 @@ $aiChatThreadMinHeight: 50px;
     }
 
     // ===== INFO BUBBLE POSITIONING =====
-    // The infoBubble primitive handles all its own styling via infoBubble.scss
-    // We only need to position the wrapper container here
+    // The infoBubble primitive now handles its own positioning relative to the anchor.
     .ai-thread-info-bubble {
-        position: absolute;
-        right: 50px;
-        top: 6px;
-        z-index: 999999;
-
+        // Intentionally left blank – no absolute positioning here
         svg {
             max-width: 30px;
             max-height: 30px;

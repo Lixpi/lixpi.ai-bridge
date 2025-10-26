@@ -24,7 +24,6 @@ type PureDropdownConfig = {
     selectedValue: DropdownOption
     options: DropdownOption[]
     theme?: string
-    renderPosition?: string
     buttonIcon?: string
     ignoreColorValuesForOptions?: boolean
     ignoreColorValuesForSelectedValue?: boolean
@@ -41,8 +40,7 @@ export function createPureDropdown(config: PureDropdownConfig) {
         id,
         selectedValue,
         options,
-        theme = 'dark',
-        renderPosition = 'bottom',
+    theme = 'dark',
         buttonIcon = chevronDownIcon,
         ignoreColorValuesForOptions = false,
         ignoreColorValuesForSelectedValue = false,
@@ -203,7 +201,6 @@ export function createPureDropdown(config: PureDropdownConfig) {
         id: `dropdown-${id}`,
         anchor: button,
         theme,
-        renderPosition,
         arrowSide: 'top',
         headerContent,
         bodyContent,

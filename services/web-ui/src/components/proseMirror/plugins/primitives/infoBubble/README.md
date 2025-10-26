@@ -46,7 +46,6 @@ createInfoBubble({
   id: 'unique-id',
   anchor: HTMLElement,                    // NEW: Element that triggers bubble
   theme?: 'dark' | 'light',
-  renderPosition?: 'top' | 'bottom',
   arrowSide?: 'top' | 'bottom' | 'left' | 'right',
   headerContent?: HTMLElement,
   bodyContent: HTMLElement,
@@ -54,6 +53,7 @@ createInfoBubble({
   onOpen?: () => void,                    // NEW: Called when bubble opens
   onClose?: () => void,                   // NEW: Called when bubble closes
   closeOnClickOutside?: boolean           // NEW: Default true
+  offset?: { x?: number, y?: number }     // NEW: Optional pixel offset applied to computed position
 })
 // Returns: {
 //   dom: HTMLElement,
@@ -70,7 +70,6 @@ createInfoBubble({
 - `id`: Unique identifier for this bubble
 - **`anchor`**: **REQUIRED** - HTML element that triggers the bubble (e.g., button, icon)
 - `theme`: 'dark' or 'light' (default: 'dark')
-- `renderPosition`: 'top' or 'bottom' positioning (default: 'bottom')
 - `arrowSide`: Arrow direction - 'top', 'bottom', 'left', or 'right' (default: 'top')
 - `headerContent`: Optional HTML element for header section
 - `bodyContent`: **REQUIRED** - HTML element for body section
@@ -78,6 +77,7 @@ createInfoBubble({
 - **`onOpen`**: Callback executed when bubble opens
 - **`onClose`**: Callback executed when bubble closes
 - **`closeOnClickOutside`**: Whether to close when clicking outside (default: true)
+ - **`offset`**: Optional object to shift bubble position in pixels relative to the anchor. Defaults to `{ x: 0, y: 0 }`.
 
 ### Return Value
 
@@ -117,7 +117,6 @@ const infoBubble = createInfoBubble({
   anchor: infoIcon,
   bodyContent: html`<p>Click me for help!</p>`,
   theme: 'dark',
-  renderPosition: 'bottom',
   arrowSide: 'top'
 })
 

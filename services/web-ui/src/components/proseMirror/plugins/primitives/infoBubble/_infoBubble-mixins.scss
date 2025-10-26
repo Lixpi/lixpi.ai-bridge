@@ -14,28 +14,18 @@
 
 // 1) Bubble Placement - Position the wrapper relative to anchor
 // --------------------------------------------------------------
+// NOTE: Positioning is computed in JS using the anchor's bounding rect.
+// This mixin only establishes layering and positioning mode.
 @mixin infoBubblePlacement($config: ()) {
     $defaults: (
-        rightOffset: 1px,
-        topOffset: 37px,
-        bottomOffset: 37px,
         zIndex: 999
     );
 
     $s: map-merge($defaults, $config);
 
     .bubble-wrapper {
-        position: absolute;
-        right: map-get($s, rightOffset);
+        position: fixed; // JS sets top/left dynamically
         z-index: map-get($s, zIndex);
-
-        &.render-position-top {
-            bottom: map-get($s, bottomOffset);
-        }
-
-        &.render-position-bottom {
-            top: map-get($s, topOffset);
-        }
     }
 }
 

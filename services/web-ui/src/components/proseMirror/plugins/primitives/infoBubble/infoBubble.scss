@@ -3,7 +3,7 @@
 
 /* InfoBubble Primitive Styles */
 .info-bubble-wrapper {
-    position: relative;
+    position: fixed; // Positioned relative to viewport; JS computes top/left based on anchor
 
     @include infoBubblePlacement();
     @include infoBubbleStructure();
@@ -27,11 +27,6 @@
     }
 
     // Hidden by default
-    .bubble-wrapper {
-        display: none;
-
-        &.visible {
-            display: block;
-        }
-    }
+    .bubble-wrapper { display: none; }
+    .bubble-wrapper.visible { display: block; }
 }

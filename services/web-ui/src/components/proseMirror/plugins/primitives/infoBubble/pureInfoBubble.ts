@@ -6,7 +6,6 @@ type InfoBubbleConfig = {
     id: string
     anchor: HTMLElement
     theme?: 'dark' | 'light'
-    renderPosition?: 'top' | 'bottom'
     arrowSide?: 'top' | 'bottom' | 'left' | 'right'
     headerContent?: HTMLElement
     bodyContent: HTMLElement
@@ -14,21 +13,22 @@ type InfoBubbleConfig = {
     onOpen?: () => void
     onClose?: () => void
     closeOnClickOutside?: boolean
+    offset?: { x?: number, y?: number }
 }
 
 export function createInfoBubble(config: InfoBubbleConfig) {
     const {
         id,
         anchor,
-        theme = 'dark',
-        renderPosition = 'bottom',
+    theme = 'dark',
         arrowSide = 'top',
         headerContent = null,
         bodyContent,
         visible = false,
         onOpen,
         onClose,
-        closeOnClickOutside = true
+        closeOnClickOutside = true,
+        offset = {}
     } = config
 
     let isVisible = visible
@@ -36,10 +36,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     // Create the info bubble DOM structure
     const dom = html`
         <div class="info-bubble-wrapper theme-${theme}" data-arrow-side="${arrowSide}" data-bubble-id="${id}">
-            <nav
-                class="bubble-wrapper render-position-${renderPosition} ${isVisible ? 'visible' : ''}"
-                contenteditable="false"
-            >
+            <nav class="bubble-wrapper ${isVisible ? 'visible' : ''}" contenteditable="false">
                 <div class="bubble-container">
                     ${headerContent && html`<div class="bubble-header">${headerContent}</div>`}
                     <div class="bubble-body">${bodyContent}</div>
@@ -49,6 +46,71 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     ` as HTMLElement
 
     const bubbleWrapper = dom.querySelector('.bubble-wrapper') as HTMLElement
+
+    const getOffsetX = () => (offset?.x ?? 0)
+    const getOffsetY = () => (offset?.y ?? 0)
+
+    // Compute and apply viewport-relative position using the anchor rect
+    const applyPosition = () => {
+        if (!bubbleWrapper) return
+
+        const anchorRect = anchor.getBoundingClientRect()
+
+        // Temporarily ensure bubble is measurable
+        const wasVisible = bubbleWrapper.classList.contains('visible')
+        let restoreVisibility = false
+        if (!wasVisible) {
+            bubbleWrapper.classList.add('visible')
+            bubbleWrapper.style.visibility = 'hidden'
+            restoreVisibility = true
+        }
+
+        const bubbleRect = bubbleWrapper.getBoundingClientRect()
+        let top = 0
+        let left = 0
+
+        const ox = getOffsetX()
+        const oy = getOffsetY()
+
+        switch (arrowSide) {
+            case 'top':
+                // Bubble below anchor
+                top = anchorRect.bottom + oy
+                left = anchorRect.left + ox
+                break
+            case 'bottom':
+                // Bubble above anchor
+                top = anchorRect.top - bubbleRect.height + oy
+                left = anchorRect.left + ox
+                break
+            case 'left':
+                // Bubble to the right of anchor (arrow on left)
+                top = anchorRect.top + oy
+                left = anchorRect.right + ox
+                break
+            case 'right':
+            default:
+                // Bubble to the left of anchor (arrow on right)
+                top = anchorRect.top + oy
+                left = anchorRect.left - bubbleRect.width + ox
+                break
+        }
+
+        // Clamp within viewport horizontally if needed (simple bounds)
+        const vw = window.innerWidth
+        const vh = window.innerHeight
+        left = Math.max(4, Math.min(left, vw - bubbleRect.width - 4))
+        top = Math.max(4, Math.min(top, vh - bubbleRect.height - 4))
+
+        // Apply to wrapper container (position: fixed)
+        ;(dom as HTMLElement).style.left = `${Math.round(left)}px`
+        ;(dom as HTMLElement).style.top = `${Math.round(top)}px`
+
+        if (restoreVisibility) {
+            bubbleWrapper.classList.remove('visible')
+            bubbleWrapper.style.visibility = ''
+        }
+    }
 
     // Internal close method (called by state manager)
     const closeInternal = () => {
@@ -74,6 +136,9 @@ export function createInfoBubble(config: InfoBubbleConfig) {
 
         infoBubbleStateManager.open(id)
         onOpen?.()
+
+        // Position after becoming visible
+        applyPosition()
     }
 
     const close = () => {
@@ -111,6 +176,11 @@ export function createInfoBubble(config: InfoBubbleConfig) {
         }
     }
 
+    // Reposition on viewport changes
+    const handleViewportChange = () => {
+        if (isVisible) applyPosition()
+    }
+
     // Attach anchor click handler
     anchor.addEventListener('click', handleAnchorClick)
 
@@ -118,6 +188,9 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     if (closeOnClickOutside) {
         document.addEventListener('click', handleWindowClick)
     }
+
+    window.addEventListener('resize', handleViewportChange, { passive: true })
+    window.addEventListener('scroll', handleViewportChange, { passive: true })
 
     // Register with state manager
     infoBubbleStateManager.register(id, { close: closeInternal })
@@ -133,6 +206,9 @@ export function createInfoBubble(config: InfoBubbleConfig) {
         if (closeOnClickOutside) {
             document.removeEventListener('click', handleWindowClick)
         }
+
+        window.removeEventListener('resize', handleViewportChange)
+        window.removeEventListener('scroll', handleViewportChange)
 
         // Unregister from state manager
         infoBubbleStateManager.unregister(id)

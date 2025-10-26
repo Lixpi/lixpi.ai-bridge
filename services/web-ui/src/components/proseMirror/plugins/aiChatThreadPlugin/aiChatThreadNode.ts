@@ -335,7 +335,7 @@ function createThreadInfoBubble() {
         id: 'thread-info-bubble',
         anchor: boundaryIcon,
         theme: 'dark',
-        renderPosition: 'bottom',
+        
         arrowSide: 'right',
         headerContent,
         bodyContent,
@@ -399,7 +399,7 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
         selectedValue,
         options: aiModelsSelectorDropdownOptions,
         theme: 'dark',
-        renderPosition: 'bottom',
+        
         buttonIcon: chevronDownIcon,
         ignoreColorValuesForOptions: true,
         ignoreColorValuesForSelectedValue: false,
@@ -454,7 +454,7 @@ function createThreadContextDropdown(view, node, getPos, threadId) {
         selectedValue,
         options: threadContextOptions,
         theme: 'dark',
-        renderPosition: 'bottom',
+        
         buttonIcon: chevronDownIcon,
         ignoreColorValuesForOptions: true,
         ignoreColorValuesForSelectedValue: false,
