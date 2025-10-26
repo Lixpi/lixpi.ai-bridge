@@ -102,28 +102,85 @@ export function createInfoBubble(config: InfoBubbleConfig) {
         const bubbleRect = bubbleWrapper.getBoundingClientRect()
         const { crossOffset, outerSize } = measureArrowDimensions()
 
-        // Calculate target center and offsets
+        // Determine effective arrow side based on available space
+        let effectiveArrowSide = arrowSide
         const targetCenterX = anchorRect.left + anchorRect.width / 2
         const targetCenterY = anchorRect.top + anchorRect.height / 2
-        const { x: offsetX, y: offsetY } = getEffectiveOffset()
 
-        // Calculate arrow tip position relative to bubble origin based on arrow side
+        // Check if there's enough space for the original arrow side
+        const viewportWidth = window.innerWidth
+        const viewportHeight = window.innerHeight
+        const effectiveOffset = getEffectiveOffset()
+
+        const spaceNeeded = {
+            top: bubbleRect.height + Math.abs(effectiveOffset.y),
+            bottom: bubbleRect.height + Math.abs(effectiveOffset.y),
+            left: bubbleRect.width + Math.abs(effectiveOffset.x),
+            right: bubbleRect.width + Math.abs(effectiveOffset.x)
+        }
+
+        const spaceAvailable = {
+            top: anchorRect.top,
+            bottom: viewportHeight - anchorRect.bottom,
+            left: anchorRect.left,
+            right: viewportWidth - anchorRect.right
+        }
+
+        // Auto-flip if not enough space
+        if (arrowSide === 'top' && spaceAvailable.bottom < spaceNeeded.top) {
+            if (spaceAvailable.top >= spaceNeeded.bottom) {
+                effectiveArrowSide = 'bottom'
+            }
+        } else if (arrowSide === 'bottom' && spaceAvailable.top < spaceNeeded.bottom) {
+            if (spaceAvailable.bottom >= spaceNeeded.top) {
+                effectiveArrowSide = 'top'
+            }
+        } else if (arrowSide === 'left' && spaceAvailable.right < spaceNeeded.left) {
+            if (spaceAvailable.left >= spaceNeeded.right) {
+                effectiveArrowSide = 'right'
+            }
+        } else if (arrowSide === 'right' && spaceAvailable.left < spaceNeeded.right) {
+            if (spaceAvailable.right >= spaceNeeded.left) {
+                effectiveArrowSide = 'left'
+            }
+        }
+
+        // Update arrow side attribute if flipped
+        if (effectiveArrowSide !== dom.getAttribute('data-arrow-side')) {
+            dom.setAttribute('data-arrow-side', effectiveArrowSide)
+        }
+
+        // Recalculate offset based on effective arrow side
+        const finalOffset = (() => {
+            switch (effectiveArrowSide) {
+                case 'top':
+                    return { x: offset.x, y: offset.y }
+                case 'bottom':
+                    return { x: offset.x, y: -offset.y }
+                case 'left':
+                    return { x: offset.y, y: offset.x }
+                case 'right':
+                    return { x: -offset.y, y: offset.x }
+                default:
+                    return { x: offset.x, y: offset.y }
+            }
+        })()
+
+        // Calculate arrow tip position relative to bubble origin based on effective arrow side
         const arrowTipOffset = {
             top:    { x: bubbleRect.width - crossOffset - outerSize, y: 0 },
             bottom: { x: bubbleRect.width - crossOffset - outerSize, y: bubbleRect.height },
             left:   { x: 0, y: crossOffset + outerSize },
             right:  { x: bubbleRect.width, y: crossOffset + outerSize }
-        }[arrowSide]
+        }[effectiveArrowSide]
 
         // Position bubble so arrow tip points to target center
-        let left = targetCenterX - arrowTipOffset.x + offsetX
-        let top = targetCenterY - arrowTipOffset.y + offsetY
+        let left = targetCenterX - arrowTipOffset.x + finalOffset.x
+        let top = targetCenterY - arrowTipOffset.y + finalOffset.y
 
         // Clamp within viewport
-        const vw = window.innerWidth
-        const vh = window.innerHeight
-        left = Math.max(4, Math.min(left, vw - bubbleRect.width - 4))
-        top = Math.max(4, Math.min(top, vh - bubbleRect.height - 4))
+        left = Math.max(4, Math.min(left, viewportWidth - bubbleRect.width - 4))
+        top = Math.max(4, Math.min(top, viewportHeight - bubbleRect.height - 4))
 
         // Apply position
         dom.style.left = `${Math.round(left)}px`
@@ -214,7 +271,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
     }
 
     window.addEventListener('resize', handleViewportChange, { passive: true })
-    window.addEventListener('scroll', handleViewportChange, { passive: true })
+    window.addEventListener('scroll', handleViewportChange, { passive: true, capture: true })
 
     // Register with state manager
     infoBubbleStateManager.register(id, { close: closeInternal })
@@ -232,7 +289,7 @@ export function createInfoBubble(config: InfoBubbleConfig) {
         }
 
         window.removeEventListener('resize', handleViewportChange)
-        window.removeEventListener('scroll', handleViewportChange)
+        window.removeEventListener('scroll', handleViewportChange, { capture: true })
 
         // Unregister from state manager
         infoBubbleStateManager.unregister(id)
