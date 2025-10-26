@@ -6,14 +6,16 @@ Generic floating bubble container for ProseMirror NodeViews. Lives outside the d
 
 A factory function that creates floating bubble UI controls with optional header and body sections. **Manages its own state** including open/close, click handling, and mutual exclusion with other bubbles.
 
-**Key points:**
+**Key features:**
 - Not a document node (no NodeSpec)
 - Completely generic - no knowledge of specific content types
 - **Owns its visibility state and event handling**
 - Attaches click handler to provided anchor element
 - Handles click-outside-to-close automatically
 - **Enforces mutual exclusion** - only one bubble open at a time
-- Supports header and body sections
+- **Auto-repositioning** - tracks content changes, scroll, and resize
+- **Smart positioning** - automatically flips arrow side when space is limited
+- **Precise alignment** - arrow tip always points to center of positioningAnchor
 - Side-aware arrow rendering (top/bottom/left/right)
 - Appended directly to your controls container
 - Returns `{dom, open, close, toggle, isOpen, destroy}`
@@ -21,11 +23,13 @@ A factory function that creates floating bubble UI controls with optional header
 ## Architecture
 
 The infoBubble is a **stateful interactive component**:
-- **Wrapper** (`.bubble-wrapper`): Positioned container
+- **Wrapper** (`.bubble-wrapper`): Fixed-positioned container
 - **Container** (`.bubble-container`): Main bubble with arrow
 - **Header** (`.bubble-header`): Optional top section
 - **Body** (`.bubble-body`): Main content area
 - **State Manager**: Singleton that ensures only one bubble is open
+- **Content Observer**: MutationObserver that repositions on content changes
+- **Viewport Listeners**: Repositions on scroll/resize
 
 ## Why not document nodes?
 
@@ -69,17 +73,17 @@ createInfoBubble({
 ### Configuration
 
 - `id`: Unique identifier for this bubble
-- **`anchor`**: **REQUIRED** - HTML element that triggers the bubble (e.g., button, icon)
- - **`positioningAnchor`**: Optional element used for positioning/centering. Falls back to `anchor`.
+- **`anchor`**: **REQUIRED** - HTML element that triggers the bubble (e.g., button, icon). Click events are bound to this element.
+- **`positioningAnchor`**: Optional element used for positioning/centering the arrow. If provided, the arrow will point to the center of this element while click events remain on `anchor`. Falls back to `anchor` if not provided.
 - `theme`: 'dark' or 'light' (default: 'dark')
-- `arrowSide`: Arrow direction - 'top', 'bottom', 'left', or 'right' (default: 'top')
+- `arrowSide`: Arrow direction - 'top', 'bottom', 'left', or 'right' (default: 'top'). **Note**: The bubble automatically flips to the opposite side if there's insufficient space.
 - `headerContent`: Optional HTML element for header section
 - `bodyContent`: **REQUIRED** - HTML element for body section
 - `visible`: Initial visibility state (default: false)
 - **`onOpen`**: Callback executed when bubble opens
 - **`onClose`**: Callback executed when bubble closes
 - **`closeOnClickOutside`**: Whether to close when clicking outside (default: true)
- - **`offset`**: Optional object to shift bubble position in pixels relative to the anchor. Defaults to `{ x: 0, y: 0 }`.
+- **`offset`**: Spacing from anchor in pixels. Defaults to `{ x: 0, y: 20 }`. The `y` value creates spacing in the arrow's direction (e.g., 20px below anchor for `arrowSide='top'`).
 
 ### Return Value
 
@@ -101,6 +105,29 @@ infoBubbleStateManager.closeAll()      // Close all open bubbles
 infoBubbleStateManager.isOpen(id)      // Check if specific bubble is open
 ```
 
+## Positioning Behavior
+
+### Smart Auto-Flip
+The bubble automatically flips its arrow side when there's insufficient space:
+- `arrowSide='top'` (bubble below anchor) flips to `'bottom'` (bubble above) if no space below
+- `arrowSide='bottom'` flips to `'top'` if no space above
+- `arrowSide='left'` flips to `'right'` if no space on the right
+- `arrowSide='right'` flips to `'left'` if no space on the left
+
+The flip only occurs if the opposite side has sufficient space. If neither side has space, the original side is used.
+
+### Precise Arrow Alignment
+The arrow tip **always points to the center** of the `positioningAnchor` element (or `anchor` if `positioningAnchor` is not provided). The entire bubble is positioned so the arrow tip aligns with this center point, regardless of the bubble's size or position.
+
+### Auto-Repositioning
+The bubble automatically repositions when:
+- **Content changes**: MutationObserver detects DOM changes in the bubble content
+- **Scroll events**: Any scrollable ancestor or window scroll (uses capture phase)
+- **Resize events**: Window or viewport size changes
+- **Anchor movement**: Since position is calculated from anchor's bounding rect, any anchor movement triggers repositioning
+
+This means dropdowns with filtered content automatically reposition without manual intervention.
+
 ## Example Usage
 
 ### Simple Info Bubble
@@ -113,14 +140,14 @@ const infoIcon = html`
   <div class="info-icon" innerHTML=${infoIconSvg}></div>
 `
 
-// Create bubble with separate positioning anchor (optional)
+// Create bubble
 const infoBubble = createInfoBubble({
   id: 'help-tooltip',
   anchor: infoIcon,
-  positioningAnchor: infoIcon, // same element here; could be different in other contexts
   bodyContent: html`<p>Click me for help!</p>`,
   theme: 'dark',
-  arrowSide: 'top'
+  arrowSide: 'top',
+  offset: { x: 0, y: 15 } // 15px below icon
 })
 
 // Append both to container
@@ -130,6 +157,43 @@ container.appendChild(infoBubble.dom)
 // InfoBubble handles click on icon automatically!
 // Clicking icon toggles bubble
 // Clicking outside closes bubble
+// Scrolling repositions bubble
+```
+
+### Dropdown with Separate Positioning Anchor
+
+```typescript
+import { createInfoBubble } from './primitives/infoBubble'
+
+// Dropdown button with chevron icon
+const button = html`
+  <button class="dropdown-button">
+    <span class="label">Select Option</span>
+    <span class="chevron-icon" innerHTML=${chevronIcon}></span>
+  </button>
+`
+
+const chevron = button.querySelector('.chevron-icon')
+
+// Create bubble - click on button, but center arrow on chevron
+const infoBubble = createInfoBubble({
+  id: 'my-dropdown',
+  anchor: button,                    // Click binding
+  positioningAnchor: chevron,        // Arrow centers on this
+  arrowSide: 'top',
+  bodyContent: html`
+    <ul class="options">
+      <li>Option 1</li>
+      <li>Option 2</li>
+      <li>Option 3</li>
+    </ul>
+  `,
+  onOpen: () => button.classList.add('open'),
+  onClose: () => button.classList.remove('open')
+})
+
+container.appendChild(button)
+container.appendChild(infoBubble.dom)
 ```
 
 ### With Callbacks
@@ -178,6 +242,8 @@ const closeButton = html`
 - Implement click handlers
 - Handle click-outside detection
 - Manage mutual exclusion
+- Handle repositioning on content changes
+- Listen for scroll/resize events
 
 **The bubble does all of this automatically.**
 
@@ -192,9 +258,41 @@ const dropdown = createPureDropdown({
     // Update selection
     updateState(option)
 
-    // Tell infoBubble to close
-    infoBubble.close()
+    // InfoBubble closes automatically when item is selected
+    // No manual close() call needed
   }
+})
+```
+
+## Advanced Features
+
+### Dynamic Content Updates
+When content inside the bubble changes (e.g., filtering a list), the bubble automatically:
+1. Detects the change via MutationObserver
+2. Recalculates its size
+3. Repositions to maintain proper alignment
+4. Re-evaluates if arrow flip is needed
+
+No manual `reposition()` call required!
+
+### Custom Offset
+Adjust spacing from anchor:
+
+```typescript
+createInfoBubble({
+  // ...
+  arrowSide: 'top',
+  offset: { x: 0, y: 30 }  // 30px below anchor instead of default 20px
+})
+```
+
+For horizontal arrows (`left`/`right`), the `y` value is used as horizontal spacing:
+
+```typescript
+createInfoBubble({
+  // ...
+  arrowSide: 'left',
+  offset: { x: 0, y: 25 }  // 25px to the right of anchor
 })
 ```
 
@@ -207,25 +305,6 @@ Uses the generic infoBubble SCSS mixins:
 
 Arrow positioning is controlled via `data-arrow-side` attribute, not CSS classes.
 
-## Migration Guide
-
-**Old API:**
-```typescript
-const bubble = createInfoBubble({ id, headerContent, bodyContent })
-button.addEventListener('click', () => bubble.show())
-document.addEventListener('click', handleClickOutside)
-```
-
-**New API:**
-```typescript
-const bubble = createInfoBubble({
-  id,
-  anchor: button,  // Pass button as anchor
-  headerContent,
-  bodyContent
-})
-// That's it! Click handling is automatic
-```
 
 ## Notes
 

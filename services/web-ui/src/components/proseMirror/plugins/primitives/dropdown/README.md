@@ -4,12 +4,16 @@ Dropdown menus for ProseMirror NodeViews. Lives outside the document schema – 
 
 ## What it is
 
-A factory function that creates dropdown UI controls. Used by AI Chat Thread for model/context selection. **Built on top of the InfoBubble primitive** - dropdown provides the button and options, infoBubble handles all state management.
+A factory function that creates dropdown UI controls. Used by AI Chat Thread for model/context selection. **Built on top of the InfoBubble primitive** - dropdown provides the button and options, infoBubble handles all state management, positioning, and auto-flip logic.
 
-**Key points:**
+**Key features:**
 - Not a document node (no NodeSpec)
 - Appended directly to your controls container
-- Uses InfoBubble for state management
+- Uses InfoBubble for state management and positioning
+- **Auto-repositioning** when content changes (e.g., filtering)
+- **Smart positioning** with automatic arrow flip
+- **Precise alignment** with arrow pointing to chevron icon
+- Tag-based filtering support
 - Returns `{dom, update, destroy}`
 
 ## Architecture
@@ -19,6 +23,9 @@ Dropdown uses `infoBubble` primitive, which handles:
 - Click handling on button
 - Click-outside-to-close
 - Mutual exclusion (only one dropdown open at a time)
+- **Auto-repositioning on content changes**
+- **Smart arrow flipping** when space is limited
+- Scroll and resize tracking
 
 **Dropdown's only responsibility**: Provide button (anchor) and content (options list).
 
@@ -66,10 +73,12 @@ createPureDropdown({
 - `options`: Array of option objects
 - `onSelect`: Callback when option selected (receives selected option)
 - `theme`: 'dark' or 'light' (default: 'dark')
-- `renderPosition`: 'top' or 'bottom' (default: 'bottom')
 - `buttonIcon`: SVG icon for dropdown button (default: chevron)
 - `enableTagFilter`: Show tag filter in dropdown header (default: false)
 - `availableTags`: Tags for filtering options
+- Various rendering flags for icons, colors, titles
+
+**Note**: `renderPosition` is deprecated and removed. The dropdown now uses InfoBubble's smart auto-flip logic instead.
 
 ### Return Value
 
@@ -128,12 +137,14 @@ See `aiChatThreadNode.ts` for real example.
 - Button click → InfoBubble toggles open/close
 - Click outside → InfoBubble closes
 - Mutual exclusion → InfoBubble state manager ensures only one dropdown open
+- **Content changes → InfoBubble auto-repositions**
+- **Insufficient space → InfoBubble auto-flips arrow**
 
 **When option selected:**
 ```typescript
 onSelect: (option) => {
   updateState(option)       // Update your state
-  // InfoBubble closes automatically via its internal logic
+  infoBubble.close()        // Manually close the bubble
 }
 ```
 
@@ -141,8 +152,28 @@ onSelect: (option) => {
 - Track open/closed state
 - Implement window click handler
 - Subscribe to state changes
+- **Manually reposition when filtering options**
+- **Check for space before rendering**
 
 **InfoBubble does all of this automatically.**
+
+## Positioning Behavior
+
+### Smart Auto-Positioning
+The dropdown uses InfoBubble's positioning system:
+- **Arrow points to chevron**: The `positioningAnchor` is set to the chevron icon, so the arrow always points to it
+- **Auto-flip**: If there's not enough space below, the dropdown automatically flips above
+- **Auto-reposition**: When filtering reduces/expands the options list, the dropdown repositions automatically
+- **Scroll tracking**: Follows the anchor element when the page scrolls
+
+### Tag Filtering Example
+When you enable tag filtering and toggle filters:
+1. Options list shrinks/grows
+2. InfoBubble's MutationObserver detects the change
+3. Bubble recalculates size and repositions
+4. Arrow flip is re-evaluated if needed
+
+**All automatic - no manual code required!**
 
 ## Common Issues
 
@@ -160,6 +191,20 @@ onSelect: (option) => {
 **Multiple dropdowns open at once**
 - This should not happen - infoBubble state manager enforces mutual exclusion
 - If it does, check that each dropdown has a unique `id`
+
+**Dropdown doesn't reposition when filtering**
+- This should happen automatically via InfoBubble's MutationObserver
+- If it doesn't, check browser console for errors
+- Verify the options list is inside the bubble's body content
+
+**Dropdown appears in wrong position**
+- InfoBubble positions the arrow to point at the chevron icon (`.state-indicator`)
+- If positioning seems off, verify the chevron element exists and has proper dimensions
+
+**Dropdown doesn't flip when near viewport edge**
+- Auto-flip only occurs when the opposite side has sufficient space
+- If neither side has space, the original `arrowSide` is used
+- Check `offset` configuration - larger offsets require more space
 
 ## Architecture Diagram
 
