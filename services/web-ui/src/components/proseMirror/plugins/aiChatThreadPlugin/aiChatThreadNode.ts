@@ -8,6 +8,7 @@ import { aiModelsStore } from '../../../../stores/aiModelsStore.js'
 import { documentStore } from '../../../../stores/documentStore.js'
 import { createPureDropdown } from '../primitives/dropdown/index.ts'
 import { createInfoBubble } from '../primitives/infoBubble/index.ts'
+import { createContextSelector } from '../primitives/contextSelector/index.ts'
 
 export const aiChatThreadNodeType = 'aiChatThread'
 
@@ -96,7 +97,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
     const submitButton = createAiSubmitButton(view, threadId, getPos)
 
     // Create thread boundary indicator for context visualization
-    const { boundaryIndicator: threadBoundaryIndicator, collapseToggleIcon } = createThreadBoundaryIndicator(dom, view, threadId, getPos, node.attrs.isCollapsed)
+    const { boundaryIndicator: threadBoundaryIndicator, collapseToggleIcon, infoBubble, contextSelector } = createThreadBoundaryIndicator(dom, view, threadId, getPos, node.attrs.isCollapsed)
 
     // Append controls to controls container (flex layout: context, model, submit)
     controlsContainer.appendChild(threadContextDropdown.dom)
@@ -206,7 +207,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
                 }
             }
 
-            // Sync threadContext change to context dropdown
+            // Sync threadContext change to context dropdown and context selector
             if (node.attrs.threadContext !== updatedNode.attrs.threadContext) {
                 console.log('[AI_DBG][THREAD.nodeView.update] threadContext attr changed', { from: node.attrs.threadContext, to: updatedNode.attrs.threadContext, threadId: updatedNode.attrs.threadContext })
 
@@ -214,6 +215,11 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
                     title: updatedNode.attrs.threadContext,
                     icon: contextIcon,
                     value: updatedNode.attrs.threadContext
+                })
+
+                // Also update the context selector in the info bubble
+                contextSelector?.update({
+                    selectedValue: updatedNode.attrs.threadContext
                 })
             }
 
@@ -234,6 +240,9 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
             // Clean up pure dropdowns
             modelSelectorDropdown?.destroy()
             threadContextDropdown?.destroy()
+            // Clean up info bubble and context selector
+            infoBubble?.destroy()
+            contextSelector?.destroy()
         }
     }
 }
@@ -279,7 +288,7 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
     }
 
     // Create the info bubble and boundary icon (boundary icon is now the anchor)
-    const { boundaryIcon, infoBubble } = createThreadInfoBubble()
+    const { boundaryIcon, infoBubble, contextSelector } = createThreadInfoBubble(view, threadId, getPos)
 
     // Create the collapse toggle icon - uses eyeSlashIcon with color changes based on state
     collapseToggleIcon = html`
@@ -305,25 +314,51 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
         </div>
     `
 
-    return { boundaryIndicator, collapseToggleIcon }
+    return { boundaryIndicator, collapseToggleIcon, infoBubble, contextSelector }
 }
 
 // Helper to create a small info bubble near the boundary indicator
 // Helper to create a small info bubble near the boundary indicator
-function createThreadInfoBubble() {
+function createThreadInfoBubble(view, threadId, getPos) {
+    // Get current thread context from the node
+    const pos = getPos()
+    const threadNode = pos !== undefined ? view.state.doc.nodeAt(pos) : null
+    const currentThreadContext = threadNode?.attrs.threadContext || 'Thread'
+
     const headerContent = html`
-        <div class="flex justify-start items-center" style="gap: 0.5rem;">
+        <div class="flex justify-start items-center">
             <span innerHTML=${aiRobotFaceIcon}></span>
-            <div style="display: flex; flex-direction: column; line-height: 1.15; gap: 0.15rem;">
-                <span style="font-size: 0.9rem; font-weight: 500;">AI Thread Context</span>
-                <span style="font-size: 0.55rem; opacity: 0.8; text-transform: none; margin: 0.1rem 0;">AI generated title will be here</span>
+            <div>
+                <span>AI Thread Context</span>
+                <span>AI generated title will be here</span>
             </div>
         </div>
     ` as HTMLElement
 
-    const bodyContent = html`
-        <h3>Content placeholder</h3>
-    ` as HTMLElement
+    // Create context selector with three options
+    const contextSelector = createContextSelector({
+        id: `thread-context-selector-${threadId}`,
+        options: [
+            { label: 'Thread', value: 'Thread', icon: contextIcon },
+            { label: 'Document', value: 'Document', icon: contextIcon },
+            { label: 'Workspace', value: 'Workspace', icon: contextIcon }
+        ],
+        selectedValue: currentThreadContext,
+        onChange: (value) => {
+            console.log('[AI_DBG][THREAD.contextSelector] onChange', { threadId, value })
+
+            // Update thread node attrs via transaction
+            const pos = getPos()
+            if (pos !== undefined) {
+                const threadNode = view.state.doc.nodeAt(pos)
+                if (threadNode) {
+                    const newAttrs = { ...threadNode.attrs, threadContext: value }
+                    const tr = view.state.tr.setNodeMarkup(pos, undefined, newAttrs)
+                    view.dispatch(tr)
+                }
+            }
+        }
+    })
 
     // Create boundary icon that will act as the anchor
     const boundaryIcon = html`
@@ -332,17 +367,17 @@ function createThreadInfoBubble() {
 
     // Create info bubble with boundary icon as anchor
     const infoBubble = createInfoBubble({
-        id: 'thread-info-bubble',
+        id: `thread-info-bubble-${threadId}`,
         anchor: boundaryIcon,
         theme: 'dark',
-
         arrowSide: 'right',
         headerContent,
-        bodyContent,
-        visible: false
+        bodyContent: contextSelector.dom,
+        visible: false,
+        offset: { x: 0, y: 30 }
     })
 
-    return { boundaryIcon, infoBubble }
+    return { boundaryIcon, infoBubble, contextSelector }
 }
 
 // Note: Dropdowns are UI controls (outside document schema), not document nodes
