@@ -106,13 +106,19 @@ selector.destroy()
 
 ## Styling
 
-The component uses Tailwind utilities with additional SCSS for theming:
-- `.context-selector`: Main container
-- `.context-options`: Flex container with gap
-- `.context-option-button`: Individual button with hover/selected states
-- `.selected`: Applied to currently selected button
+The component combines Tailwind utilities with purpose-built SCSS that mirrors the default XYFlow look-and-feel:
+- `.context-selector`: Main container where we expose CSS custom properties (edge colors, node fills) for theming.
+- `.context-options`: Flex wrapper for the toggle buttons.
+- `.context-option-button`: Individual buttons with hover/selected affordances; receives `.selected` for the active state.
+- `.context-visualization`: Dark canvas that hosts the D3-rendered SVG.
 
-Colors and transitions are defined in `contextSelector.scss` with support for dark theme.
+Key visualization details inspired by `packages-vendor/xyflow/packages/{system,react,svelte}`:
+- Open arrowheads (`polyline`) and curved edges reuse the same stroke widths as XYFlow defaults.
+- Edges originate directly from each node boundary, run along a shared horizontal baseline, and terminate flush with the AI avatar so the arrow tip makes contact.
+- Node centers are spaced evenly across the baseline to mimic XYFlow's layout rhythm, making the Thread pillar line up between Document and Workspace visuals.
+- Alignment math is centralized so thread, document, and workspace diagrams share the same baselines and anchor coordinates.
+
+You can override the exposed CSS variables inside `.context-selector` to tweak colors or thickness without touching the TypeScript. See `contextSelector.scss` for the complete list of variables and defaults.
 
 ## Integration with ProseMirror
 

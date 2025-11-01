@@ -37,7 +37,9 @@
         "vite": "^6.0.3",
         "type-fest": "*",
         "http-server": "*",
-        "uuid": "*"
+        "uuid": "*",
+        "@xyflow/system": "*",
+        "d3-selection": "*"
     },
     "dependencies": {
         "@lixpi/constants": "workspace:*",
