@@ -140,12 +140,12 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 .attr('class', 'viz-text')
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'middle')
-                .text('Thread')
+                .text('Context')
 
             return { centerY, leftX, rightX }
         }
 
-        const appendDocumentNode = (gNodes: any, layout: { x: number; y: number; width: number; height: number; radius: number }, lineCount: number) => {
+        const appendDocumentNode = (gNodes: any, layout: { x: number; y: number; width: number; height: number; radius: number }, lineCount: number, isDisabled = false) => {
             const centerY = layout.y + layout.height / 2
             const rightX = layout.x + layout.width
 
@@ -155,7 +155,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 .attr('width', layout.width)
                 .attr('height', layout.height)
                 .attr('rx', layout.radius)
-                .attr('class', 'viz-node viz-document')
+                .attr('class', `viz-node viz-document${isDisabled ? ' viz-node-disabled' : ''}`)
 
             if (lineCount > 0) {
                 const paddingX = 12
@@ -170,7 +170,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                         .attr('y1', lineY)
                         .attr('x2', layout.x + layout.width - paddingX)
                         .attr('y2', lineY)
-                        .attr('class', 'viz-content-line')
+                        .attr('class', `viz-content-line${isDisabled ? ' viz-content-line-disabled' : ''}`)
                 }
             }
 
@@ -199,8 +199,43 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
         if (contextValue === 'Thread') {
             const { gEdges, gNodes } = initSvg()
+
+            // Render document stack with middle one active
+            const docStackHeight = 34
+            const docStackGap = 36
+            const docLayouts = [-1, 0, 1].map((offset) => ({
+                x: documentLayout.x,
+                y: baselineY + offset * docStackGap - docStackHeight / 2,
+                width: documentLayout.width,
+                height: docStackHeight,
+                radius: 12
+            }))
+
+            // Render top and bottom as disabled, middle as active
+            const docAnchors = docLayouts.map((layout, index) => {
+                const isMiddle = index === 1
+                return appendDocumentNode(gNodes, layout, 3, !isMiddle)
+            })
+
             const threadAnchors = appendThreadNode(gNodes, threadBaselineLayout)
             const llmAnchor = appendLlmCluster(gNodes, llmBaselineLayout)
+
+            // Arrow from middle document to thread
+            const middleDoc = docAnchors[1]
+            const [docToThreadPath] = getBezierPath({
+                sourceX: middleDoc.rightX,
+                sourceY: middleDoc.centerY,
+                sourcePosition: Position.Right,
+                targetX: threadAnchors.leftX,
+                targetY: threadAnchors.centerY,
+                targetPosition: Position.Left,
+                curvature: 0.15
+            })
+
+            gEdges.append('path')
+                .attr('d', docToThreadPath)
+                .attr('class', 'viz-arrow viz-arrow-strong')
+                .attr('marker-end', `url(#${arrowMarkerId})`)
 
             const [threadToLlmPath] = getBezierPath({
                 sourceX: threadAnchors.rightX,
@@ -220,18 +255,36 @@ export function createContextSelector(config: ContextSelectorConfig) {
         } else if (contextValue === 'Document') {
             const { gEdges, gNodes } = initSvg()
 
-            const docAnchors = appendDocumentNode(gNodes, documentLayout, 5)
+            const docStackHeight = 34
+            const docStackGap = 36
+            const docLayouts = [-1, 0, 1].map((offset) => ({
+                x: documentLayout.x,
+                y: baselineY + offset * docStackGap - docStackHeight / 2,
+                width: documentLayout.width,
+                height: docStackHeight,
+                radius: 12
+            }))
+
+            const docAnchors = docLayouts.map((layout) => appendDocumentNode(gNodes, layout, 3))
             const threadAnchors = appendThreadNode(gNodes, threadBaselineLayout)
             const llmAnchor = appendLlmCluster(gNodes, llmBaselineLayout)
 
-            const [docToThreadPath] = getBezierPath({
-                sourceX: docAnchors.rightX,
-                sourceY: docAnchors.centerY,
-                sourcePosition: Position.Right,
-                targetX: threadAnchors.leftX,
-                targetY: threadAnchors.centerY,
-                targetPosition: Position.Left,
-                curvature: 0.12
+            docAnchors.forEach((anchor, index) => {
+                const curvature = 0.18 + index * 0.05
+                const [docToThreadPath] = getBezierPath({
+                    sourceX: anchor.rightX,
+                    sourceY: anchor.centerY,
+                    sourcePosition: Position.Right,
+                    targetX: threadAnchors.leftX,
+                    targetY: threadAnchors.centerY,
+                    targetPosition: Position.Left,
+                    curvature
+                })
+
+                gEdges.append('path')
+                    .attr('d', docToThreadPath)
+                    .attr('class', 'viz-arrow viz-arrow-strong')
+                    .attr('marker-end', `url(#${arrowMarkerId})`)
             })
 
             const [threadToLlmPath] = getBezierPath({
@@ -243,11 +296,6 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 targetPosition: Position.Left,
                 curvature: 0.1
             })
-
-            gEdges.append('path')
-                .attr('d', docToThreadPath)
-                .attr('class', 'viz-arrow viz-arrow-strong')
-                .attr('marker-end', `url(#${arrowMarkerId})`)
 
             gEdges.append('path')
                 .attr('d', threadToLlmPath)
