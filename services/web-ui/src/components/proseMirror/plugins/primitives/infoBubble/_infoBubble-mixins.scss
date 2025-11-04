@@ -26,6 +26,15 @@
     .bubble-wrapper {
         position: fixed; // JS sets top/left dynamically
         z-index: map-get($s, zIndex);
+
+        // Hidden by default - disable pointer events to prevent blocking
+        display: none;
+        pointer-events: none; // Allows clicks to pass through when hidden
+
+        &.visible {
+            display: block;
+            pointer-events: auto; // Re-enable pointer events when visible
+        }
     }
 }
 

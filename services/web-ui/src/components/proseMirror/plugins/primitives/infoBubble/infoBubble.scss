@@ -4,9 +4,18 @@
 /* InfoBubble Primitive Styles */
 .info-bubble-wrapper {
     position: fixed; // Positioned relative to viewport; JS computes top/left based on anchor
+    z-index: 10;
+    pointer-events: none; // Disable pointer events by default to prevent blocking
+    width: fit-content; // Size to content, not viewport
+    height: fit-content; // Size to content, not viewport
 
     @include infoBubblePlacement();
     @include infoBubbleStructure();
+
+    // Re-enable pointer events when visible
+    &:has(.bubble-wrapper.visible) {
+        pointer-events: auto;
+    }
 
     &.theme-light {
         @include infoBubbleTheme((
@@ -26,7 +35,9 @@
         ));
     }
 
-    // Hidden by default
-    .bubble-wrapper { display: none; }
-    .bubble-wrapper.visible { display: block; }
+    // Thread-specific infoBubble customization
+    .bubble-header svg {
+        max-width: 30px;
+        max-height: 30px;
+    }
 }

@@ -129,16 +129,6 @@ $aiChatThreadMinHeight: 50px;
         ));
     }
 
-    // ===== INFO BUBBLE POSITIONING =====
-    // The infoBubble primitive now handles its own positioning relative to the anchor.
-    .ai-thread-info-bubble {
-        // Intentionally left blank – no absolute positioning here
-        .bubble-header svg {
-            max-width: 30px;
-            max-height: 30px;
-        }
-    }
-
     // ===== AI CHAT THREAD CONTROLS CONTAINER =====
     .ai-chat-thread-controls {
         position: absolute;
@@ -147,7 +137,7 @@ $aiChatThreadMinHeight: 50px;
         display: flex;
         align-items: center;
         gap: 0.2rem;
-        z-index: 999;
+        // z-index: 3;
 
         // All dropdown wrappers inside controls use natural flex flow
         .dropdown-menu-tag-pill-wrapper {

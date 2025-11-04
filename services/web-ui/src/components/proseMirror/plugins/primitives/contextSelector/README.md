@@ -46,6 +46,8 @@ createContextSelector({
     // ... more options
   ],
   selectedValue?: 'opt1',          // Initial selection (defaults to first option)
+  threadCount?: 3,                 // Total number of threads in document (for visualization)
+  currentThreadIndex?: 1,          // This thread's 0-based position (for visualization)
   onChange?: (value: string) => void
 })
 // Returns: {
@@ -62,6 +64,8 @@ createContextSelector({
 - `id`: Unique identifier for this selector
 - `options`: Array of options with label, value, and optional icon
 - `selectedValue`: Initial selected value (default: first option)
+- `threadCount`: Total number of threads in document (default: 3) - used for dynamic visualization
+- `currentThreadIndex`: This thread's 0-based position (default: 1) - used to highlight current thread
 - `onChange`: Callback executed when selection changes
 
 ### Return Value
@@ -103,6 +107,60 @@ selector.setValue('Document')
 // Clean up when done
 selector.destroy()
 ```
+
+## Dynamic Thread Visualization
+
+The context selector now supports **dynamic thread visualization** that reflects the actual document state:
+
+### Thread-Aware Visualization
+
+Each selector instance knows:
+- **Total thread count** in the document (`threadCount`)
+- **Its own position** among threads (`currentThreadIndex`)
+
+This enables thread-specific visualizations:
+
+**Thread Mode:**
+- Renders N rectangles (one per thread in document)
+- Highlights only THIS thread's rectangle
+- Arrow from highlighted rectangle → Context → AI
+- Other threads shown as grayed out
+
+**Document Mode:**
+- Renders N rectangles (all threads active)
+- Arrows from ALL rectangles → Context → AI
+- Shows all threads contribute to context
+
+**Workspace Mode:**
+- Same as Document mode (workspace scope)
+
+### Integration Example
+
+```typescript
+import { getThreadPositionInfo } from './aiChatThreadPlugin'
+
+// In NodeView creation
+const threadPosInfo = getThreadPositionInfo(view, threadId)
+
+const selector = createContextSelector({
+  id: `context-${threadId}`,
+  options: [...],
+  threadCount: threadPosInfo.totalCount,      // Dynamic thread count
+  currentThreadIndex: threadPosInfo.index,    // This thread's position
+  onChange: (value) => { /* update context */ }
+})
+
+// Update on document changes
+const update = (updatedNode) => {
+  const newPosInfo = getThreadPositionInfo(view, threadId)
+  selector.update({
+    threadCount: newPosInfo.totalCount,
+    currentThreadIndex: newPosInfo.index
+  })
+}
+```
+
+The visualization automatically updates when threads are added, removed, or reordered.
 
 ## Styling
 

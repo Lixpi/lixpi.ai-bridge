@@ -1020,6 +1020,11 @@ class AiChatThreadPluginClass {
     }
 }
 
+// ========== UTILITY FUNCTIONS ==========
+
+// Re-export utility function to avoid circular dependencies
+export { getThreadPositionInfo } from './threadPositionUtils.ts'
+
 // ========== FACTORY FUNCTION ==========
 
 // Factory function to create the AI Chat Thread plugin

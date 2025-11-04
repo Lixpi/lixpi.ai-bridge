@@ -15,6 +15,8 @@ type ContextSelectorConfig = {
     options: ContextOption[]
     selectedValue?: string
     onChange?: (value: string) => void
+    threadCount?: number           // Total number of threads in document
+    currentThreadIndex?: number    // This thread's position (0-based)
 }
 
 export function createContextSelector(config: ContextSelectorConfig) {
@@ -22,11 +24,20 @@ export function createContextSelector(config: ContextSelectorConfig) {
         id,
         options,
         selectedValue,
-        onChange
+        onChange,
+        threadCount = 3,
+        currentThreadIndex = 1
     } = config
 
     let currentValue = selectedValue || options[0]?.value || ''
+    let currentThreadCount = threadCount
+    let currentThreadIdx = currentThreadIndex
     let domRef: HTMLElement | null = null
+
+    // Generate unique marker IDs for this instance to avoid conflicts when multiple threads exist
+    const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
+    const arrowMarkerId = `${instanceId}-arrowhead`
+    const arrowMutedMarkerId = `${instanceId}-arrowhead-muted`
 
     // Create visualization SVG using D3 for element creation and management
     const createVisualization = (contextValue: string) => {
@@ -39,8 +50,6 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
         const VIEWBOX_WIDTH = 360
         const VIEWBOX_HEIGHT = 150
-    const arrowMarkerId = 'context-viz-arrowhead'
-    const arrowMutedMarkerId = 'context-viz-arrowhead-muted'
 
     const baselineY = 75
     // Use edge-to-edge equal gaps instead of equal center spacing
@@ -119,6 +128,29 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 gEdges: svg.append('g').attr('class', 'viz-edges'),
                 gNodes: svg.append('g').attr('class', 'viz-nodes')
             }
+        }
+
+        // Build a symmetrical S-curve: leaves horizontally from source, transitions in the middle,
+        // arrives horizontally at target. Both control points are placed at the midpoint horizontally
+        // but vertically stay with their respective endpoints, creating a smooth symmetric bend.
+        const buildHorizontalBezierPath = (
+            sourceX: number,
+            sourceY: number,
+            targetX: number,
+            targetY: number
+        ) => {
+            // Place both control points at the horizontal midpoint
+            const midX = (sourceX + targetX) / 2
+
+            // Control point 1: at midpoint X, source Y (stays horizontal from source)
+            const c1x = midX
+            const c1y = sourceY
+
+            // Control point 2: at midpoint X, target Y (stays horizontal to target)
+            const c2x = midX
+            const c2y = targetY
+
+            return `M ${sourceX},${sourceY} C ${c1x},${c1y} ${c2x},${c2y} ${targetX},${targetY}`
         }
 
         const appendThreadNode = (gNodes: any, layout: { x: number; y: number; width: number; height: number; radius: number }) => {
@@ -200,42 +232,47 @@ export function createContextSelector(config: ContextSelectorConfig) {
         if (contextValue === 'Thread') {
             const { gEdges, gNodes } = initSvg()
 
-            // Render document stack with middle one active
+            // Render dynamic number of threads
             const docStackHeight = 34
             const docStackGap = 36
-            const docLayouts = [-1, 0, 1].map((offset) => ({
+
+            // Generate layouts for all threads, centered around baseline
+            const totalThreads = currentThreadCount
+            const startOffset = -(totalThreads - 1) / 2
+
+            const docLayouts = Array.from({ length: totalThreads }, (_, i) => ({
                 x: documentLayout.x,
-                y: baselineY + offset * docStackGap - docStackHeight / 2,
+                y: baselineY + (startOffset + i) * docStackGap - docStackHeight / 2,
                 width: documentLayout.width,
                 height: docStackHeight,
                 radius: 12
             }))
 
-            // Render top and bottom as disabled, middle as active
+            // Render all threads, only current thread is active
             const docAnchors = docLayouts.map((layout, index) => {
-                const isMiddle = index === 1
-                return appendDocumentNode(gNodes, layout, 3, !isMiddle)
+                const isCurrentThread = index === currentThreadIdx
+                return appendDocumentNode(gNodes, layout, 3, !isCurrentThread)
             })
 
             const threadAnchors = appendThreadNode(gNodes, threadBaselineLayout)
             const llmAnchor = appendLlmCluster(gNodes, llmBaselineLayout)
 
-            // Arrow from middle document to thread
-            const middleDoc = docAnchors[1]
-            const [docToThreadPath] = getBezierPath({
-                sourceX: middleDoc.rightX,
-                sourceY: middleDoc.centerY,
-                sourcePosition: Position.Right,
-                targetX: threadAnchors.leftX,
-                targetY: threadAnchors.centerY,
-                targetPosition: Position.Left,
-                curvature: 0.15
-            })
+            // Arrow from current thread to context
+            const currentDoc = docAnchors[currentThreadIdx]
+            if (currentDoc) {
+                // Use a custom bezier that bends early at the source and arrives flat at the target
+                const docToThreadPath = buildHorizontalBezierPath(
+                    currentDoc.rightX,
+                    currentDoc.centerY,
+                    threadAnchors.leftX,
+                    threadAnchors.centerY
+                )
 
-            gEdges.append('path')
-                .attr('d', docToThreadPath)
-                .attr('class', 'viz-arrow viz-arrow-strong')
-                .attr('marker-end', `url(#${arrowMarkerId})`)
+                gEdges.append('path')
+                    .attr('d', docToThreadPath)
+                    .attr('class', 'viz-arrow viz-arrow-strong')
+                    .attr('marker-end', `url(#${arrowMarkerId})`)
+            }
 
             const [threadToLlmPath] = getBezierPath({
                 sourceX: threadAnchors.rightX,
@@ -257,29 +294,31 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
             const docStackHeight = 34
             const docStackGap = 36
-            const docLayouts = [-1, 0, 1].map((offset) => ({
+
+            // Generate layouts for all threads, centered around baseline
+            const totalThreads = currentThreadCount
+            const startOffset = -(totalThreads - 1) / 2
+
+            const docLayouts = Array.from({ length: totalThreads }, (_, i) => ({
                 x: documentLayout.x,
-                y: baselineY + offset * docStackGap - docStackHeight / 2,
+                y: baselineY + (startOffset + i) * docStackGap - docStackHeight / 2,
                 width: documentLayout.width,
                 height: docStackHeight,
                 radius: 12
             }))
 
+            // All threads are active in Document mode
             const docAnchors = docLayouts.map((layout) => appendDocumentNode(gNodes, layout, 3))
             const threadAnchors = appendThreadNode(gNodes, threadBaselineLayout)
             const llmAnchor = appendLlmCluster(gNodes, llmBaselineLayout)
 
             docAnchors.forEach((anchor, index) => {
-                const curvature = 0.18 + index * 0.05
-                const [docToThreadPath] = getBezierPath({
-                    sourceX: anchor.rightX,
-                    sourceY: anchor.centerY,
-                    sourcePosition: Position.Right,
-                    targetX: threadAnchors.leftX,
-                    targetY: threadAnchors.centerY,
-                    targetPosition: Position.Left,
-                    curvature
-                })
+                const docToThreadPath = buildHorizontalBezierPath(
+                    anchor.rightX,
+                    anchor.centerY,
+                    threadAnchors.leftX,
+                    threadAnchors.centerY
+                )
 
                 gEdges.append('path')
                     .attr('d', docToThreadPath)
@@ -307,29 +346,31 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
             const docStackHeight = 34
             const docStackGap = 36
-            const docLayouts = [-1, 0, 1].map((offset) => ({
+
+            // Generate layouts for all threads, centered around baseline
+            const totalThreads = currentThreadCount
+            const startOffset = -(totalThreads - 1) / 2
+
+            const docLayouts = Array.from({ length: totalThreads }, (_, i) => ({
                 x: documentLayout.x,
-                y: baselineY + offset * docStackGap - docStackHeight / 2,
+                y: baselineY + (startOffset + i) * docStackGap - docStackHeight / 2,
                 width: documentLayout.width,
                 height: docStackHeight,
                 radius: 12
             }))
 
+            // All threads are active in Workspace mode
             const docAnchors = docLayouts.map((layout) => appendDocumentNode(gNodes, layout, 3))
             const threadAnchors = appendThreadNode(gNodes, threadBaselineLayout)
             const llmAnchor = appendLlmCluster(gNodes, llmBaselineLayout)
 
             docAnchors.forEach((anchor, index) => {
-                const curvature = 0.18 + index * 0.05
-                const [docToThreadPath] = getBezierPath({
-                    sourceX: anchor.rightX,
-                    sourceY: anchor.centerY,
-                    sourcePosition: Position.Right,
-                    targetX: threadAnchors.leftX,
-                    targetY: threadAnchors.centerY,
-                    targetPosition: Position.Left,
-                    curvature
-                })
+                const docToThreadPath = buildHorizontalBezierPath(
+                    anchor.rightX,
+                    anchor.centerY,
+                    threadAnchors.leftX,
+                    threadAnchors.centerY
+                )
 
                 gEdges.append('path')
                     .attr('d', docToThreadPath)
@@ -431,6 +472,19 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const update = (newConfig: Partial<ContextSelectorConfig>) => {
         if (newConfig.selectedValue !== undefined) {
             setValue(newConfig.selectedValue)
+        }
+
+        // Update thread count and index if provided
+        if (newConfig.threadCount !== undefined) {
+            currentThreadCount = newConfig.threadCount
+        }
+        if (newConfig.currentThreadIndex !== undefined) {
+            currentThreadIdx = newConfig.currentThreadIndex
+        }
+
+        // Re-render visualization if thread state changed
+        if (newConfig.threadCount !== undefined || newConfig.currentThreadIndex !== undefined) {
+            createVisualization(currentValue)
         }
     }
 

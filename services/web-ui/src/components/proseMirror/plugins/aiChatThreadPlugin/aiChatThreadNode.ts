@@ -9,6 +9,7 @@ import { documentStore } from '../../../../stores/documentStore.js'
 import { createPureDropdown } from '../primitives/dropdown/index.ts'
 import { createInfoBubble } from '../primitives/infoBubble/index.ts'
 import { createContextSelector } from '../primitives/contextSelector/index.ts'
+import { getThreadPositionInfo } from './threadPositionUtils.ts'
 
 export const aiChatThreadNodeType = 'aiChatThread'
 
@@ -223,6 +224,15 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
                 })
             }
 
+            // Update context selector with current thread position (always, in case threads added/removed)
+            const threadPosInfo = getThreadPositionInfo(view, updatedNode.attrs.threadId)
+            if (threadPosInfo && contextSelector) {
+                contextSelector.update({
+                    threadCount: threadPosInfo.totalCount,
+                    currentThreadIndex: threadPosInfo.index
+                })
+            }
+
             // Sync isCollapsed change to collapse toggle icon
             if (node.attrs.isCollapsed !== updatedNode.attrs.isCollapsed) {
                 console.log('[AI_DBG][THREAD.nodeView.update] isCollapsed attr changed', { from: node.attrs.isCollapsed, to: updatedNode.attrs.isCollapsed, threadId: updatedNode.attrs.threadId })
@@ -308,11 +318,12 @@ function createThreadBoundaryIndicator(wrapperDOM, view, threadId, getPos, isCol
         >
             ${boundaryIcon}
             ${collapseToggleIcon}
-            <div className="ai-thread-info-bubble">
-                ${infoBubble.dom}
-            </div>
         </div>
     `
+
+    // Append infoBubble to document.body to escape stacking context
+    // InfoBubble uses position: fixed and will position itself relative to the anchor
+    document.body.appendChild(infoBubble.dom)
 
     return { boundaryIndicator, collapseToggleIcon, infoBubble, contextSelector }
 }
@@ -325,6 +336,11 @@ function createThreadInfoBubble(view, threadId, getPos) {
     const threadNode = pos !== undefined ? view.state.doc.nodeAt(pos) : null
     const currentThreadContext = threadNode?.attrs.threadContext || 'Thread'
 
+    // Get thread position info for dynamic visualization
+    const threadPosInfo = getThreadPositionInfo(view, threadId)
+    const threadCount = threadPosInfo?.totalCount || 1
+    const currentThreadIndex = threadPosInfo?.index || 0
+
     const headerContent = html`
         <div class="flex justify-start items-center">
             <span innerHTML=${aiRobotFaceIcon}></span>
@@ -335,7 +351,7 @@ function createThreadInfoBubble(view, threadId, getPos) {
         </div>
     ` as HTMLElement
 
-    // Create context selector with three options
+    // Create context selector with dynamic thread count
     const contextSelector = createContextSelector({
         id: `thread-context-selector-${threadId}`,
         options: [
@@ -344,6 +360,8 @@ function createThreadInfoBubble(view, threadId, getPos) {
             { label: 'Workspace', value: 'Workspace', icon: contextIcon }
         ],
         selectedValue: currentThreadContext,
+        threadCount,
+        currentThreadIndex,
         onChange: (value) => {
             console.log('[AI_DBG][THREAD.contextSelector] onChange', { threadId, value })
 
