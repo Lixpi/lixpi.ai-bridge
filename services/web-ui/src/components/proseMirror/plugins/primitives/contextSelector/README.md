@@ -168,13 +168,20 @@ The component combines Tailwind utilities with purpose-built SCSS that mirrors t
 - `.context-selector`: Main container where we expose CSS custom properties (edge colors, node fills) for theming.
 - `.context-options`: Flex wrapper for the toggle buttons.
 - `.context-option-button`: Individual buttons with hover/selected affordances; receives `.selected` for the active state.
-- `.context-visualization`: Dark canvas that hosts the D3-rendered SVG.
+- `.context-visualization`: Dark canvas that hosts the SVG rendered by the connector system.
 
-Key visualization details inspired by `packages-vendor/xyflow/packages/{system,react,svelte}`:
+**Visualization architecture:**
+This component now uses the **connector/infographics system** (see `primitives/infographics/connectors/README.md`) which provides:
+- Reusable node and edge abstractions powered by XYFlow and D3
+- Declarative API for defining connections between visual elements
+- Automatic marker (arrowhead) management with unique instance IDs
+- Support for multiple path types (bezier, horizontal-bezier, straight, smoothstep)
+
+Key visualization details:
 - Open arrowheads (`polyline`) and curved edges reuse the same stroke widths as XYFlow defaults.
-- Edges originate directly from each node boundary, run along a shared horizontal baseline, and terminate flush with the AI avatar so the arrow tip makes contact.
-- Node centers are spaced evenly across the baseline to mimic XYFlow's layout rhythm, making the Thread pillar line up between Document and Workspace visuals.
-- Alignment math is centralized so thread, document, and workspace diagrams share the same baselines and anchor coordinates.
+- Edges originate directly from each node boundary using computed anchor points.
+- Node centers are spaced evenly across the baseline to create clean, aligned diagrams.
+- The connector system handles all SVG creation, path computation, and marker definitions.
 
 You can override the exposed CSS variables inside `.context-selector` to tweak colors or thickness without touching the TypeScript. See `contextSelector.scss` for the complete list of variables and defaults.
 
