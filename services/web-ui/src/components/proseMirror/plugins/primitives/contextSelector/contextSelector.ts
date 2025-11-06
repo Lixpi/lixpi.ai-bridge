@@ -148,7 +148,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
                         target: { nodeId: 'context', position: 'left' },
                         pathType: 'horizontal-bezier',
                         marker: 'arrowhead',
-                        className: 'viz-arrow-strong'
+                        className: 'viz-arrow-strong',
+                        lineStyle: 'solid',
+                        strokeWidth: 1.5
                     })
                 }
             } else {
@@ -159,7 +161,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
                     target: { nodeId: 'context', position: 'left' },
                     pathType: 'horizontal-bezier',
                     marker: 'arrowhead',
-                    className: 'viz-arrow-strong'
+                    className: 'viz-arrow-strong',
+                    lineStyle: 'solid',
+                    strokeWidth: 1.5
                 })
             }
         }
@@ -173,7 +177,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
             pathType: 'bezier',
             marker: 'arrowhead',
             className: 'viz-arrow-strong',
-            curvature
+            curvature,
+            lineStyle: 'solid',
+            strokeWidth: 1.5
         })
 
         // Render all nodes and edges

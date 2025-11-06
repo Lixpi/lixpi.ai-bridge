@@ -1,15 +1,15 @@
 
 .context-selector {
     margin: 0.5rem;
-    --context-edge-stroke: rgba(177, 177, 183, 0.85);
-    --context-edge-stroke-muted: rgba(148, 163, 184, 0.55);
-    --context-edge-stroke-width: 1.05;
-    --context-edge-stroke-width-strong: 1.35;
-    --context-thread-fill: rgba(37, 99, 235, 0.14);
-    --context-thread-stroke: rgba(96, 165, 250, 0.85);
-    --context-document-fill: rgba(16, 185, 129, 0.14);
-    --context-document-stroke: rgba(45, 212, 191, 0.8);
-    --context-node-stroke: rgba(255, 255, 255, 0.14);
+    --context-edge-stroke: rgba(190, 190, 200, 0.95);
+    --context-edge-stroke-muted: rgba(160, 170, 190, 0.65);
+    --context-edge-stroke-width: 1.2;
+    --context-edge-stroke-width-strong: 1.5;
+    --context-thread-fill: rgba(37, 99, 235, 0.16);
+    --context-thread-stroke: rgba(96, 165, 250, 0.95);
+    --context-document-fill: rgba(16, 185, 129, 0.16);
+    --context-document-stroke: rgba(45, 212, 191, 0.9);
+    --context-node-stroke: rgba(255, 255, 255, 0.18);
     --context-text-color: rgba(243, 244, 246, 0.96);
 
     .context-options {
@@ -123,42 +123,40 @@
 
             .viz-arrow {
                 fill: none;
-                stroke: var(--context-edge-stroke, rgba(177, 177, 183, 0.85));
-                stroke-width: var(--context-edge-stroke-width, 1.05);
+                stroke: var(--context-edge-stroke, rgba(190, 190, 200, 0.95));
+                stroke-width: var(--context-edge-stroke-width, 1.2);
                 stroke-linecap: round;
                 stroke-linejoin: round;
                 shape-rendering: geometricPrecision;
             }
 
             .viz-arrow-muted {
-                stroke: var(--context-edge-stroke-muted, rgba(148, 163, 184, 0.55));
+                stroke: var(--context-edge-stroke-muted, rgba(160, 170, 190, 0.65));
             }
 
             .viz-arrow-strong {
-                stroke-width: var(--context-edge-stroke-width-strong, 1.35);
+                stroke-width: var(--context-edge-stroke-width-strong, 1.5);
             }
 
             .viz-arrow-inline {
-                stroke-dasharray: 6 8;
+                stroke-width: 2;
             }
 
             .viz-arrowhead-line {
-                fill: none;
-                stroke: var(--context-edge-stroke, rgba(177, 177, 183, 0.85));
-                stroke-width: var(--context-edge-stroke-width, 1.05);
-                stroke-linecap: round;
+                fill: var(--context-edge-stroke, rgba(190, 190, 200, 0.95));
+                stroke: var(--context-edge-stroke, rgba(190, 190, 200, 0.95));
+                stroke-width: 1;
                 stroke-linejoin: round;
+                stroke-linecap: round;
             }
 
             .viz-arrowhead-line-muted {
-                fill: none;
-                stroke: var(--context-edge-stroke-muted, rgba(148, 163, 184, 0.55));
-                stroke-width: var(--context-edge-stroke-width, 1.05);
-                stroke-linecap: round;
+                fill: var(--context-edge-stroke-muted, rgba(160, 170, 190, 0.65));
+                stroke: var(--context-edge-stroke-muted, rgba(160, 170, 190, 0.65));
+                stroke-width: 1;
                 stroke-linejoin: round;
-            }
-
-            .viz-text {
+                stroke-linecap: round;
+            }            .viz-text {
                 fill: var(--context-text-color, rgba(243, 244, 246, 0.96));
                 font-size: 13px;
                 font-weight: 600;
@@ -169,14 +167,20 @@
             }
 
             .viz-content-line {
-                stroke: rgba(156, 163, 175, 0.35);
-                stroke-width: 1;
+                stroke: rgba(165, 175, 185, 0.45);
+                stroke-width: 1.5;
                 stroke-linecap: round;
             }
 
             .viz-content-line-disabled {
-                stroke: rgba(156, 163, 175, 0.15);
+                stroke: rgba(156, 163, 175, 0.2);
                 opacity: 0.5;
+            }
+
+            .viz-marker-circle {
+                fill: var(--context-edge-stroke, rgba(190, 190, 200, 0.95));
+                stroke: var(--context-edge-stroke, rgba(190, 190, 200, 0.95));
+                stroke-width: 1;
             }
         }
     }

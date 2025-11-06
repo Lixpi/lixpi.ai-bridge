@@ -11,6 +11,19 @@ This system provides a declarative API for creating infographic-style visualizat
 
 The connector system is completely **framework-agnostic** and can be used in any context where you need to visualize connections between elements.
 
+## Design Philosophy
+
+The connector system features **Miro-inspired visual design** with:
+
+- **Bold, graceful lines** — 2.5px default stroke width for clear visibility
+- **Rounded caps and joins** — Smooth, professional appearance throughout
+- **Filled triangle arrowheads** — Prominent, well-proportioned markers (not thin polylines)
+- **Refined dashed patterns** — 6px dash, 8px gap for elegant rhythm
+- **Rich color saturation** — Vibrant yet professional color palette
+- **Precise marker positioning** — Properly scaled and positioned for visual balance
+
+All styling decisions prioritize **clarity, elegance, and professional polish**.
+
 ## Architecture
 
 ```
@@ -111,13 +124,16 @@ Add an edge connecting two nodes.
 ```typescript
 connector.addEdge({
   id: 'doc-to-thread',
-  source: { nodeId: 'doc1', position: 'right', offset: { x: 0, y: 0 } },
+  source: { nodeId: 'doc1', position: 'right' },
   target: { nodeId: 'thread1', position: 'left' },
-  pathType: 'horizontal-bezier',
+  pathType: 'bezier',
   marker: 'arrowhead',
-  className: 'viz-arrow-strong',
-  curvature: 0.25,
-  strokeDasharray: '6 8'  // Optional dashed line
+  markerStart: 'circle',     // Optional marker at start (for bidirectional)
+  lineStyle: 'dashed',       // 'solid' (default) or 'dashed'
+  strokeWidth: 2.5,          // Line thickness in pixels (default: 2.5)
+  strokeDasharray: '6 8',    // Optional custom dash pattern (overrides lineStyle)
+  className: 'custom-edge',
+  curvature: 0.25
 })
 ```
 
@@ -131,11 +147,17 @@ connector.addEdge({
 - `'smoothstep'` — Orthogonal with rounded corners
 - `'horizontal-bezier'` — Custom symmetric S-curve for horizontal flows
 
-**Markers:**
-- `'arrowhead'` — Standard arrowhead
+**Markers (Miro-inspired filled triangles):**
+- `'arrowhead'` — Standard filled arrowhead
 - `'arrowhead-muted'` — Muted/disabled arrowhead
 - `'circle'` — Circle marker
 - `'none'` — No marker
+
+**Line styling:**
+- `lineStyle` — Quick toggle: `'solid'` (default) or `'dashed'` (6px dash, 8px gap)
+- `strokeWidth` — Line thickness in pixels (default: 2.5)
+- `strokeDasharray` — Custom dash pattern (e.g., `'6 8'`), overrides `lineStyle`
+- All lines have rounded caps and joins for smooth appearance
 
 #### `removeNode(nodeId: string)`
 

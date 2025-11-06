@@ -148,9 +148,19 @@ function renderEdge(
     anchors: Map<string, NodeAnchors>,
     instanceId: string
 ): void {
-    const { id, source, target, pathType = 'bezier', className, marker = 'none', curvature = 0.25, strokeDasharray } = edge
-
-    // Get source and target anchor coordinates
+    const { 
+        id, 
+        source, 
+        target, 
+        pathType = 'bezier', 
+        className, 
+        marker = 'none',
+        markerStart,
+        curvature = 0.25, 
+        lineStyle = 'solid',
+        strokeWidth = 1.2,
+        strokeDasharray 
+    } = edge    // Get source and target anchor coordinates
     const sourceNode = anchors.get(source.nodeId)
     const targetNode = anchors.get(target.nodeId)
 
@@ -178,21 +188,35 @@ function renderEdge(
         curvature
     )
 
-    // Create path element
+    // Create path element with Miro-inspired styling
     const pathElement = gEdges.append('path')
         .attr('id', `edge-${id}`)
         .attr('d', path)
         .attr('class', `viz-arrow ${className || ''}`)
+        .attr('stroke-width', strokeWidth)
+        .attr('stroke-linecap', 'round')
+        .attr('stroke-linejoin', 'round')
 
-    // Apply marker if specified
+    // Apply marker at end if specified
     const markerUrl = getMarkerUrl(marker, instanceId)
     if (markerUrl) {
         pathElement.attr('marker-end', markerUrl)
     }
 
-    // Apply stroke dasharray if specified
+    // Apply marker at start if specified (for bidirectional arrows)
+    if (markerStart) {
+        const markerStartUrl = getMarkerUrl(markerStart, instanceId)
+        if (markerStartUrl) {
+            pathElement.attr('marker-start', markerStartUrl)
+        }
+    }
+
+    // Apply stroke pattern - custom dasharray takes precedence over lineStyle
     if (strokeDasharray) {
         pathElement.attr('stroke-dasharray', strokeDasharray)
+    } else if (lineStyle === 'dashed') {
+        // Miro-style dashing: 6px dash, 8px gap
+        pathElement.attr('stroke-dasharray', '6 8')
     }
 }
 

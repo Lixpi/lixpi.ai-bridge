@@ -33,8 +33,11 @@ export type EdgeConfig = {
     pathType?: PathType
     className?: string
     marker?: MarkerType
-    curvature?: number      // For bezier/smoothstep paths (default: 0.25)
-    strokeDasharray?: string  // For dashed lines (e.g., "6 8")
+    markerStart?: MarkerType    // Marker at the start of the edge (for bidirectional arrows)
+    curvature?: number           // For bezier/smoothstep paths (default: 0.25)
+    lineStyle?: 'solid' | 'dashed'  // Line style (default: 'solid')
+    strokeWidth?: number         // Line thickness in pixels (default: 1.2)
+    strokeDasharray?: string     // For custom dash patterns (overrides lineStyle if provided)
 }
 
 // Node content types

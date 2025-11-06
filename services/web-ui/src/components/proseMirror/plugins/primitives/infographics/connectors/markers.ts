@@ -3,6 +3,16 @@
 
 import type { Selection } from 'd3-selection'
 import type { MarkerType } from './types.ts'
+// Use the shared arrow icon for premium Miro-like arrowheads
+import { arrowRightIcon } from '../../../../../../svgIcons/index.ts'
+
+// Extract the <path d="..."> from an SVG string
+function extractPathD(svg: string): string | null {
+    const match = svg.match(/<path[^>]*d="([^"]+)"/i)
+    return match ? match[1] : null
+}
+
+const ARROW_RIGHT_ICON_D = extractPathD(arrowRightIcon) || 'M 0,0 L 10,5 L 0,10 z'
 
 // Marker configuration for a specific marker type
 type MarkerConfig = {
@@ -22,25 +32,25 @@ function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | n
         case 'arrowhead':
             return {
                 id: `${instanceId}-arrowhead`,
-                markerWidth: 12,
-                markerHeight: 12,
-                viewBox: '-10 -10 20 20',
-                refX: 0,
-                refY: 0,
+                markerWidth: 7,                // thin, Miro-accurate size
+                markerHeight: 7,
+                viewBox: '0 0 256 256',       // native icon viewBox
+                refX: 48,                      // line terminates at arrow BASE (left edge)
+                refY: 128,                     // center vertically
                 className: 'viz-arrowhead-line',
-                path: '-5,-4 0,0 -5,4'  // polyline points
+                path: ARROW_RIGHT_ICON_D || 'M 0,0 L 256,128 L 0,256 z'
             }
 
         case 'arrowhead-muted':
             return {
                 id: `${instanceId}-arrowhead-muted`,
-                markerWidth: 12,
-                markerHeight: 12,
-                viewBox: '-10 -10 20 20',
-                refX: 0,
-                refY: 0,
+                markerWidth: 7,
+                markerHeight: 7,
+                viewBox: '0 0 256 256',
+                refX: 48,                      // line terminates at arrow BASE
+                refY: 128,
                 className: 'viz-arrowhead-line-muted',
-                path: '-5,-4 0,0 -5,4'  // polyline points
+                path: ARROW_RIGHT_ICON_D || 'M 0,0 L 256,128 L 0,256 z'
             }
 
         case 'circle':
@@ -48,11 +58,11 @@ function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | n
                 id: `${instanceId}-circle`,
                 markerWidth: 8,
                 markerHeight: 8,
-                viewBox: '-4 -4 8 8',
+                viewBox: '-5 -5 10 10',
                 refX: 0,
                 refY: 0,
                 className: 'viz-marker-circle',
-                path: 'M 0,0 m -2,0 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0'  // circle path
+                path: 'M 0,0 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0'  // smaller circle
             }
 
         case 'none':
@@ -85,18 +95,15 @@ export function createMarkers(
             .attr('orient', 'auto')
             .attr('refX', config.refX)
             .attr('refY', config.refY)
-            .attr('markerUnits', 'strokeWidth')
+            // Use absolute pixel sizing so marker does not bloat with stroke width
+            .attr('markerUnits', 'userSpaceOnUse')
 
-        // Determine whether to use polyline or path based on marker type
-        if (type === 'arrowhead' || type === 'arrowhead-muted') {
-            marker.append('polyline')
-                .attr('points', config.path)
-                .attr('class', config.className)
-        } else {
-            marker.append('path')
-                .attr('d', config.path)
-                .attr('class', config.className)
-        }
+        // All markers now use path elements for consistent rendering
+        marker.append('path')
+            .attr('d', config.path)
+            .attr('class', config.className)
+            .attr('stroke-linejoin', 'round')
+            .attr('stroke-linecap', 'round')
     })
 }
 
