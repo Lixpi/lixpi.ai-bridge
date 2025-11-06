@@ -148,18 +148,18 @@ function renderEdge(
     anchors: Map<string, NodeAnchors>,
     instanceId: string
 ): void {
-    const { 
-        id, 
-        source, 
-        target, 
-        pathType = 'bezier', 
-        className, 
+    const {
+        id,
+        source,
+        target,
+        pathType = 'bezier',
+        className,
         marker = 'none',
         markerStart,
-        curvature = 0.25, 
+        curvature = 0.25,
         lineStyle = 'solid',
         strokeWidth = 1.2,
-        strokeDasharray 
+        strokeDasharray
     } = edge    // Get source and target anchor coordinates
     const sourceNode = anchors.get(source.nodeId)
     const targetNode = anchors.get(target.nodeId)
@@ -188,7 +188,7 @@ function renderEdge(
         curvature
     )
 
-    // Create path element with Miro-inspired styling
+    // Create path element with styling
     const pathElement = gEdges.append('path')
         .attr('id', `edge-${id}`)
         .attr('d', path)
@@ -215,7 +215,7 @@ function renderEdge(
     if (strokeDasharray) {
         pathElement.attr('stroke-dasharray', strokeDasharray)
     } else if (lineStyle === 'dashed') {
-        // Miro-style dashing: 6px dash, 8px gap
+        // Dashing: 6px dash, 8px gap
         pathElement.attr('stroke-dasharray', '6 8')
     }
 }

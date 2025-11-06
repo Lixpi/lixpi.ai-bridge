@@ -13,7 +13,7 @@ The connector system is completely **framework-agnostic** and can be used in any
 
 ## Design Philosophy
 
-The connector system features **Miro-inspired visual design** with:
+The connector system features with:
 
 - **Bold, graceful lines** — 2.5px default stroke width for clear visibility
 - **Rounded caps and joins** — Smooth, professional appearance throughout
@@ -147,7 +147,7 @@ connector.addEdge({
 - `'smoothstep'` — Orthogonal with rounded corners
 - `'horizontal-bezier'` — Custom symmetric S-curve for horizontal flows
 
-**Markers (Miro-inspired filled triangles):**
+**Markers (filled triangles):**
 - `'arrowhead'` — Standard filled arrowhead
 - `'arrowhead-muted'` — Muted/disabled arrowhead
 - `'circle'` — Circle marker

@@ -3,7 +3,7 @@
 
 import type { Selection } from 'd3-selection'
 import type { MarkerType } from './types.ts'
-// Use the shared arrow icon for premium Miro-like arrowheads
+
 import { arrowRightIcon } from '../../../../../../svgIcons/index.ts'
 
 // Extract the <path d="..."> from an SVG string
@@ -32,7 +32,7 @@ function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | n
         case 'arrowhead':
             return {
                 id: `${instanceId}-arrowhead`,
-                markerWidth: 7,                // thin, Miro-accurate size
+                markerWidth: 7,                // thin
                 markerHeight: 7,
                 viewBox: '0 0 256 256',       // native icon viewBox
                 refX: 48,                      // line terminates at arrow BASE (left edge)

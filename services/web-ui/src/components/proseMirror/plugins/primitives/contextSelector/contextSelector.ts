@@ -144,8 +144,8 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 if (isCurrentThread) {
                     connector.addEdge({
                         id: `doc-${i}-to-context`,
-                        source: { nodeId: `doc-${i}`, position: 'right' },
-                        target: { nodeId: 'context', position: 'left' },
+                        source: { nodeId: `doc-${i}`, position: 'right', offset: { x: 2 } },
+                        target: { nodeId: 'context', position: 'left', offset: { x: -2 } },
                         pathType: 'horizontal-bezier',
                         marker: 'arrowhead',
                         className: 'viz-arrow-strong',
@@ -157,8 +157,8 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 // Document and Workspace modes: all threads connect to context
                 connector.addEdge({
                     id: `doc-${i}-to-context`,
-                    source: { nodeId: `doc-${i}`, position: 'right' },
-                    target: { nodeId: 'context', position: 'left' },
+                    source: { nodeId: `doc-${i}`, position: 'right', offset: { x: 2 } },
+                    target: { nodeId: 'context', position: 'left', offset: { x: -2 } },
                     pathType: 'horizontal-bezier',
                     marker: 'arrowhead',
                     className: 'viz-arrow-strong',
@@ -172,8 +172,8 @@ export function createContextSelector(config: ContextSelectorConfig) {
         const curvature = contextValue === 'Workspace' ? 0.16 : 0.1
         connector.addEdge({
             id: 'context-to-llm',
-            source: { nodeId: 'context', position: 'right' },
-            target: { nodeId: 'llm', position: 'left', offset: { x: -2 } },
+            source: { nodeId: 'context', position: 'right', offset: { x: 2 } },
+            target: { nodeId: 'llm', position: 'left', offset: { x: -4 } },
             pathType: 'bezier',
             marker: 'arrowhead',
             className: 'viz-arrow-strong',
