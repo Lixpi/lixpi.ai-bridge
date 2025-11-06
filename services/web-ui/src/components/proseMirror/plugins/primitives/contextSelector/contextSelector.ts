@@ -145,7 +145,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                     connector.addEdge({
                         id: `doc-${i}-to-context`,
                         source: { nodeId: `doc-${i}`, position: 'right', offset: { x: 2 } },
-                        target: { nodeId: 'context', position: 'left', offset: { x: -2 } },
+                        target: { nodeId: 'context', position: 'left', offset: { x: -6 } },
                         pathType: 'horizontal-bezier',
                         marker: 'arrowhead',
                         className: 'viz-arrow-strong',
@@ -158,7 +158,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 connector.addEdge({
                     id: `doc-${i}-to-context`,
                     source: { nodeId: `doc-${i}`, position: 'right', offset: { x: 2 } },
-                    target: { nodeId: 'context', position: 'left', offset: { x: -2 } },
+                    target: { nodeId: 'context', position: 'left', offset: { x: -6 } },
                     pathType: 'horizontal-bezier',
                     marker: 'arrowhead',
                     className: 'viz-arrow-strong',
@@ -173,7 +173,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
         connector.addEdge({
             id: 'context-to-llm',
             source: { nodeId: 'context', position: 'right', offset: { x: 2 } },
-            target: { nodeId: 'llm', position: 'left', offset: { x: -4 } },
+            target: { nodeId: 'llm', position: 'left', offset: { x: -6 } },
             pathType: 'bezier',
             marker: 'arrowhead',
             className: 'viz-arrow-strong',
