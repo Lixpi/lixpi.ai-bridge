@@ -66,29 +66,43 @@
         background: rgba(12, 17, 28, 0.28);
         border-radius: 10px;
 
-        .ctx-thread {
-            fill: var(--context-thread-fill, rgba(37, 99, 235, 0.12));
-            stroke: var(--context-thread-stroke, rgba(96, 165, 250, 0.8));
-            stroke-width: 1.35;
-        }
+        // Semantic styling for context selector shapes
+        // Target the connector nodes with our semantic classes
 
-        .ctx-document {
+        .connector-node.thread-shape.ctx-document {
             fill: var(--context-document-fill, rgba(16, 185, 129, 0.12));
             stroke: var(--context-document-stroke, rgba(52, 211, 153, 0.75));
             stroke-width: 1.3;
         }
 
-        .ctx-disabled {
-            fill: rgba(19, 26, 41, 0.5) !important;
-            stroke: rgba(255, 255, 255, 0.15) !important;
+        .connector-node.label-shape.ctx-context {
+            fill: var(--context-thread-fill, rgba(37, 99, 235, 0.12));
+            stroke: var(--context-thread-stroke, rgba(96, 165, 250, 0.8));
+            stroke-width: 1.35;
         }
 
-        .ctx-llm-icon {
-            width: 100%;
-            height: 100%;
+        // Style content lines for thread shapes
+        .thread-content {
+            stroke: rgba(165, 175, 185, 0.45);
+            stroke-width: 1.5;
+            stroke-linecap: round;
+        }
+
+        // Style text for context label
+        .label-text {
+            fill: rgba(243, 244, 246, 0.96);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        // Style LLM icon
+        .icon-content {
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 100%;
+            height: 100%;
 
             svg {
                 width: 100%;

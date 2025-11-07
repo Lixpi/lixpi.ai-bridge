@@ -162,16 +162,62 @@ const update = (updatedNode) => {
 
 The visualization automatically updates when threads are added, removed, or reordered.
 
+## Architecture
+
+The contextSelector uses a **layered abstraction** for rendering visualizations:
+
+1. **Shape Factories** (`primitives/infographics/shapes/`): Encapsulate visual styling and structure
+   - `createThreadShape()` - Document/thread visuals with content lines
+   - `createLabelShape()` - Text labels in rounded rectangles
+   - `createIconShape()` - SVG icons in containers
+   - Returns `NodeConfig` objects with ALL styling/structure knowledge
+
+2. **Connector System** (`primitives/infographics/connectors/`): Renders nodes and edges
+   - Manages SVG rendering and layout
+   - Computes anchor points for edge connections
+   - Handles edge path computation using XYFlow utilities
+
+3. **ContextSelector** (this component): Orchestration and business logic only
+   - Knows WHAT shapes to use (threads, labels, icons)
+   - Knows WHERE to place them (layout coordinates)
+   - Knows WHEN to show edges (based on context mode)
+   - Does NOT know HOW to style or render shapes
+
+This separation means:
+- ✅ Shape styling is centralized and reusable
+- ✅ contextSelector is purely logic/layout
+- ✅ Adding new visualizations is trivial
+- ✅ Shape styles can change without touching contextSelector
+
 ## Styling
 
-The component combines Tailwind utilities with purpose-built SCSS that mirrors the default XYFlow look-and-feel:
-- `.context-selector`: Main container where we expose CSS custom properties (edge colors, node fills) for theming.
+The component combines Tailwind utilities with purpose-built SCSS:
+- `.context-selector`: Main container where we expose CSS custom properties for theming.
 - `.context-options`: Flex wrapper for the toggle buttons.
 - `.context-option-button`: Individual buttons with hover/selected affordances; receives `.selected` for the active state.
 - `.context-visualization`: Dark canvas that hosts the SVG rendered by the connector system.
 
+**Semantic shape styling:**
+The contextSelector applies semantic CSS classes (`.ctx-document`, `.ctx-context`, `.ctx-llm`) that style the underlying shape primitives:
+
+```scss
+.ctx-document {
+    .thread-shape-rect { /* Document-specific colors */ }
+}
+
+.ctx-context {
+    .label-shape-rect { /* Context label colors */ }
+}
+
+.ctx-llm {
+    .icon-content { /* LLM icon styling */ }
+}
+```
+
+This keeps visual styling in contextSelector.scss while structural/rendering concerns live in the shape system.
+
 **Visualization architecture:**
-This component now uses the **connector/infographics system** (see `primitives/infographics/connectors/README.md`) which provides:
+This component uses the **shapes and connector systems** (see `primitives/infographics/shapes/README.md` and `primitives/infographics/connectors/README.md`) which provide:
 - Reusable node and edge abstractions powered by XYFlow and D3
 - Declarative API for defining connections between visual elements
 - Automatic marker (arrowhead) management with unique instance IDs

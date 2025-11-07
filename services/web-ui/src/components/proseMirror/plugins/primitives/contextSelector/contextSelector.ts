@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { html } from '../../../components/domTemplates.ts'
 import { createConnectorRenderer } from '../infographics/connectors/index.ts'
+import { createThreadShape, createIconShape, createLabelShape } from '../infographics/shapes/index.ts'
 import { aiRobotFaceIcon } from '../../../../../svgIcons/index.ts'
 
 type ContextOption = {
@@ -70,7 +71,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
         iconY: baselineY - 27
     }
 
-    // Create visualization using the connector system
+    // Create visualization using shape factories and connector system
     const createVisualization = (contextValue: string) => {
         if (!domRef) return
         const visualizationContainer = domRef.querySelector('.context-visualization') as HTMLElement
@@ -89,56 +90,63 @@ export function createContextSelector(config: ContextSelectorConfig) {
             instanceId
         })
 
-        // Add Context (thread) node
-        connector.addNode({
-            id: 'context',
-            shape: 'rect',
-            x: threadLayout.x,
-            y: threadLayout.y,
-            width: threadLayout.width,
-            height: threadLayout.height,
-            radius: threadLayout.radius,
-            className: 'ctx-thread',
-            content: { type: 'text', text: 'Context' }
-        })
-
-        // Add LLM node
-        connector.addNode({
-            id: 'llm',
-            shape: 'foreignObject',
-            x: llmLayout.iconX,
-            y: llmLayout.iconY,
-            width: llmLayout.size,
-            height: llmLayout.size,
-            content: { type: 'icon', icon: aiRobotFaceIcon, className: 'ctx-llm-icon' }
-        })
-
         // Common thread layout parameters
         const docStackHeight = 34
         const docStackGap = 36
         const totalThreads = currentThreadCount
         const startOffset = -(totalThreads - 1) / 2
 
-        // Add document/thread nodes
+        // Add document/thread shapes using the thread shape factory
         for (let i = 0; i < totalThreads; i++) {
             const y = baselineY + (startOffset + i) * docStackGap - docStackHeight / 2
             const isCurrentThread = i === currentThreadIdx
             const isActive = contextValue === 'Thread' ? isCurrentThread : true
 
-            connector.addNode({
+            // Use the thread shape factory to create a properly configured node
+            // Use radius = height/2 to create fully rounded pill shape
+            const threadNode = createThreadShape({
                 id: `doc-${i}`,
-                shape: 'rect',
                 x: documentLayout.x,
                 y,
                 width: documentLayout.width,
                 height: docStackHeight,
-                radius: 12,
-                className: isActive ? 'ctx-document' : 'ctx-document ctx-disabled',
-                content: { type: 'lines', count: 3 },
+                radius: docStackHeight / 2,  // Pill shape with fully rounded ends
+                lineCount: 3,
+                className: 'ctx-document',
                 disabled: !isActive
             })
 
-            // Add edges based on context mode
+            connector.addNode(threadNode)
+        }
+
+        // Add Context label using the label shape factory
+        const contextNode = createLabelShape({
+            id: 'context',
+            x: threadLayout.x,
+            y: threadLayout.y,
+            width: threadLayout.width,
+            height: threadLayout.height,
+            radius: threadLayout.radius,
+            text: 'Context',
+            className: 'ctx-context'
+        })
+        connector.addNode(contextNode)
+
+        // Add LLM icon using the icon shape factory
+        const llmNode = createIconShape({
+            id: 'llm',
+            x: llmLayout.iconX,
+            y: llmLayout.iconY,
+            size: llmLayout.size,
+            icon: aiRobotFaceIcon,
+            className: 'ctx-llm'
+        })
+        connector.addNode(llmNode)
+
+        // Add edges based on context mode
+        for (let i = 0; i < totalThreads; i++) {
+            const isCurrentThread = i === currentThreadIdx
+
             if (contextValue === 'Thread') {
                 // Only current thread connects to context
                 if (isCurrentThread) {
@@ -148,7 +156,6 @@ export function createContextSelector(config: ContextSelectorConfig) {
                         target: { nodeId: 'context', position: 'left', offset: { x: -6 } },
                         pathType: 'horizontal-bezier',
                         marker: 'arrowhead',
-                        className: 'ctx-edge-strong',
                         lineStyle: 'solid',
                         strokeWidth: 1.5
                     })
@@ -161,7 +168,6 @@ export function createContextSelector(config: ContextSelectorConfig) {
                     target: { nodeId: 'context', position: 'left', offset: { x: -6 } },
                     pathType: 'horizontal-bezier',
                     marker: 'arrowhead',
-                    className: 'ctx-edge-strong',
                     lineStyle: 'solid',
                     strokeWidth: 1.5
                 })
@@ -176,7 +182,6 @@ export function createContextSelector(config: ContextSelectorConfig) {
             target: { nodeId: 'llm', position: 'left', offset: { x: -6 } },
             pathType: 'bezier',
             marker: 'arrowhead',
-            className: 'ctx-edge-strong',
             curvature,
             lineStyle: 'solid',
             strokeWidth: 1.5

@@ -1,0 +1,53 @@
+// Base styles for infographic shape primitives
+// Minimal defaults - consumers should provide semantic styling
+// Shape type classes (.thread-shape, .icon-shape, .label-shape) are markers only
+// Consumers style these via their own SCSS by targeting the combined classes
+
+// Thread chip (wedge-left + rounded-right capsule)
+.thread-chip {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	box-sizing: border-box;
+
+	// Visuals via CSS variables for theming
+	--thread-chip-fill: var(--context-document-fill, rgba(16, 185, 129, 0.10));
+	--thread-chip-stroke: var(--context-document-stroke, rgba(52, 211, 153, 0.75));
+	--thread-chip-line: rgba(165, 175, 185, 0.45);
+
+	background: var(--thread-chip-fill);
+	border: 2px solid var(--thread-chip-stroke);
+	border-radius: 9999px;                // rounded ends
+
+	// create wedge at the left
+	// 14% body inset, left tip at center
+	clip-path: polygon(14% 0, 100% 0, 100% 100%, 14% 100%, 0 50%);
+}
+
+.connector-node-disabled .thread-chip {
+	opacity: 0.45;
+}
+
+.thread-chip-lines {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 6px;
+	// push lines right so they don't run into the wedge tip
+	padding: 0 16px 0 28px;
+}
+
+.thread-chip-lines .line {
+	display: block;
+	height: 2px;
+	border-radius: 9999px;
+	background: var(--thread-chip-line);
+	opacity: 0.9;
+}
+
+// Slightly different widths for visual rhythm
+.thread-chip-lines .line.l1 { width: 72%; }
+.thread-chip-lines .line.l2 { width: 60%; }
+.thread-chip-lines .line.l3 { width: 68%; }
