@@ -1,6 +1,7 @@
 // Core connector rendering engine
 // Coordinates nodes, edges, and markers using D3 and XYFlow utilities
 
+import './connectors.scss'
 import { select } from 'd3-selection'
 import type {
     ConnectorConfig,
@@ -36,7 +37,7 @@ function renderNode(
     node: NodeConfig
 ): void {
     const { id, shape, x, y, width, height, radius, className, content, disabled } = node
-    const classes = `viz-node ${className || ''} ${disabled ? 'viz-node-disabled' : ''}`.trim()
+    const classes = `connector-node ${className || ''} ${disabled ? 'connector-node-disabled' : ''}`.trim()
 
     switch (shape) {
         case 'rect': {
@@ -86,7 +87,7 @@ function renderNode(
                 gNodes.append('text')
                     .attr('x', centerX)
                     .attr('y', centerY)
-                    .attr('class', `viz-text ${content.className || ''}`)
+                    .attr('class', `connector-text ${content.className || ''}`)
                     .attr('text-anchor', 'middle')
                     .attr('dominant-baseline', 'middle')
                     .text(content.text)
@@ -111,7 +112,7 @@ function renderNode(
                 const paddingY = content.padding?.y ?? 12
                 const availableHeight = height - paddingY * 2
                 const lineSpacing = content.count > 1 ? availableHeight / (content.count - 1) : 0
-                const lineClass = `viz-content-line ${content.className || ''} ${disabled ? 'viz-content-line-disabled' : ''}`.trim()
+                const lineClass = `connector-content-line ${content.className || ''} ${disabled ? 'connector-content-line-disabled' : ''}`.trim()
 
                 for (let i = 0; i < content.count; i += 1) {
                     const lineY = y + paddingY + lineSpacing * i
@@ -133,7 +134,7 @@ function renderNode(
                     .attr('height', height)
 
                 foreignObject.append('xhtml:div')
-                    .attr('class', `viz-icon ${content.className || ''}`)
+                    .attr('class', `connector-icon ${content.className || ''}`)
                     .html(content.icon)
                 break
             }
@@ -192,7 +193,7 @@ function renderEdge(
     const pathElement = gEdges.append('path')
         .attr('id', `edge-${id}`)
         .attr('d', path)
-        .attr('class', `viz-arrow ${className || ''}`)
+        .attr('class', `connector-edge ${className || ''}`)
         .attr('stroke-width', strokeWidth)
         .attr('stroke-linecap', 'round')
         .attr('stroke-linejoin', 'round')
@@ -245,7 +246,7 @@ export function createConnectorRenderer(config: ConnectorConfig): ConnectorRende
         // Create SVG
         state.svg = select(container)
             .append('svg')
-            .attr('class', 'context-viz-svg')
+            .attr('class', 'connector-svg')
             .attr('viewBox', `0 0 ${width} ${height}`)
             .attr('width', '100%')
             .attr('height', height)
@@ -254,8 +255,8 @@ export function createConnectorRenderer(config: ConnectorConfig): ConnectorRende
         state.defs = state.svg.append('defs')
 
         // Create groups for edges and nodes (edges rendered first so they appear behind nodes)
-        state.gEdges = state.svg.append('g').attr('class', 'viz-edges')
-        state.gNodes = state.svg.append('g').attr('class', 'viz-nodes')
+        state.gEdges = state.svg.append('g').attr('class', 'connector-edges')
+        state.gNodes = state.svg.append('g').attr('class', 'connector-nodes')
     }
 
     // Initialize on creation

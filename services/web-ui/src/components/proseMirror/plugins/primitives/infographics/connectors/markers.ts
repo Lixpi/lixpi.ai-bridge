@@ -7,12 +7,15 @@ import type { MarkerType } from './types.ts'
 import { arrowRightIcon } from '../../../../../../svgIcons/index.ts'
 
 // Extract the <path d="..."> from an SVG string
-function extractPathD(svg: string): string | null {
+function extractPathD(svg: string): string {
     const match = svg.match(/<path[^>]*d="([^"]+)"/i)
-    return match ? match[1] : null
+    if (!match) {
+        throw new Error('Failed to extract path from SVG icon')
+    }
+    return match[1]
 }
 
-const ARROW_RIGHT_ICON_D = extractPathD(arrowRightIcon) || 'M 0,0 L 10,5 L 0,10 z'
+const ARROW_RIGHT_ICON_D = extractPathD(arrowRightIcon)
 
 // Marker configuration for a specific marker type
 type MarkerConfig = {
@@ -37,8 +40,8 @@ function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | n
                 viewBox: '0 0 256 256',       // native icon viewBox
                 refX: 48,                      // line terminates at arrow BASE (left edge)
                 refY: 128,                     // center vertically
-                className: 'viz-arrowhead-line',
-                path: ARROW_RIGHT_ICON_D || 'M 0,0 L 256,128 L 0,256 z'
+                className: 'connector-arrowhead',
+                path: ARROW_RIGHT_ICON_D
             }
 
         case 'arrowhead-muted':
@@ -49,8 +52,8 @@ function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | n
                 viewBox: '0 0 256 256',
                 refX: 48,                      // line terminates at arrow BASE
                 refY: 128,
-                className: 'viz-arrowhead-line-muted',
-                path: ARROW_RIGHT_ICON_D || 'M 0,0 L 256,128 L 0,256 z'
+                className: 'connector-arrowhead-muted',
+                path: ARROW_RIGHT_ICON_D
             }
 
         case 'circle':
@@ -61,7 +64,7 @@ function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | n
                 viewBox: '-5 -5 10 10',
                 refX: 0,
                 refY: 0,
-                className: 'viz-marker-circle',
+                className: 'connector-marker-circle',
                 path: 'M 0,0 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0'  // smaller circle
             }
 
@@ -88,7 +91,7 @@ export function createMarkers(
 
         const marker = defs.append('marker')
             .attr('id', config.id)
-            .attr('class', 'viz-marker')
+            .attr('class', 'connector-marker')
             .attr('markerWidth', config.markerWidth)
             .attr('markerHeight', config.markerHeight)
             .attr('viewBox', config.viewBox)

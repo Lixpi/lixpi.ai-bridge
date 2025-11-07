@@ -98,7 +98,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
             width: threadLayout.width,
             height: threadLayout.height,
             radius: threadLayout.radius,
-            className: 'viz-thread',
+            className: 'ctx-thread',
             content: { type: 'text', text: 'Context' }
         })
 
@@ -110,7 +110,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
             y: llmLayout.iconY,
             width: llmLayout.size,
             height: llmLayout.size,
-            content: { type: 'icon', icon: aiRobotFaceIcon, className: 'viz-llm-icon' }
+            content: { type: 'icon', icon: aiRobotFaceIcon, className: 'ctx-llm-icon' }
         })
 
         // Common thread layout parameters
@@ -133,7 +133,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 width: documentLayout.width,
                 height: docStackHeight,
                 radius: 12,
-                className: 'viz-document',
+                className: isActive ? 'ctx-document' : 'ctx-document ctx-disabled',
                 content: { type: 'lines', count: 3 },
                 disabled: !isActive
             })
@@ -148,7 +148,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                         target: { nodeId: 'context', position: 'left', offset: { x: -6 } },
                         pathType: 'horizontal-bezier',
                         marker: 'arrowhead',
-                        className: 'viz-arrow-strong',
+                        className: 'ctx-edge-strong',
                         lineStyle: 'solid',
                         strokeWidth: 1.5
                     })
@@ -161,7 +161,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                     target: { nodeId: 'context', position: 'left', offset: { x: -6 } },
                     pathType: 'horizontal-bezier',
                     marker: 'arrowhead',
-                    className: 'viz-arrow-strong',
+                    className: 'ctx-edge-strong',
                     lineStyle: 'solid',
                     strokeWidth: 1.5
                 })
@@ -176,7 +176,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
             target: { nodeId: 'llm', position: 'left', offset: { x: -6 } },
             pathType: 'bezier',
             marker: 'arrowhead',
-            className: 'viz-arrow-strong',
+            className: 'ctx-edge-strong',
             curvature,
             lineStyle: 'solid',
             strokeWidth: 1.5

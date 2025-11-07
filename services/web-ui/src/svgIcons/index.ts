@@ -89,4 +89,6 @@ export const exclamationIcon = '<svg height="24" viewBox="0 0 24 24" width="24" 
 
 
 // Infographics icons
+// By BizzBox
+// https://www.flaticon.com/free-icon/arrow-right_9903638
 export const arrowRightIcon = '<svg enable-background="new 0 0 256 256" height="512" viewBox="0 0 256 256" width="512" xmlns="http://www.w3.org/2000/svg"><g id="_x30_7_Arrow_Right"><g><path d="m228.992 146.827-180.398 103.224c-17.497 9.998-38.04-7.264-31.166-26.206l34.642-95.842-34.642-95.843c-6.874-18.982 13.669-36.205 31.166-26.207l180.398 103.224c14.606 8.319 14.568 29.331 0 37.65z"/></g></g></svg>'
