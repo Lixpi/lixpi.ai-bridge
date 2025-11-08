@@ -1,8 +1,9 @@
 // @ts-nocheck
 import { html } from '../../../components/domTemplates.ts'
+import { select } from 'd3-selection'
 import { createConnectorRenderer } from '../infographics/connectors/index.ts'
 import { createThreadShape, createIconShape, createLabelShape } from '../infographics/shapes/index.ts'
-import { aiRobotFaceIcon } from '../../../../../svgIcons/index.ts'
+import { aiRobotFaceIcon, contextShape } from '../../../../../svgIcons/index.ts'
 
 type ContextOption = {
     label: string
@@ -60,7 +61,10 @@ export function createContextSelector(config: ContextSelectorConfig) {
         height: 42,
         radius: 16,
         x: docRightX + gapX,
-        y: baselineY - 21
+        y: baselineY - 21,
+        iconX: docRightX + gapX + 27,
+        iconY: baselineY - 27,
+        size: 54
     }
 
     const threadRightX = threadLayout.x + threadLayout.width
@@ -119,15 +123,49 @@ export function createContextSelector(config: ContextSelectorConfig) {
             connector.addNode(threadNode)
         }
 
-        // Add Context label using the label shape factory
-        const contextNode = createLabelShape({
+        // Add Context icon using the icon shape factory
+        // Modify the SVG using D3 to add gradient and white stroke
+        const tempContainer = select(document.createElement('div'))
+        tempContainer.html(contextShape)
+        
+        const svg = tempContainer.select('svg')
+        
+        // Insert defs with gradient at the beginning
+        let defs = svg.select('defs')
+        if (defs.empty()) {
+            defs = svg.insert('defs', ':first-child')
+        }
+        
+        const gradient = defs.append('linearGradient')
+            .attr('id', 'ctx-grad')
+            .attr('x1', '0%')
+            .attr('y1', '0%')
+            .attr('x2', '100%')
+            .attr('y2', '100%')
+        
+        gradient.append('stop')
+            .attr('offset', '0%')
+            .style('stop-color', '#a78bfa')
+            .style('stop-opacity', 1)
+        
+        gradient.append('stop')
+            .attr('offset', '100%')
+            .style('stop-color', '#60a5fa')
+            .style('stop-opacity', 1)
+        
+        // Change all strokes to white
+        svg.selectAll('path, line, polyline')
+            .style('stroke', 'white')
+        
+        // Get the modified SVG as a string
+        const contextSvgWithGradient = tempContainer.html()
+
+        const contextNode = createIconShape({
             id: 'context',
-            x: threadLayout.x,
-            y: threadLayout.y,
-            width: threadLayout.width,
-            height: threadLayout.height,
-            radius: threadLayout.radius,
-            text: 'Context',
+            x: threadLayout.iconX,
+            y: threadLayout.iconY,
+            size: threadLayout.size,
+            icon: contextSvgWithGradient,
             className: 'ctx-context'
         })
         connector.addNode(contextNode)

@@ -90,6 +90,16 @@
             stroke-width: 1.35;
         }
 
+        // Style context icon
+        .icon-shape.ctx-context {
+            .icon-content svg path,
+            .icon-content svg line,
+            .icon-content svg polyline {
+                stroke: white !important;
+                fill: none !important;
+            }
+        }
+
         // Style text for context label
         .label-text {
             fill: rgba(243, 244, 246, 0.96);
