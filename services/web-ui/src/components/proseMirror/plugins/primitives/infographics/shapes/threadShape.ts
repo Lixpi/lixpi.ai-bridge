@@ -23,7 +23,8 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
 
     const controlOffset = 5
 
-    const rightRadius = 3
+    const rightRadius = 4
+    const rightSideBulge = 2
     const tipSharpness = 0.8
     const tipPointRoundness = 2
 
@@ -39,7 +40,7 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
         `M ${bodyLeftX} ${topY}`,
         `L ${rightArcStartX} ${topY}`,
         `A ${rightRadius} ${rightRadius} 0 0 1 ${rightX} ${topY + rightRadius}`,
-        `L ${rightX} ${bottomY - rightRadius}`,
+        `Q ${rightX + rightSideBulge} ${tipY} ${rightX} ${bottomY - rightRadius}`,
         `A ${rightRadius} ${rightRadius} 0 0 1 ${rightArcStartX} ${bottomY}`,
         `L ${bodyLeftX} ${bottomY}`,
         `Q ${tipX + controlOffset * tipSharpness} ${bottomY} ${tipX + tipProtrusion} ${tipY + tipPointRoundness}`,
