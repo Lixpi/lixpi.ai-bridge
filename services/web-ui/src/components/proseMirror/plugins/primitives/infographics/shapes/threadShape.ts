@@ -11,21 +11,21 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
         y,
         width,
         height,
-        radius = height / 2,
         label,
         labelClassName,
         className = '',
-        disabled = false,
-        notchDepth: customNotchDepth,
-        notchControlOffset: customControlOffset
+        disabled = false
     } = params
 
-    const defaultNotchDepth = Math.min(width * 0.14, height * 0.82)
-    const notchDepth = Math.max(10, Math.min(customNotchDepth ?? defaultNotchDepth, width - 12))
-    const rightRadius = 2
-    const leftRadius = 4
-    const tipRoundness = 2
-    const controlOffset = Math.max(4, customControlOffset ?? notchDepth * 0.82)
+    // const notchDepth = Math.max(11, Math.min(Math.min(width * 0.14, height * 0.82), width - 12))
+    const notchDepth = 10
+    const tipProtrusion = -3
+
+    const controlOffset = 5
+
+    const rightRadius = 3
+    const tipSharpness = 0.8
+    const tipPointRoundness = 2
 
     const topY = y
     const bottomY = y + height
@@ -42,8 +42,9 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
         `L ${rightX} ${bottomY - rightRadius}`,
         `A ${rightRadius} ${rightRadius} 0 0 1 ${rightArcStartX} ${bottomY}`,
         `L ${bodyLeftX} ${bottomY}`,
-        `Q ${tipX + controlOffset} ${bottomY} ${tipX + tipRoundness} ${tipY}`,
-        `Q ${tipX + controlOffset} ${topY} ${bodyLeftX} ${topY}`,
+        `Q ${tipX + controlOffset * tipSharpness} ${bottomY} ${tipX + tipProtrusion} ${tipY + tipPointRoundness}`,
+        `Q ${tipX + tipProtrusion - tipPointRoundness * 0.3} ${tipY} ${tipX + tipProtrusion} ${tipY - tipPointRoundness}`,
+        `Q ${tipX + controlOffset * tipSharpness} ${topY} ${bodyLeftX} ${topY}`,
         'Z'
     ].join(' ')
 
@@ -70,7 +71,7 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
         content,
         disabled,
         anchorOverrides: {
-            left: { x: tipX + tipRoundness + (notchDepth - tipRoundness) * 0.4, y: tipY }
+            left: { x: tipX + tipProtrusion + (notchDepth - tipProtrusion) * 0.4, y: tipY }
         }
     }
 }

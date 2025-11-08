@@ -10,7 +10,6 @@ export type ThreadShapeParams = {
     y: number
     width: number
     height: number
-    radius?: number              // Corner radius (default: 12)
     lineCount?: number           // Number of content lines (default: 3)
     linePadding?: { x?: number; y?: number }  // Padding around lines
     lineSpacingScale?: number    // Multiplier for vertical line spacing
@@ -18,8 +17,6 @@ export type ThreadShapeParams = {
     labelClassName?: string      // Optional class for the label text element
     className?: string           // Additional CSS class
     disabled?: boolean           // Visual disabled state
-    notchDepth?: number          // Horizontal length of the left wedge
-    notchControlOffset?: number  // Control handle offset for notch curves
 }
 
 // Icon shape configuration

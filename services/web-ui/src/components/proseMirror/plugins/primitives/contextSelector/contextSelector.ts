@@ -111,7 +111,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 height: docStackHeight,
                 radius: 2,
                 className: `ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
-                disabled: !isActive
+                disabled: !isActive,
+                notchDepth: 10,
+                notchControlOffset:10
             })
 
             connector.addNode(threadNode)
