@@ -6,6 +6,7 @@ import './shapes.scss'
 export { createThreadShape } from './threadShape.ts'
 export { createIconShape } from './iconShape.ts'
 export { createLabelShape } from './labelShape.ts'
+export { createContextShapeSVG, startContextShapeAnimation } from './contextShape.ts'
 
 export type {
     ThreadShapeParams,

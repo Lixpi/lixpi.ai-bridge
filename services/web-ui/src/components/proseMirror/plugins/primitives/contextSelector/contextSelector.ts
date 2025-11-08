@@ -1,30 +1,14 @@
 
 import { html } from '../../../components/domTemplates.ts'
-import { select } from 'd3-selection'
-import { transition } from 'd3-transition'
 import { createConnectorRenderer } from '../infographics/connectors/index.ts'
-import { createThreadShape, createIconShape, createLabelShape } from '../infographics/shapes/index.ts'
-import { aiRobotFaceIcon, contextShape } from '../../../../../svgIcons/index.ts'
-
-// Custom easing function matching cubic-bezier(0.19, 1, 0.22, 1)
-// Smooth, elegant easing similar to Material Design animations
-function customEase(t: number): number {
-    // Approximation of cubic-bezier(0.19, 1, 0.22, 1)
-    // This creates a smooth acceleration with gentle deceleration
-    const p1 = 0.19
-    const p2 = 1
-    const p3 = 0.22
-    const p4 = 1
-
-    // Cubic bezier formula for Y given t
-    const t2 = t * t
-    const t3 = t2 * t
-    const mt = 1 - t
-    const mt2 = mt * mt
-    const mt3 = mt2 * mt
-
-    return 3 * mt2 * t * p2 + 3 * mt * t2 * p4 + t3
-}
+import {
+    createThreadShape,
+    createIconShape,
+    createLabelShape,
+    createContextShapeSVG,
+    startContextShapeAnimation
+} from '../infographics/shapes/index.ts'
+import { aiRobotFaceIcon } from '../../../../../svgIcons/index.ts'
 
 type ContextOption = {
     label: string
@@ -151,73 +135,13 @@ export function createContextSelector(config: ContextSelectorConfig) {
             connector.addNode(threadNode)
         }
 
-        // Add Context icon using the icon shape factory
-        // Modify the SVG using D3 to add gradient and white stroke
-        const tempContainer = select(document.createElement('div'))
-        tempContainer.html(contextShape)
-
-        const svg = tempContainer.select('svg')
-
-        // Expand viewBox to allow gradient to extend beyond border
-        // Original: "0 0 512 512", extend by 30px on all sides
-        svg.attr('viewBox', '-30 -30 572 572')
-
-        // Insert defs with gradient at the beginning
-        let defs = svg.select('defs')
-        if (defs.empty()) {
-            defs = svg.insert('defs', ':first-child')
-        }
-
-        const gradient = defs.append('linearGradient')
-            .attr('id', 'ctx-grad')
-            .attr('x1', '0%')
-            .attr('y1', '0%')
-            .attr('x2', '100%')
-            .attr('y2', '100%')
-            .attr('gradientUnits', 'userSpaceOnUse')
-
-        // Create multiple color stops for smooth animation
-        const stops = [
-            { offset: 0, color: '#a78bfa' },
-            { offset: 50, color: '#60a5fa' },
-            { offset: 100, color: '#a78bfa' }
-        ]
-
-        stops.forEach((stop, idx) => {
-            gradient.append('stop')
-                .attr('offset', `${stop.offset}%`)
-                .attr('id', `ctx-stop-${idx}`)
-                .style('stop-color', stop.color)
-                .style('stop-opacity', 1)
-        })
-
-        // Add a filled rectangle background with the gradient
-        // The main box paths have stroke-width:15 (7.5px on each side)
-        // Paths go from x=7.5, y=179.95 to x=504.5, y=332.05
-        // With stroke, visible area is x=0, y=172.45 to x=512, y=339.55
-        // SVG scales from 512px to 54px, so extend by ~25px in viewBox for visible margin
-        svg.select('g').insert('rect', ':first-child')
-            .attr('x', -25)
-            .attr('y', 147.45)
-            .attr('width', 562)
-            .attr('height', 217.1)
-            .attr('rx', 17)
-            .attr('ry', 17)
-            .attr('fill', 'url(#ctx-grad)')
-
-        // Change all strokes to white
-        svg.selectAll('path, line, polyline')
-            .style('stroke', 'white')
-
-        // Get the modified SVG as a string
-        const contextSvgWithGradient = tempContainer.html()
-
+        // Add Context icon with animated gradient
         const contextNode = createIconShape({
             id: 'context',
             x: threadLayout.iconX,
             y: threadLayout.iconY,
             size: threadLayout.size,
-            icon: contextSvgWithGradient,
+            icon: createContextShapeSVG(),
             className: 'ctx-context'
         })
         connector.addNode(contextNode)
@@ -280,66 +204,8 @@ export function createContextSelector(config: ContextSelectorConfig) {
         // Render all nodes and edges
         connector.render()
 
-        // Start gradient animation on context icon
-        const startGradientAnimation = (gradientElement: any) => {
-            let isRunning = true
-
-            const animate = () => {
-                if (!isRunning) return
-                gradientElement
-                    .transition()
-                    .duration(1500)
-                    .ease(customEase)
-                    .attr('x1', '-50%')
-                    .attr('x2', '50%')
-                    .transition()
-                    .duration(1500)
-                    .ease(customEase)
-                    .attr('x1', '0%')
-                    .attr('x2', '100%')
-                    .on('end', () => isRunning && animate())
-            }
-
-            activeAnimation = {
-                stop: () => {
-                    isRunning = false
-                    gradientElement.interrupt()
-                }
-            }
-
-            animate()
-        }
-
-        // Try to find and animate gradient immediately
-        const foreignObjNode = select(visualizationContainer)
-            .select('foreignObject#node-context')
-            .node() as SVGForeignObjectElement | null
-
-        if (foreignObjNode?.children.length) {
-            const svg = foreignObjNode.querySelector('.connector-icon svg')
-            const gradientElement = svg && select(svg).select('#ctx-grad')
-
-            if (gradientElement && !gradientElement.empty()) {
-                startGradientAnimation(gradientElement)
-                return
-            }
-        }
-
-        // Fallback: Use MutationObserver if content not ready
-        if (foreignObjNode) {
-            const observer = new MutationObserver(() => {
-                const svg = foreignObjNode.querySelector('.connector-icon svg')
-                if (svg) {
-                    const gradientElement = select(svg).select('#ctx-grad')
-                    if (!gradientElement.empty()) {
-                        observer.disconnect()
-                        startGradientAnimation(gradientElement)
-                    }
-                }
-            })
-
-            observer.observe(foreignObjNode, { childList: true, subtree: true })
-        }
+        // Start the context shape gradient animation
+        activeAnimation = startContextShapeAnimation(visualizationContainer, 'context', 1500)
     }
 
     // Handle button click
