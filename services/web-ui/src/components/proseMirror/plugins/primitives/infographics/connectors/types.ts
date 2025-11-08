@@ -40,25 +40,31 @@ export type EdgeConfig = {
     strokeDasharray?: string     // For custom dash patterns (overrides lineStyle if provided)
 }
 
+export type NodeShape = 'rect' | 'circle' | 'foreignObject' | 'path'
+
+export type NodeAnchorOverride = Partial<Record<AnchorPosition, { x: number; y: number }>>
+
 // Node content types
 export type NodeContent =
-    | { type: 'text'; text: string; className?: string }
+    | { type: 'text'; text: string; className?: string; align?: 'middle' | 'start' | 'end'; dx?: number; dy?: number }
     | { type: 'html'; html: string; className?: string }
-    | { type: 'lines'; count: number; className?: string; padding?: { x: number; y: number } }
+    | { type: 'lines'; count: number; className?: string; padding?: { x: number; y: number }; spacingScale?: number }
     | { type: 'icon'; icon: string; className?: string }
 
 // Visual node configuration
 export type NodeConfig = {
     id: string
-    shape: 'rect' | 'circle' | 'foreignObject'
+    shape: NodeShape
     x: number
     y: number
     width: number
     height: number
     radius?: number         // For rounded rect corners or circle radius
+    pathData?: string        // For path-based shapes
     className?: string
     content?: NodeContent
     disabled?: boolean      // Applies disabled styling
+    anchorOverrides?: NodeAnchorOverride
 }
 
 // Computed anchor coordinates for a node

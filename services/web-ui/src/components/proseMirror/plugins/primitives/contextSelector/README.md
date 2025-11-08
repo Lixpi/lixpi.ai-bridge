@@ -167,7 +167,7 @@ The visualization automatically updates when threads are added, removed, or reor
 The contextSelector uses a **layered abstraction** for rendering visualizations:
 
 1. **Shape Factories** (`primitives/infographics/shapes/`): Encapsulate visual styling and structure
-   - `createThreadShape()` - Document/thread visuals with content lines
+  - `createThreadShape()` - Capsule thread/document chip with chamfered wedge, optional text or document lines
    - `createLabelShape()` - Text labels in rounded rectangles
    - `createIconShape()` - SVG icons in containers
    - Returns `NodeConfig` objects with ALL styling/structure knowledge
@@ -201,16 +201,24 @@ The component combines Tailwind utilities with purpose-built SCSS:
 The contextSelector applies semantic CSS classes (`.ctx-document`, `.ctx-context`, `.ctx-llm`) that style the underlying shape primitives:
 
 ```scss
-.ctx-document {
-    .thread-shape-rect { /* Document-specific colors */ }
+.ctx-document-active {
+  --thread-chip-fill: #cddc69;
+  --thread-chip-stroke: #c3d63d;
+  --thread-chip-line: rgba(96, 110, 34, 0.35);
+}
+
+.ctx-document-muted {
+  --thread-chip-fill: rgba(42, 49, 63, 0.35);
+  --thread-chip-stroke: rgba(102, 112, 133, 0.5);
+  --thread-chip-line: rgba(129, 139, 161, 0.3);
 }
 
 .ctx-context {
-    .label-shape-rect { /* Context label colors */ }
+  .label-shape { /* Context label colors */ }
 }
 
 .ctx-llm {
-    .icon-content { /* LLM icon styling */ }
+  .icon-content { /* LLM icon styling */ }
 }
 ```
 

@@ -17,11 +17,11 @@ import { computePath, applyOffset } from './paths.ts'
 
 // Compute anchor points for a node based on its shape and dimensions
 function computeNodeAnchors(node: NodeConfig): NodeAnchors {
-    const { x, y, width, height } = node
+    const { x, y, width, height, anchorOverrides } = node
     const centerX = x + width / 2
     const centerY = y + height / 2
 
-    return {
+    const anchors: NodeAnchors = {
         nodeId: node.id,
         left: { x, y: centerY },
         right: { x: x + width, y: centerY },
@@ -29,6 +29,16 @@ function computeNodeAnchors(node: NodeConfig): NodeAnchors {
         bottom: { x: centerX, y: y + height },
         center: { x: centerX, y: centerY }
     }
+
+    if (anchorOverrides) {
+        if (anchorOverrides.left) anchors.left = anchorOverrides.left
+        if (anchorOverrides.right) anchors.right = anchorOverrides.right
+        if (anchorOverrides.top) anchors.top = anchorOverrides.top
+        if (anchorOverrides.bottom) anchors.bottom = anchorOverrides.bottom
+        if (anchorOverrides.center) anchors.center = anchorOverrides.center
+    }
+
+    return anchors
 }
 
 // Render a single node using D3
@@ -36,8 +46,14 @@ function renderNode(
     gNodes: ConnectorState['gNodes'],
     node: NodeConfig
 ): void {
-    const { id, shape, x, y, width, height, radius, className, content, disabled } = node
-    const classes = `connector-node ${className || ''} ${disabled ? 'connector-node-disabled' : ''}`.trim()
+    const { id, shape, x, y, width, height, radius, className, content, disabled, pathData } = node
+    const classes = [
+        'connector-node',     // internal base (connector-specific)
+        'shape-node',         // neutral base for shape styling (non-connector)
+        className || '',
+        disabled ? 'connector-node-disabled' : '',
+        disabled ? 'is-disabled' : ''
+    ].filter(Boolean).join(' ')
 
     switch (shape) {
         case 'rect': {
@@ -75,6 +91,18 @@ function renderNode(
                 .attr('class', classes)
             break
         }
+
+        case 'path': {
+            if (!pathData) {
+                console.warn(`[Connector] Missing pathData for node ${id}`)
+                break
+            }
+            gNodes.append('path')
+                .attr('id', `node-${id}`)
+                .attr('d', pathData)
+                .attr('class', classes)
+            break
+        }
     }
 
     // Render content if provided
@@ -84,11 +112,24 @@ function renderNode(
 
         switch (content.type) {
             case 'text': {
+                const textAnchor = content.align ?? 'middle'
+                let anchor: 'start' | 'middle' | 'end'
+                switch (textAnchor) {
+                    case 'start':
+                        anchor = 'start'
+                        break
+                    case 'end':
+                        anchor = 'end'
+                        break
+                    default:
+                        anchor = 'middle'
+                }
+
                 gNodes.append('text')
-                    .attr('x', centerX)
-                    .attr('y', centerY)
+                    .attr('x', centerX + (content.dx ?? 0))
+                    .attr('y', centerY + (content.dy ?? 0))
                     .attr('class', `connector-text ${content.className || ''}`)
-                    .attr('text-anchor', 'middle')
+                    .attr('text-anchor', anchor)
                     .attr('dominant-baseline', 'middle')
                     .text(content.text)
                 break
@@ -111,7 +152,8 @@ function renderNode(
                 const paddingX = content.padding?.x ?? 12
                 const paddingY = content.padding?.y ?? 12
                 const availableHeight = height - paddingY * 2
-                const lineSpacing = content.count > 1 ? availableHeight / (content.count - 1) : 0
+                const spacingScale = content.spacingScale ?? 1
+                const lineSpacing = content.count > 1 ? (availableHeight / (content.count - 1)) * spacingScale : 0
                 const lineClass = `connector-content-line ${content.className || ''} ${disabled ? 'connector-content-line-disabled' : ''}`.trim()
 
                 for (let i = 0; i < content.count; i += 1) {

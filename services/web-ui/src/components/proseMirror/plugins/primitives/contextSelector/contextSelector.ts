@@ -103,16 +103,14 @@ export function createContextSelector(config: ContextSelectorConfig) {
             const isActive = contextValue === 'Thread' ? isCurrentThread : true
 
             // Use the thread shape factory to create a properly configured node
-            // Use radius = height/2 to create fully rounded pill shape
             const threadNode = createThreadShape({
                 id: `doc-${i}`,
                 x: documentLayout.x,
                 y,
                 width: documentLayout.width,
                 height: docStackHeight,
-                radius: docStackHeight / 2,  // Pill shape with fully rounded ends
-                lineCount: 3,
-                className: 'ctx-document',
+                radius: 10,
+                className: `ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
                 disabled: !isActive
             })
 

@@ -36,7 +36,7 @@ type ShapeRenderer = {
 
 ### ThreadShape
 
-Renders a document/thread visual with horizontal content lines.
+Renders a capsule thread/document chip with a chamfered left wedge. The shape can display horizontal document lines **or** a label string.
 
 ```typescript
 import { createThreadShape } from './shapes'
@@ -47,9 +47,11 @@ const thread = createThreadShape({
     y: 100,
     width: 88,
     height: 34,
-    radius: 12,           // Corner radius (default: 12)
-    lineCount: 3,         // Number of lines (default: 3)
-    linePadding: { x: 12, y: 12 },  // Line padding
+    radius: 17,                 // Capsule radius (default: height / 2)
+    lineCount: 3,               // Number of document lines (default: 3)
+    lineSpacingScale: 0.85,     // Optional vertical spacing multiplier
+    notchDepth: 32,             // Left wedge depth (auto-calculated if omitted)
+    notchControlOffset: 26,     // Curve tension for the wedge transition
     className: 'my-thread',
     disabled: false
 })
@@ -65,9 +67,9 @@ const anchors = thread.getAnchors()
 ```
 
 **CSS Classes:**
-- `.thread-shape-rect` - Rectangle container
-- `.thread-shape-line` - Content lines
-- `.thread-shape-disabled` - Disabled state
+- `.thread-chip` - Path container (fill/stroke via CSS variables)
+- `.thread-chip-line` - Document lines inside the chip
+- `.thread-chip-label` - Optional label text styling
 
 ### IconShape
 
@@ -117,8 +119,8 @@ label.render(shapesGroup)
 ```
 
 **CSS Classes:**
-- `.label-shape-rect` - Rectangle container
-- `.label-shape-text` - Text element
+- `.label-shape` - Rectangle container
+- `.label-text` - Text element
 - `.label-shape-disabled` - Disabled state
 
 ## Usage Pattern
@@ -220,10 +222,9 @@ Then in your consumer's SCSS:
 
 ```scss
 .ctx-document {
-    .thread-shape-rect {
-        fill: rgba(16, 185, 129, 0.12);
-        stroke: rgba(52, 211, 153, 0.75);
-    }
+    --thread-chip-fill: rgba(203, 226, 120, 0.92);
+    --thread-chip-stroke: rgba(196, 214, 93, 1);
+    --thread-chip-line: rgba(124, 135, 73, 0.45);
 }
 ```
 
