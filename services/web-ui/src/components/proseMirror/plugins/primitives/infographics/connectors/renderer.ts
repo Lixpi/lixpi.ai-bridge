@@ -169,11 +169,18 @@ function renderNode(
             }
 
             case 'icon': {
-                const foreignObject = gNodes.append('foreignObject')
-                    .attr('x', x)
-                    .attr('y', y)
-                    .attr('width', width)
-                    .attr('height', height)
+                // If shape is already foreignObject, use the existing one
+                let foreignObject
+                if (shape === 'foreignObject') {
+                    foreignObject = gNodes.select(`#node-${id}`)
+                } else {
+                    // Otherwise create a new foreignObject for the icon
+                    foreignObject = gNodes.append('foreignObject')
+                        .attr('x', x)
+                        .attr('y', y)
+                        .attr('width', width)
+                        .attr('height', height)
+                }
 
                 foreignObject.append('xhtml:div')
                     .attr('class', `connector-icon ${content.className || ''}`)

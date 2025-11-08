@@ -1,9 +1,30 @@
-// @ts-nocheck
+
 import { html } from '../../../components/domTemplates.ts'
 import { select } from 'd3-selection'
+import { transition } from 'd3-transition'
 import { createConnectorRenderer } from '../infographics/connectors/index.ts'
 import { createThreadShape, createIconShape, createLabelShape } from '../infographics/shapes/index.ts'
 import { aiRobotFaceIcon, contextShape } from '../../../../../svgIcons/index.ts'
+
+// Custom easing function matching cubic-bezier(0.19, 1, 0.22, 1)
+// Smooth, elegant easing similar to Material Design animations
+function customEase(t: number): number {
+    // Approximation of cubic-bezier(0.19, 1, 0.22, 1)
+    // This creates a smooth acceleration with gentle deceleration
+    const p1 = 0.19
+    const p2 = 1
+    const p3 = 0.22
+    const p4 = 1
+    
+    // Cubic bezier formula for Y given t
+    const t2 = t * t
+    const t3 = t2 * t
+    const mt = 1 - t
+    const mt2 = mt * mt
+    const mt3 = mt2 * mt
+    
+    return 3 * mt2 * t * p2 + 3 * mt * t2 * p4 + t3
+}
 
 type ContextOption = {
     label: string
@@ -35,6 +56,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
     let currentThreadIdx = currentThreadIndex
     let domRef: HTMLElement | null = null
     let connector: ReturnType<typeof createConnectorRenderer> | null = null
+    let activeAnimation: { stop: () => void } | null = null
 
     // Generate unique instance ID for this selector
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
@@ -84,6 +106,12 @@ export function createContextSelector(config: ContextSelectorConfig) {
         // Clean up existing connector
         if (connector) {
             connector.destroy()
+        }
+
+        // Stop any active animation
+        if (activeAnimation) {
+            activeAnimation.stop()
+            activeAnimation = null
         }
 
         // Create new connector renderer
@@ -142,16 +170,22 @@ export function createContextSelector(config: ContextSelectorConfig) {
             .attr('y1', '0%')
             .attr('x2', '100%')
             .attr('y2', '100%')
+            .attr('gradientUnits', 'userSpaceOnUse')
 
-        gradient.append('stop')
-            .attr('offset', '0%')
-            .style('stop-color', '#a78bfa')
-            .style('stop-opacity', 1)
+        // Create multiple color stops for smooth animation
+        const stops = [
+            { offset: 0, color: '#a78bfa' },
+            { offset: 50, color: '#60a5fa' },
+            { offset: 100, color: '#a78bfa' }
+        ]
 
-        gradient.append('stop')
-            .attr('offset', '100%')
-            .style('stop-color', '#60a5fa')
-            .style('stop-opacity', 1)
+        stops.forEach((stop, idx) => {
+            gradient.append('stop')
+                .attr('offset', `${stop.offset}%`)
+                .attr('id', `ctx-stop-${idx}`)
+                .style('stop-color', stop.color)
+                .style('stop-opacity', 1)
+        })
 
         // Add a filled rectangle background with the gradient
         // Based on the first path: M109.583,179.95H17.5 to M452,332.05h42.5
@@ -239,6 +273,149 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
         // Render all nodes and edges
         connector.render()
+
+        console.log('[ContextSelector] After render, checking foreignObject...')
+
+        // Use MutationObserver to watch for when the foreignObject content is actually rendered
+        const foreignObj = select(visualizationContainer).select('foreignObject#node-context')
+        const foreignObjNode = foreignObj.node() as SVGForeignObjectElement | null
+
+        console.log('[ContextSelector] Setting up MutationObserver')
+        console.log('[ContextSelector] foreignObjNode:', foreignObjNode)
+        console.log('[ContextSelector] foreignObjNode children:', foreignObjNode?.children.length)
+        console.log('[ContextSelector] foreignObjNode innerHTML length:', foreignObjNode?.innerHTML.length)
+
+        // Check if content already exists (added synchronously during render)
+        if (foreignObjNode && foreignObjNode.children.length > 0) {
+            console.log('[ContextSelector] ⚡ Content already exists! Checking for gradient...')
+            const iconDiv = foreignObjNode.querySelector('.connector-icon')
+            console.log('[ContextSelector] iconDiv:', iconDiv)
+
+            if (iconDiv) {
+                const svg = iconDiv.querySelector('svg')
+                console.log('[ContextSelector] SVG:', svg)
+
+                if (svg) {
+                    const gradientElement = select(svg).select('#ctx-grad')
+                    console.log('[ContextSelector] Gradient found:', !gradientElement.empty())
+
+                    if (!gradientElement.empty()) {
+                        console.log('[ContextSelector] ✅ Starting animation immediately!')
+
+                        let isRunning = true
+
+                        function animateGradient() {
+                            if (!isRunning) return
+
+                            console.log('[ContextSelector] Animation cycle')
+                            gradientElement
+                                .transition()
+                                .duration(700)
+                                .ease(customEase)
+                                .attr('x1', '-50%')
+                                .attr('x2', '50%')
+                                .transition()
+                                .duration(700)
+                                .ease(customEase)
+                                .attr('x1', '0%')
+                                .attr('x2', '100%')
+                                .on('end', () => {
+                                    if (isRunning) {
+                                        animateGradient()
+                                    }
+                                })
+                        }
+
+                        // Store reference to stop the animation
+                        activeAnimation = {
+                            stop: () => {
+                                isRunning = false
+                                gradientElement.interrupt()
+                            }
+                        }
+
+                        animateGradient()
+                        return // Skip MutationObserver setup
+                    }
+                }
+            }
+        }
+
+        console.log('[ContextSelector] Content not ready, setting up observer...')
+
+        if (foreignObjNode) {
+            const observer = new MutationObserver((mutations) => {
+                console.log('[ContextSelector] MutationObserver triggered, mutations:', mutations.length)
+                console.log('[ContextSelector] foreignObjNode children count:', foreignObjNode.children.length)
+
+                // Check if content has been added
+                const iconDiv = foreignObjNode.querySelector('.connector-icon')
+                console.log('[ContextSelector] iconDiv found:', !!iconDiv)
+
+                if (iconDiv) {
+                    const svg = iconDiv.querySelector('svg')
+                    console.log('[ContextSelector] SVG found:', !!svg)
+
+                    if (svg) {
+                        const gradientElement = select(svg).select('#ctx-grad')
+                        console.log('[ContextSelector] Gradient element empty?', gradientElement.empty())
+
+                        if (!gradientElement.empty()) {
+                            console.log('[ContextSelector] ✅ GRADIENT FOUND! Starting animation...')
+                            // Stop observing
+                            observer.disconnect()
+
+                            let isRunning = true
+
+                            // Start the gradient animation
+                            function animateGradient() {
+                                if (!isRunning) return
+
+                                console.log('[ContextSelector] Running animation cycle')
+                                gradientElement
+                                    .transition()
+                                    .duration(700)
+                                    .ease(customEase)
+                                    .attr('x1', '-50%')
+                                    .attr('x2', '50%')
+                                    .transition()
+                                    .duration(700)
+                                    .ease(customEase)
+                                    .attr('x1', '0%')
+                                    .attr('x2', '100%')
+                                    .on('end', () => {
+                                        if (isRunning) {
+                                            animateGradient()
+                                        }
+                                    })
+                            }
+
+                            // Store reference to stop the animation
+                            activeAnimation = {
+                                stop: () => {
+                                    isRunning = false
+                                    gradientElement.interrupt()
+                                }
+                            }
+
+                            animateGradient()
+                        } else {
+                            console.log('[ContextSelector] Gradient not found in SVG')
+                            console.log('[ContextSelector] SVG innerHTML:', svg.innerHTML.substring(0, 500))
+                        }
+                    }
+                }
+            })
+
+            console.log('[ContextSelector] Starting observer...')
+            // Start observing the foreignObject for child additions
+            observer.observe(foreignObjNode, {
+                childList: true,
+                subtree: true
+            })
+        } else {
+            console.error('[ContextSelector] ❌ foreignObjNode is null!')
+        }
     }
 
     // Handle button click
