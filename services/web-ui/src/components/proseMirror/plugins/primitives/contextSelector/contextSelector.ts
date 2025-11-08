@@ -86,7 +86,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
         y: baselineY - 21,
         iconX: docRightX + gapX + 27,
         iconY: baselineY - 27,
-        size: 54
+        size: 80
     }
 
     const threadRightX = threadLayout.x + threadLayout.width
@@ -158,6 +158,10 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
         const svg = tempContainer.select('svg')
 
+        // Expand viewBox to allow gradient to extend beyond border
+        // Original: "0 0 512 512", extend by 30px on all sides
+        svg.attr('viewBox', '-30 -30 572 572')
+
         // Insert defs with gradient at the beginning
         let defs = svg.select('defs')
         if (defs.empty()) {
@@ -188,16 +192,17 @@ export function createContextSelector(config: ContextSelectorConfig) {
         })
 
         // Add a filled rectangle background with the gradient
-        // Based on the first path: M109.583,179.95H17.5 to M452,332.05h42.5
-        // The box goes from x=7.5 (with stroke) to x=504.5, y=179.95 to y=332.05
-        // Extend by 2px on all sides to ensure full coverage
+        // The main box paths have stroke-width:15 (7.5px on each side)
+        // Paths go from x=7.5, y=179.95 to x=504.5, y=332.05
+        // With stroke, visible area is x=0, y=172.45 to x=512, y=339.55
+        // SVG scales from 512px to 54px, so extend by ~25px in viewBox for visible margin
         svg.select('g').insert('rect', ':first-child')
-            .attr('x', 5.5)
-            .attr('y', 177.95)
-            .attr('width', 501)
-            .attr('height', 156.1)
-            .attr('rx', 10)
-            .attr('ry', 10)
+            .attr('x', -25)
+            .attr('y', 147.45)
+            .attr('width', 562)
+            .attr('height', 217.1)
+            .attr('rx', 17)
+            .attr('ry', 17)
             .attr('fill', 'url(#ctx-grad)')
 
         // Change all strokes to white
@@ -283,12 +288,12 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 if (!isRunning) return
                 gradientElement
                     .transition()
-                    .duration(700)
+                    .duration(1500)
                     .ease(customEase)
                     .attr('x1', '-50%')
                     .attr('x2', '50%')
                     .transition()
-                    .duration(700)
+                    .duration(1500)
                     .ease(customEase)
                     .attr('x1', '0%')
                     .attr('x2', '100%')
