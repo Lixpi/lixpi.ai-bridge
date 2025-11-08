@@ -15,14 +15,14 @@ function customEase(t: number): number {
     const p2 = 1
     const p3 = 0.22
     const p4 = 1
-    
+
     // Cubic bezier formula for Y given t
     const t2 = t * t
     const t3 = t2 * t
     const mt = 1 - t
     const mt2 = mt * mt
     const mt3 = mt2 * mt
-    
+
     return 3 * mt2 * t * p2 + 3 * mt * t2 * p4 + t3
 }
 
@@ -274,147 +274,65 @@ export function createContextSelector(config: ContextSelectorConfig) {
         // Render all nodes and edges
         connector.render()
 
-        console.log('[ContextSelector] After render, checking foreignObject...')
+        // Start gradient animation on context icon
+        const startGradientAnimation = (gradientElement: any) => {
+            let isRunning = true
 
-        // Use MutationObserver to watch for when the foreignObject content is actually rendered
-        const foreignObj = select(visualizationContainer).select('foreignObject#node-context')
-        const foreignObjNode = foreignObj.node() as SVGForeignObjectElement | null
+            const animate = () => {
+                if (!isRunning) return
+                gradientElement
+                    .transition()
+                    .duration(700)
+                    .ease(customEase)
+                    .attr('x1', '-50%')
+                    .attr('x2', '50%')
+                    .transition()
+                    .duration(700)
+                    .ease(customEase)
+                    .attr('x1', '0%')
+                    .attr('x2', '100%')
+                    .on('end', () => isRunning && animate())
+            }
 
-        console.log('[ContextSelector] Setting up MutationObserver')
-        console.log('[ContextSelector] foreignObjNode:', foreignObjNode)
-        console.log('[ContextSelector] foreignObjNode children:', foreignObjNode?.children.length)
-        console.log('[ContextSelector] foreignObjNode innerHTML length:', foreignObjNode?.innerHTML.length)
-
-        // Check if content already exists (added synchronously during render)
-        if (foreignObjNode && foreignObjNode.children.length > 0) {
-            console.log('[ContextSelector] ⚡ Content already exists! Checking for gradient...')
-            const iconDiv = foreignObjNode.querySelector('.connector-icon')
-            console.log('[ContextSelector] iconDiv:', iconDiv)
-
-            if (iconDiv) {
-                const svg = iconDiv.querySelector('svg')
-                console.log('[ContextSelector] SVG:', svg)
-
-                if (svg) {
-                    const gradientElement = select(svg).select('#ctx-grad')
-                    console.log('[ContextSelector] Gradient found:', !gradientElement.empty())
-
-                    if (!gradientElement.empty()) {
-                        console.log('[ContextSelector] ✅ Starting animation immediately!')
-
-                        let isRunning = true
-
-                        function animateGradient() {
-                            if (!isRunning) return
-
-                            console.log('[ContextSelector] Animation cycle')
-                            gradientElement
-                                .transition()
-                                .duration(700)
-                                .ease(customEase)
-                                .attr('x1', '-50%')
-                                .attr('x2', '50%')
-                                .transition()
-                                .duration(700)
-                                .ease(customEase)
-                                .attr('x1', '0%')
-                                .attr('x2', '100%')
-                                .on('end', () => {
-                                    if (isRunning) {
-                                        animateGradient()
-                                    }
-                                })
-                        }
-
-                        // Store reference to stop the animation
-                        activeAnimation = {
-                            stop: () => {
-                                isRunning = false
-                                gradientElement.interrupt()
-                            }
-                        }
-
-                        animateGradient()
-                        return // Skip MutationObserver setup
-                    }
+            activeAnimation = {
+                stop: () => {
+                    isRunning = false
+                    gradientElement.interrupt()
                 }
+            }
+
+            animate()
+        }
+
+        // Try to find and animate gradient immediately
+        const foreignObjNode = select(visualizationContainer)
+            .select('foreignObject#node-context')
+            .node() as SVGForeignObjectElement | null
+
+        if (foreignObjNode?.children.length) {
+            const svg = foreignObjNode.querySelector('.connector-icon svg')
+            const gradientElement = svg && select(svg).select('#ctx-grad')
+
+            if (gradientElement && !gradientElement.empty()) {
+                startGradientAnimation(gradientElement)
+                return
             }
         }
 
-        console.log('[ContextSelector] Content not ready, setting up observer...')
-
+        // Fallback: Use MutationObserver if content not ready
         if (foreignObjNode) {
-            const observer = new MutationObserver((mutations) => {
-                console.log('[ContextSelector] MutationObserver triggered, mutations:', mutations.length)
-                console.log('[ContextSelector] foreignObjNode children count:', foreignObjNode.children.length)
-
-                // Check if content has been added
-                const iconDiv = foreignObjNode.querySelector('.connector-icon')
-                console.log('[ContextSelector] iconDiv found:', !!iconDiv)
-
-                if (iconDiv) {
-                    const svg = iconDiv.querySelector('svg')
-                    console.log('[ContextSelector] SVG found:', !!svg)
-
-                    if (svg) {
-                        const gradientElement = select(svg).select('#ctx-grad')
-                        console.log('[ContextSelector] Gradient element empty?', gradientElement.empty())
-
-                        if (!gradientElement.empty()) {
-                            console.log('[ContextSelector] ✅ GRADIENT FOUND! Starting animation...')
-                            // Stop observing
-                            observer.disconnect()
-
-                            let isRunning = true
-
-                            // Start the gradient animation
-                            function animateGradient() {
-                                if (!isRunning) return
-
-                                console.log('[ContextSelector] Running animation cycle')
-                                gradientElement
-                                    .transition()
-                                    .duration(700)
-                                    .ease(customEase)
-                                    .attr('x1', '-50%')
-                                    .attr('x2', '50%')
-                                    .transition()
-                                    .duration(700)
-                                    .ease(customEase)
-                                    .attr('x1', '0%')
-                                    .attr('x2', '100%')
-                                    .on('end', () => {
-                                        if (isRunning) {
-                                            animateGradient()
-                                        }
-                                    })
-                            }
-
-                            // Store reference to stop the animation
-                            activeAnimation = {
-                                stop: () => {
-                                    isRunning = false
-                                    gradientElement.interrupt()
-                                }
-                            }
-
-                            animateGradient()
-                        } else {
-                            console.log('[ContextSelector] Gradient not found in SVG')
-                            console.log('[ContextSelector] SVG innerHTML:', svg.innerHTML.substring(0, 500))
-                        }
+            const observer = new MutationObserver(() => {
+                const svg = foreignObjNode.querySelector('.connector-icon svg')
+                if (svg) {
+                    const gradientElement = select(svg).select('#ctx-grad')
+                    if (!gradientElement.empty()) {
+                        observer.disconnect()
+                        startGradientAnimation(gradientElement)
                     }
                 }
             })
 
-            console.log('[ContextSelector] Starting observer...')
-            // Start observing the foreignObject for child additions
-            observer.observe(foreignObjNode, {
-                childList: true,
-                subtree: true
-            })
-        } else {
-            console.error('[ContextSelector] ❌ foreignObjNode is null!')
+            observer.observe(foreignObjNode, { childList: true, subtree: true })
         }
     }
 
