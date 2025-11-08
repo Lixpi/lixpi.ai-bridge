@@ -69,10 +69,8 @@
         // Semantic styling for context selector shapes
         // Target the connector nodes with our semantic classes
 
-        .shape-node.thread-chip.ctx-document { /* base document thread semantics */ }
-
         .shape-node.thread-chip.ctx-document-active {
-            --thread-chip-fill: #5f6633;
+            --thread-chip-fill: #c5d372;
             --thread-chip-stroke: #c5d372; /* unified fill & stroke */
             --thread-chip-line: rgba(88, 102, 28, 0.42);
         }

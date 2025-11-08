@@ -12,9 +12,6 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
         width,
         height,
         radius = height / 2,
-        lineCount = 3,
-    linePadding = {},
-        lineSpacingScale,
         label,
         labelClassName,
         className = '',
@@ -23,33 +20,32 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
         notchControlOffset: customControlOffset
     } = params
 
-    const safeRadius = Math.max(4, Math.min(radius, height / 2, (width - 4) / 2))
     const defaultNotchDepth = Math.min(width * 0.14, height * 0.82)
-    const notchDepth = Math.max(10, Math.min(customNotchDepth ?? defaultNotchDepth, width - safeRadius - 8))
-    const controlOffset = Math.max(5, customControlOffset ?? notchDepth * 0.85)
+    const notchDepth = Math.max(10, Math.min(customNotchDepth ?? defaultNotchDepth, width - 12))
+    const rightRadius = 2
+    const leftRadius = 4
+    const tipRoundness = 2
+    const controlOffset = Math.max(4, customControlOffset ?? notchDepth * 0.82)
 
     const topY = y
     const bottomY = y + height
     const tipX = x
     const tipY = y + height / 2
     const bodyLeftX = x + notchDepth
-    const rightArcStartX = x + width - safeRadius
+    const rightArcStartX = x + width - rightRadius
     const rightX = x + width
 
     const pathData = [
         `M ${bodyLeftX} ${topY}`,
-        `H ${rightArcStartX}`,
-        `A ${safeRadius} ${safeRadius} 0 0 1 ${rightX} ${topY + safeRadius}`,
-        `V ${bottomY - safeRadius}`,
-        `A ${safeRadius} ${safeRadius} 0 0 1 ${rightArcStartX} ${bottomY}`,
-        `H ${bodyLeftX}`,
-        `Q ${tipX + controlOffset} ${bottomY} ${tipX} ${tipY}`,
+        `L ${rightArcStartX} ${topY}`,
+        `A ${rightRadius} ${rightRadius} 0 0 1 ${rightX} ${topY + rightRadius}`,
+        `L ${rightX} ${bottomY - rightRadius}`,
+        `A ${rightRadius} ${rightRadius} 0 0 1 ${rightArcStartX} ${bottomY}`,
+        `L ${bodyLeftX} ${bottomY}`,
+        `Q ${tipX + controlOffset} ${bottomY} ${tipX + tipRoundness} ${tipY}`,
         `Q ${tipX + controlOffset} ${topY} ${bodyLeftX} ${topY}`,
         'Z'
     ].join(' ')
-
-    const paddingX = linePadding?.x ?? notchDepth * 0.95
-    const paddingY = linePadding?.y ?? Math.max(8, height * 0.22)
 
     const content = label
         ? {
@@ -57,7 +53,7 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
             text: label,
             className: labelClassName ?? 'thread-chip-label',
             align: 'middle' as const,
-            dx: notchDepth * 0.3,
+            dx: 0,
             dy: 0
         }
         : undefined
@@ -74,7 +70,7 @@ export function createThreadShape(params: ThreadShapeParams): NodeConfig {
         content,
         disabled,
         anchorOverrides: {
-            left: { x: tipX + notchDepth * 0.5, y: tipY }
+            left: { x: tipX + tipRoundness + (notchDepth - tipRoundness) * 0.4, y: tipY }
         }
     }
 }

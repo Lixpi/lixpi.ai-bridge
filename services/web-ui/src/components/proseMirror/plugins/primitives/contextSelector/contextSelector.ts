@@ -109,7 +109,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 y,
                 width: documentLayout.width,
                 height: docStackHeight,
-                radius: 10,
+                radius: 2,
                 className: `ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
                 disabled: !isActive
             })

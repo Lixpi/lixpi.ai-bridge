@@ -10,13 +10,19 @@
 
     fill: var(--thread-chip-fill);
     stroke: var(--thread-chip-stroke);
-    stroke-width: 1;
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
     shape-rendering: geometricPrecision;
+}
+
+.connector-node-disabled.thread-chip {
+    opacity: 0.35;
 }
 
 .thread-chip-line {
     stroke: var(--thread-chip-line);
-    stroke-width: 1;
+    stroke-width: 2.2;
     stroke-linecap: round;
 }
 
