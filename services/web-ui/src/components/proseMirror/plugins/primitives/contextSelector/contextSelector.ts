@@ -127,36 +127,48 @@ export function createContextSelector(config: ContextSelectorConfig) {
         // Modify the SVG using D3 to add gradient and white stroke
         const tempContainer = select(document.createElement('div'))
         tempContainer.html(contextShape)
-        
+
         const svg = tempContainer.select('svg')
-        
+
         // Insert defs with gradient at the beginning
         let defs = svg.select('defs')
         if (defs.empty()) {
             defs = svg.insert('defs', ':first-child')
         }
-        
+
         const gradient = defs.append('linearGradient')
             .attr('id', 'ctx-grad')
             .attr('x1', '0%')
             .attr('y1', '0%')
             .attr('x2', '100%')
             .attr('y2', '100%')
-        
+
         gradient.append('stop')
             .attr('offset', '0%')
             .style('stop-color', '#a78bfa')
             .style('stop-opacity', 1)
-        
+
         gradient.append('stop')
             .attr('offset', '100%')
             .style('stop-color', '#60a5fa')
             .style('stop-opacity', 1)
-        
+
+        // Add a filled rectangle background with the gradient
+        // Based on the first path: M109.583,179.95H17.5 to M452,332.05h42.5
+        // The box goes from x=7.5 (with stroke) to x=504.5, y=179.95 to y=332.05
+        svg.select('g').insert('rect', ':first-child')
+            .attr('x', 7.5)
+            .attr('y', 179.95)
+            .attr('width', 497)
+            .attr('height', 152.1)
+            .attr('rx', 10)
+            .attr('ry', 10)
+            .attr('fill', 'url(#ctx-grad)')
+
         // Change all strokes to white
         svg.selectAll('path, line, polyline')
             .style('stroke', 'white')
-        
+
         // Get the modified SVG as a string
         const contextSvgWithGradient = tempContainer.html()
 
