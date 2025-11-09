@@ -38,7 +38,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
     let currentThreadIdx = currentThreadIndex
     let domRef: HTMLElement | null = null
     let connector: ReturnType<typeof createConnectorRenderer> | null = null
-    let activeAnimation: { stop: () => void } | null = null
+    let activeAnimations: Array<{ stop: () => void }> = []
 
     // Generate unique instance ID for this selector
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
@@ -75,9 +75,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
         }
 
         // Stop any active animation
-        if (activeAnimation) {
-            activeAnimation.stop()
-            activeAnimation = null
+        if (activeAnimations.length > 0) {
+            activeAnimations.forEach(anim => anim.stop())
+            activeAnimations = []
         }
 
         // Create new connector renderer
@@ -104,7 +104,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 x: documentLayout.x,
                 y,
                 size: documentLayout.width,
-                icon: createContextShapeSVG(),
+                icon: createContextShapeSVG({ withGradient: isActive, instanceId: `doc-${i}` }),
                 className: `document-block-shape ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
                 disabled: contextValue === 'Thread' ? !isCurrentThread : false
             })
@@ -148,8 +148,20 @@ export function createContextSelector(config: ContextSelectorConfig) {
         // Render all nodes and edges
         connector.render()
 
-        // Start the context shape gradient animation
-        activeAnimation = startContextShapeAnimation(visualizationContainer, 'doc-0', 1000)
+        // Start the context shape gradient animation for all active documents
+        if (contextValue === 'Thread') {
+            // Only animate the active thread
+            const animationTargetId = `doc-${currentThreadIdx}`
+            const animationGradientId = `ctx-grad-${animationTargetId}`
+            activeAnimations.push(startContextShapeAnimation(visualizationContainer, animationTargetId, 1000, animationGradientId))
+        } else {
+            // Animate all documents
+            for (let i = 0; i < totalThreads; i++) {
+                const animationTargetId = `doc-${i}`
+                const animationGradientId = `ctx-grad-${animationTargetId}`
+                activeAnimations.push(startContextShapeAnimation(visualizationContainer, animationTargetId, 1000, animationGradientId))
+            }
+        }
     }
 
     // Handle button click
@@ -246,10 +258,10 @@ export function createContextSelector(config: ContextSelectorConfig) {
     }
 
     const destroy = () => {
-        // Clean up animation
-        if (activeAnimation) {
-            activeAnimation.stop()
-            activeAnimation = null
+        // Clean up animations
+        if (activeAnimations.length > 0) {
+            activeAnimations.forEach(anim => anim.stop())
+            activeAnimations = []
         }
         // Clean up connector
         if (connector) {

@@ -18,7 +18,10 @@ function customEase(t: number): number {
 
 // Creates the context shape SVG from scratch using modular primitives
 // Returns complete SVG string with gradient and all shapes
-export function createContextShapeSVG(): string {
+export function createContextShapeSVG(config?: { withGradient?: boolean; instanceId?: string }): string {
+    const withGradient = config?.withGradient !== false
+    const instanceId = config?.instanceId || 'default'
+    const gradientId = `ctx-grad-${instanceId}`
     const container = select(document.createElement('div'))
 
     const svg = container.append('svg')
@@ -31,13 +34,17 @@ export function createContextShapeSVG(): string {
     const g = svg.append('g')
 
     // Setup gradient definition
-    setupContextGradient(defs, { gradientId: 'ctx-grad' })
+    if (withGradient) {
+        setupContextGradient(defs, { gradientId })
+    }
 
     // Draw top content block (square + lines above context box)
     drawDocumentContentBlock(g, { variant: 'top' })
 
     // Draw gradient background selection
-    drawContextSelection(g, { gradientId: 'ctx-grad' })
+    if (withGradient) {
+        drawContextSelection(g, { gradientId })
+    }
 
     // Draw thread shape with text
     drawDocumentThreadShape(g, { text: 'CONTEXT' })
@@ -54,7 +61,8 @@ export function createContextShapeSVG(): string {
 export function startContextShapeAnimation(
     container: HTMLElement,
     nodeId: string = 'context',
-    duration: number = 1500
+    duration: number = 1500,
+    gradientId: string = 'ctx-grad'
 ): { stop: () => void } {
     let running = true
     let gradient: any = null
@@ -78,7 +86,7 @@ export function startContextShapeAnimation(
     if (foreignObj?.children.length) {
         const svg = foreignObj.querySelector('.connector-icon svg')
         if (svg) {
-            gradient = select(svg).select('#ctx-grad')
+            gradient = select(svg).select(`#${gradientId}`)
             if (gradient && !gradient.empty()) {
                 loop()
                 return { stop: () => { running = false; gradient?.interrupt() } }
@@ -91,7 +99,7 @@ export function startContextShapeAnimation(
         const observer = new MutationObserver(() => {
             const svg = foreignObj.querySelector('.connector-icon svg')
             if (svg) {
-                gradient = select(svg).select('#ctx-grad')
+                gradient = select(svg).select(`#${gradientId}`)
                 if (gradient && !gradient.empty()) {
                     observer.disconnect()
                     loop()
