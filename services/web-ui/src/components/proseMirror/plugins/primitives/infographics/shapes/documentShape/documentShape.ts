@@ -1,4 +1,4 @@
-// Context visualization - composed from modular document shape primitives
+// Context document visualization - composed from modular document shape primitives
 // Built entirely with D3 using reusable components
 
 // @ts-ignore - runtime import

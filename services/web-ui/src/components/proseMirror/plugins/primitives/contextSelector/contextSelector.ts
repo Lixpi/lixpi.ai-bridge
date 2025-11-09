@@ -2,11 +2,8 @@
 import { html } from '../../../components/domTemplates.ts'
 import { createConnectorRenderer } from '../infographics/connectors/index.ts'
 import {
-    createThreadShape,
     createIconShape,
-    createLabelShape,
-    createContextShapeSVG,
-    startContextShapeAnimation
+    createContextShapeSVG
 } from '../infographics/shapes/index.ts'
 import { aiRobotFaceIcon } from '../../../../../svgIcons/index.ts'
 
@@ -40,45 +37,28 @@ export function createContextSelector(config: ContextSelectorConfig) {
     let currentThreadIdx = currentThreadIndex
     let domRef: HTMLElement | null = null
     let connector: ReturnType<typeof createConnectorRenderer> | null = null
-    let activeAnimation: { stop: () => void } | null = null
 
     // Generate unique instance ID for this selector
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
 
     // Layout constants
-    const VIEWBOX_WIDTH = 360
-    const VIEWBOX_HEIGHT = 150
-    const baselineY = 75
-    const gapX = 30
-    const documentCenterX = 74
-
+    const VIEWBOX_WIDTH = 340
+    const VIEWBOX_HEIGHT = 160
+    const baselineY = 80
     const documentLayout = {
-        width: 88,
-        height: 76,
-        radius: 14,
-        x: documentCenterX - 44,
-        y: baselineY - 38
+        width: 92,
+        height: 92,
+        x: 36,
+        y: baselineY - 46
     }
 
     const docRightX = documentLayout.x + documentLayout.width
-
-    const threadLayout = {
-        width: 96,
-        height: 42,
-        radius: 16,
-        x: docRightX + gapX,
-        y: baselineY - 21,
-        iconX: docRightX + gapX + 27,
-        iconY: baselineY - 27,
-        size: 80
-    }
-
-    const threadRightX = threadLayout.x + threadLayout.width
+    const connectorGap = 120
 
     const llmLayout = {
-        size: 54,
-        iconX: threadRightX + gapX,
-        iconY: baselineY - 27
+        size: 58,
+        iconX: docRightX + connectorGap,
+        iconY: baselineY - 29
     }
 
     // Create visualization using shape factories and connector system
@@ -92,12 +72,6 @@ export function createContextSelector(config: ContextSelectorConfig) {
             connector.destroy()
         }
 
-        // Stop any active animation
-        if (activeAnimation) {
-            activeAnimation.stop()
-            activeAnimation = null
-        }
-
         // Create new connector renderer
         connector = createConnectorRenderer({
             container: visualizationContainer,
@@ -106,45 +80,29 @@ export function createContextSelector(config: ContextSelectorConfig) {
             instanceId
         })
 
-        // Common thread layout parameters
-        const docStackHeight = 34
-        const docStackGap = 36
+        // Common document stacking parameters
+        const docStackGap = 88
         const totalThreads = currentThreadCount
         const startOffset = -(totalThreads - 1) / 2
 
-        // Add document/thread shapes using the thread shape factory
+        // Add document shapes using the document block factory
         for (let i = 0; i < totalThreads; i++) {
-            const y = baselineY + (startOffset + i) * docStackGap - docStackHeight / 2
+            const y = baselineY + (startOffset + i) * docStackGap - documentLayout.height / 2
             const isCurrentThread = i === currentThreadIdx
             const isActive = contextValue === 'Thread' ? isCurrentThread : true
 
-            // Use the thread shape factory to create a properly configured node
-            const threadNode = createThreadShape({
+            const documentNode = createIconShape({
                 id: `doc-${i}`,
                 x: documentLayout.x,
                 y,
-                width: documentLayout.width,
-                height: docStackHeight,
-                radius: 2,
-                className: `ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
-                disabled: !isActive,
-                notchDepth: 10,
-                notchControlOffset:10
+                size: documentLayout.width,
+                icon: createContextShapeSVG(),
+                className: `document-block-shape ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
+                disabled: contextValue === 'Thread' ? !isCurrentThread : false
             })
 
-            connector.addNode(threadNode)
+            connector.addNode(documentNode)
         }
-
-        // Add Context icon with animated gradient
-        const contextNode = createIconShape({
-            id: 'context',
-            x: threadLayout.iconX,
-            y: threadLayout.iconY,
-            size: threadLayout.size,
-            icon: createContextShapeSVG(),
-            className: 'ctx-context'
-        })
-        connector.addNode(contextNode)
 
         // Add LLM icon using the icon shape factory
         const llmNode = createIconShape({
@@ -161,51 +119,26 @@ export function createContextSelector(config: ContextSelectorConfig) {
         for (let i = 0; i < totalThreads; i++) {
             const isCurrentThread = i === currentThreadIdx
 
-            if (contextValue === 'Thread') {
-                // Only current thread connects to context
-                if (isCurrentThread) {
-                    connector.addEdge({
-                        id: `doc-${i}-to-context`,
-                        source: { nodeId: `doc-${i}`, position: 'right', offset: { x: 2 } },
-                        target: { nodeId: 'context', position: 'left', offset: { x: -6 } },
-                        pathType: 'horizontal-bezier',
-                        marker: 'arrowhead',
-                        lineStyle: 'solid',
-                        strokeWidth: 1.5
-                    })
-                }
-            } else {
-                // Document and Workspace modes: all threads connect to context
+            const shouldConnect = contextValue === 'Thread'
+                ? isCurrentThread
+                : true
+
+            if (shouldConnect) {
                 connector.addEdge({
-                    id: `doc-${i}-to-context`,
+                    id: `doc-${i}-to-llm`,
                     source: { nodeId: `doc-${i}`, position: 'right', offset: { x: 2 } },
-                    target: { nodeId: 'context', position: 'left', offset: { x: -6 } },
+                    target: { nodeId: 'llm', position: 'left', offset: { x: -6 } },
                     pathType: 'horizontal-bezier',
                     marker: 'arrowhead',
                     lineStyle: 'solid',
-                    strokeWidth: 1.5
+                    strokeWidth: 1.6,
+                    curvature: contextValue === 'Workspace' ? 0.18 : 0.12
                 })
             }
         }
 
-        // Add edge from context to LLM
-        const curvature = contextValue === 'Workspace' ? 0.16 : 0.1
-        connector.addEdge({
-            id: 'context-to-llm',
-            source: { nodeId: 'context', position: 'right', offset: { x: 2 } },
-            target: { nodeId: 'llm', position: 'left', offset: { x: -6 } },
-            pathType: 'bezier',
-            marker: 'arrowhead',
-            curvature,
-            lineStyle: 'solid',
-            strokeWidth: 1.5
-        })
-
         // Render all nodes and edges
         connector.render()
-
-        // Start the context shape gradient animation
-        activeAnimation = startContextShapeAnimation(visualizationContainer, 'context', 1500)
     }
 
     // Handle button click

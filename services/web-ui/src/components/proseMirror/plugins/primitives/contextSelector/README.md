@@ -121,18 +121,18 @@ Each selector instance knows:
 This enables thread-specific visualizations:
 
 **Thread Mode:**
-- Renders N rectangles (one per thread in document)
-- Highlights only THIS thread's rectangle
-- Arrow from highlighted rectangle → Context → AI
-- Other threads shown as grayed out
+- Renders N document icons (one per thread in the document)
+- Highlights only THIS thread's document block
+- Arrow from highlighted document block → AI
+- Other threads fade back but remain visible
 
 **Document Mode:**
-- Renders N rectangles (all threads active)
-- Arrows from ALL rectangles → Context → AI
-- Shows all threads contribute to context
+- Renders N document icons (all threads active)
+- Arrows from ALL document blocks → AI
+- Shows all threads contribute to the shared context
 
 **Workspace Mode:**
-- Same as Document mode (workspace scope)
+- Mirrors Document mode (workspace scope) with a slightly wider arc
 
 ### Integration Example
 
@@ -167,10 +167,9 @@ The visualization automatically updates when threads are added, removed, or reor
 The contextSelector uses a **layered abstraction** for rendering visualizations:
 
 1. **Shape Factories** (`primitives/infographics/shapes/`): Encapsulate visual styling and structure
-  - `createThreadShape()` - Capsule thread/document chip with chamfered wedge, optional text or document lines
-   - `createLabelShape()` - Text labels in rounded rectangles
-   - `createIconShape()` - SVG icons in containers
-   - Returns `NodeConfig` objects with ALL styling/structure knowledge
+  - `createDocumentBlockShape()` - Wraps the animated document visualization (from `documentShape`) for stackable blocks
+  - `createIconShape()` - SVG icons in containers
+  - Returns `NodeConfig` objects with ALL styling/structure knowledge
 
 2. **Connector System** (`primitives/infographics/connectors/`): Renders nodes and edges
    - Manages SVG rendering and layout
@@ -198,27 +197,19 @@ The component combines Tailwind utilities with purpose-built SCSS:
 - `.context-visualization`: Dark canvas that hosts the SVG rendered by the connector system.
 
 **Semantic shape styling:**
-The contextSelector applies semantic CSS classes (`.ctx-document`, `.ctx-context`, `.ctx-llm`) that style the underlying shape primitives:
+The contextSelector applies semantic CSS classes (`.ctx-document`, `.ctx-llm`) that style the underlying shape primitives:
 
 ```scss
-.ctx-document-active {
-  --thread-chip-fill: #cddc69;
-  --thread-chip-stroke: #c3d63d;
-  --thread-chip-line: rgba(96, 110, 34, 0.35);
+.shape-node.document-block-shape.ctx-document-active {
+  transform: translateX(4px) scale(1.04);
 }
 
-.ctx-document-muted {
-  --thread-chip-fill: rgba(42, 49, 63, 0.35);
-  --thread-chip-stroke: rgba(102, 112, 133, 0.5);
-  --thread-chip-line: rgba(129, 139, 161, 0.3);
+.shape-node.document-block-shape.ctx-document-muted {
+  opacity: 0.48;
 }
 
-.ctx-context {
-  .label-shape { /* Context label colors */ }
-}
-
-.ctx-llm {
-  .icon-content { /* LLM icon styling */ }
+.icon-shape.ctx-llm .icon-content {
+  svg { fill: rgba(167, 139, 250, 0.92); }
 }
 ```
 
