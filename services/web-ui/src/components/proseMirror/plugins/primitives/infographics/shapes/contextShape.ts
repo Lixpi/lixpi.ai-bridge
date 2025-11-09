@@ -1,7 +1,7 @@
-// Context shape factory with animated gradient background
-// Renders a browser/code window icon with flowing gradient animation
-// Built entirely with D3 - no external SVG dependencies
+// Context visualization primitives with animated gradient background
+// Built entirely with D3 - simple blocks: lines, squares, rectangles (no external SVG dependencies)
 
+// @ts-ignore - runtime import; types may be provided elsewhere
 import { select } from 'd3-selection'
 
 // Custom easing function matching cubic-bezier(0.19, 1, 0.22, 1)
@@ -85,6 +85,114 @@ function createText(parent: ShapeBuilder, text: string, x: number, y: number, st
         .attrs(style)
 }
 
+// Draw a single straight line where specific positions along the line become gaps (dashed sections).
+// dashed: array of { start, length } in [0..1] relative to full length; values are clamped and sorted.
+function drawLineWithGaps(
+    parent: ShapeBuilder,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    style: Record<string, any>,
+    dashed: Array<{ start: number; length: number }> = []
+) {
+    const total = Math.hypot(x2 - x1, y2 - y1)
+
+    // Normalize and sort segments
+    const segs = dashed
+        .map(d => ({ start: Math.max(0, Math.min(1, d.start)), length: Math.max(0, Math.min(1, d.length)) }))
+        .filter(d => d.length > 0)
+        .sort((a, b) => a.start - b.start)
+
+    // Build dasharray representing [visible, gap, visible, gap, ...] once over the whole line
+    const parts: number[] = []
+    let cursor = 0
+    for (const s of segs) {
+        const dashStart = s.start
+        const dashEnd = Math.min(1, s.start + s.length)
+        if (dashStart > cursor) {
+            parts.push((dashStart - cursor) * total) // visible
+        } else if (parts.length === 0) {
+            parts.push(0) // no leading visible portion
+        }
+        parts.push((dashEnd - Math.max(cursor, dashStart)) * total) // gap
+        cursor = Math.max(cursor, dashEnd)
+    }
+    if (cursor < 1) {
+        parts.push((1 - cursor) * total) // trailing visible
+    }
+
+    // Ensure dasharray alternates visible/gap; SVG will repeat the pattern after one cycle
+    const line = parent.append('line')
+        .attr('x1', x1).attr('y1', y1)
+        .attr('x2', x2).attr('y2', y2)
+        .attrs(style)
+
+    if (parts.length) {
+        line.attr('stroke-dasharray', parts.map(v => v.toFixed(3)).join(','))
+    }
+}
+
+// Composite block of lines and squares like in the UI (top rows and bottom button row)
+function contentBlockShape(parent: ShapeBuilder, stroke: Record<string, any>) {
+    const group = parent.append('g')
+
+    const bottomLineStart = 7.5
+    const bottomLineEnd = 248.502
+    const bottomLineLength = bottomLineEnd - bottomLineStart
+
+    // Top small square and lines
+    createRoundedRect(group, 12.5, 92, 42.5, 42.5, 5, stroke)
+    drawLineWithGaps(group, 92, 94.5, 136, 94.5, stroke, [])
+    drawLineWithGaps(group, 163, 94.5, 399, 94.5, stroke, [])
+    ;[425, 461, 497].forEach(x => drawLineWithGaps(group, x, 94.5, x + 8, 94.5, stroke, []))
+
+    // Third line (middle) remains solid with no gaps
+    const line3Start = 92.119
+    const line3End = 504.5
+    const line3Length = line3End - line3Start
+    drawLineWithGaps(group, line3Start, 132.018, line3End, 132.018, stroke, [])
+
+    // Bottom lines - with gaps matching the mock exact positions
+    const topLineGapWidth = 163 - 136 // reuse top gap width for bottom dash length
+    const bottomGapStartX = 183
+    drawLineWithGaps(group, bottomLineStart, 380, bottomLineEnd, 380, stroke, [
+        { start: (bottomGapStartX - bottomLineStart) / bottomLineLength, length: topLineGapWidth / bottomLineLength }
+    ])
+    drawLineWithGaps(group, bottomLineStart, 417.5, bottomLineEnd, 417.5, stroke, [
+        { start: (54 - bottomLineStart) / bottomLineLength, length: (89 - 54) / bottomLineLength }
+    ])
+
+    // Bottom right three squares
+    ;[286, 371, 457].forEach(x => {
+        createRoundedRect(group, x, 377.5, 42.5, 42.5, 5, stroke)
+    })
+}
+
+// Rectangle block with gradient background, white rounded inner border, and centered text
+function contextBlock(parent: ShapeBuilder, text: string, stroke: Record<string, any>) {
+    // Gradient-filled background (extends beyond inner border)
+    createRoundedRect(parent, -25, 147.45, 562, 217.1, 17, { fill: 'url(#ctx-grad)' })
+
+    // Inner rounded border as two path segments (left and right)
+    parent.append('path')
+        .attr('d', 'M109.583,179.95H17.5c-5.523,0-10,4.477-10,10V322.05c0,5.523,4.477,10,10,10H417')
+        .attrs(stroke)
+    parent.append('path')
+        .attr('d', 'M452,332.05h42.5c5.523,0,10-4.477,10-10V189.95c0-5.523-4.477-10-10-10H144.583')
+        .attrs(stroke)
+
+    // Centered label
+    createText(parent, text, 256, 270, {
+        fill: 'white',
+        'font-family': 'Arial, sans-serif',
+        'font-size': '60px',
+        'font-weight': 'bold',
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle'
+    })
+}
+
 // Creates the context shape SVG from scratch using D3
 // Returns complete SVG string with gradient and all paths
 export function createContextShapeSVG(): string {
@@ -92,9 +200,7 @@ export function createContextShapeSVG(): string {
 
     // SVG dimensions and layout constants
     const viewBox = { x: -30, y: -30, width: 572, height: 572 }
-    const browserWindow = { x: 7.5, y: 179.95, width: 497, height: 152.1, radius: 10 }
     const gradientArea = { x: -25, y: 147.45, width: 562, height: 217.1, radius: 17 }
-    const textY = { top: 221.189, bottom: 290.811, middle: 256 }
 
     const svg = tempContainer.append('svg')
         .attr('xmlns', 'http://www.w3.org/2000/svg')
@@ -131,56 +237,11 @@ export function createContextShapeSVG(): string {
         'stroke-linejoin': 'round'
     }
 
-    // Gradient background (extends beyond border)
-    createRoundedRect(g, gradientArea.x, gradientArea.y, gradientArea.width, gradientArea.height, gradientArea.radius, { fill: 'url(#ctx-grad)' })
-
-    // Main browser window border (custom paths for exact shape)
-    g.append('path')
-        .attr('d', 'M109.583,179.95H17.5c-5.523,0-10,4.477-10,10V322.05c0,5.523,4.477,10,10,10H417')
-        .attrs(stroke)
-    g.append('path')
-        .attr('d', 'M452,332.05h42.5c5.523,0,10-4.477,10-10V189.95c0-5.523-4.477-10-10-10H144.583')
-        .attrs(stroke)
-
-    // Top browser chrome
-    const chrome = g.append('g')
-    createRoundedRect(chrome, 12.5, 92, 42.5, 42.5, 5, stroke)
-    createHLine(chrome, 92, 136, 94.5, stroke)
-    createHLine(chrome, 163, 399, 94.5, stroke)
-    createHLine(chrome, 92, 504.5, 132, stroke)
-
-    // Menu dots (three short lines)
-    ;[425, 461, 497].forEach(x => createHLine(chrome, x, x + 8, 94.5, stroke))
-
-    // "CONTEXT" text
-    createText(g, 'CONTEXT', 256, 270, {
-        fill: 'white',
-        'font-family': 'Arial, sans-serif',
-        'font-size': '60px',
-        'font-weight': 'bold',
-        'text-anchor': 'middle',
-        'dominant-baseline': 'middle'
-    })
-
-    // Bottom section - buttons and lines
-    const bottom = g.append('g')
-    ;[286, 371, 457].forEach((x, i) => {
-        createRoundedRect(bottom, x, 377.5, 42.5, 42.5, 5, stroke)
-    })
-
-    createHLine(bottom, 208, 248.5, 380, stroke)
-    createHLine(bottom, 7.5, 183, 380, stroke)
-    createHLine(bottom, 7.5, 54, 417.5, stroke)
-    createHLine(bottom, 89, 248.5, 417.5, stroke)
+    // Compose blocks
+    contextBlock(g, 'CONTEXT', stroke)
+    contentBlockShape(g, stroke)
 
     return tempContainer.html()
-}
-
-// Helper to set multiple attributes at once
-declare module 'd3-selection' {
-    type Selection<GElement extends d3.BaseType, Datum, PElement extends d3.BaseType, PDatum> = {
-        attrs(obj: Record<string, string | number>): Selection<GElement, Datum, PElement, PDatum>
-    }
 }
 
 // Extend D3 selection prototype
