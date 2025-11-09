@@ -1,336 +1,169 @@
 // Context visualization primitives with animated gradient background
-// Built entirely with D3 - simple blocks: lines, squares, rectangles (no external SVG dependencies)
+// Built entirely with D3 using simple, direct SVG element creation
 
-// @ts-ignore - runtime import; types may be provided elsewhere
+// @ts-ignore - runtime import
 import { select } from 'd3-selection'
 
-// Custom easing function matching cubic-bezier(0.19, 1, 0.22, 1)
-// Smooth, elegant easing similar to Material Design animations
+// Custom easing matching cubic-bezier(0.19, 1, 0.22, 1)
 function customEase(t: number): number {
-    const p1 = 0.19
-    const p2 = 1
-    const p3 = 0.22
-    const p4 = 1
-
     const t2 = t * t
     const t3 = t2 * t
     const mt = 1 - t
     const mt2 = mt * mt
-    const mt3 = mt2 * mt
-
-    return 3 * mt2 * t * p2 + 3 * mt * t2 * p4 + t3
-}
-
-// Reusable shape building blocks
-type ShapeBuilder = any
-
-// Creates a rounded rectangle using simple dimensions
-function createRoundedRect(
-    parent: ShapeBuilder,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius: number,
-    style: Record<string, any>
-) {
-    parent.append('rect')
-        .attr('x', x)
-        .attr('y', y)
-        .attr('width', width)
-        .attr('height', height)
-        .attr('rx', radius)
-        .attr('ry', radius)
-        .attrs(style)
-}
-
-// Creates a horizontal line
-function createHLine(
-    parent: ShapeBuilder,
-    x1: number,
-    x2: number,
-    y: number,
-    style: Record<string, any>
-) {
-    parent.append('line')
-        .attr('x1', x1)
-        .attr('x2', x2)
-        .attr('y1', y)
-        .attr('y2', y)
-        .attrs(style)
-}
-
-// Creates a vertical line
-function createVLine(
-    parent: ShapeBuilder,
-    x: number,
-    y1: number,
-    y2: number,
-    style: Record<string, any>
-) {
-    parent.append('line')
-        .attr('x1', x)
-        .attr('x2', x)
-        .attr('y1', y1)
-        .attr('y2', y2)
-        .attrs(style)
-}
-
-// Creates text label
-function createText(parent: ShapeBuilder, text: string, x: number, y: number, style: Record<string, any>) {
-    parent.append('text')
-        .attr('x', x)
-        .attr('y', y)
-        .text(text)
-        .attrs(style)
-}
-
-// Draw a single straight line where specific positions along the line become gaps (dashed sections).
-// dashed: array of { start, length } in [0..1] relative to full length; values are clamped and sorted.
-function drawLineWithGaps(
-    parent: ShapeBuilder,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    style: Record<string, any>,
-    dashed: Array<{ start: number; length: number }> = []
-) {
-    const total = Math.hypot(x2 - x1, y2 - y1)
-
-    // Normalize and sort segments
-    const segs = dashed
-        .map(d => ({ start: Math.max(0, Math.min(1, d.start)), length: Math.max(0, Math.min(1, d.length)) }))
-        .filter(d => d.length > 0)
-        .sort((a, b) => a.start - b.start)
-
-    // Build dasharray representing [visible, gap, visible, gap, ...] once over the whole line
-    const parts: number[] = []
-    let cursor = 0
-    for (const s of segs) {
-        const dashStart = s.start
-        const dashEnd = Math.min(1, s.start + s.length)
-        if (dashStart > cursor) {
-            parts.push((dashStart - cursor) * total) // visible
-        } else if (parts.length === 0) {
-            parts.push(0) // no leading visible portion
-        }
-        parts.push((dashEnd - Math.max(cursor, dashStart)) * total) // gap
-        cursor = Math.max(cursor, dashEnd)
-    }
-    if (cursor < 1) {
-        parts.push((1 - cursor) * total) // trailing visible
-    }
-
-    // Ensure dasharray alternates visible/gap; SVG will repeat the pattern after one cycle
-    const line = parent.append('line')
-        .attr('x1', x1).attr('y1', y1)
-        .attr('x2', x2).attr('y2', y2)
-        .attrs(style)
-
-    if (parts.length) {
-        line.attr('stroke-dasharray', parts.map(v => v.toFixed(3)).join(','))
-    }
-}
-
-// Composite block of lines and squares like in the UI (top rows and bottom button row)
-function contentBlockShape(parent: ShapeBuilder, stroke: Record<string, any>) {
-    const group = parent.append('g')
-
-    const bottomLineStart = 7.5
-    const bottomLineEnd = 248.502
-    const bottomLineLength = bottomLineEnd - bottomLineStart
-
-    // Top small square and lines
-    createRoundedRect(group, 12.5, 92, 42.5, 42.5, 5, stroke)
-    drawLineWithGaps(group, 92, 94.5, 136, 94.5, stroke, [])
-    drawLineWithGaps(group, 163, 94.5, 399, 94.5, stroke, [])
-    ;[425, 461, 497].forEach(x => drawLineWithGaps(group, x, 94.5, x + 8, 94.5, stroke, []))
-
-    // Third line (middle) remains solid with no gaps
-    const line3Start = 92.119
-    const line3End = 504.5
-    const line3Length = line3End - line3Start
-    drawLineWithGaps(group, line3Start, 132.018, line3End, 132.018, stroke, [])
-
-    // Bottom lines - with gaps matching the mock exact positions
-    const topLineGapWidth = 163 - 136 // reuse top gap width for bottom dash length
-    const bottomGapStartX = 183
-    drawLineWithGaps(group, bottomLineStart, 380, bottomLineEnd, 380, stroke, [
-        { start: (bottomGapStartX - bottomLineStart) / bottomLineLength, length: topLineGapWidth / bottomLineLength }
-    ])
-    drawLineWithGaps(group, bottomLineStart, 417.5, bottomLineEnd, 417.5, stroke, [
-        { start: (54 - bottomLineStart) / bottomLineLength, length: (89 - 54) / bottomLineLength }
-    ])
-
-    // Bottom right three squares
-    ;[286, 371, 457].forEach(x => {
-        createRoundedRect(group, x, 377.5, 42.5, 42.5, 5, stroke)
-    })
-}
-
-// Rectangle block with gradient background, white rounded inner border, and centered text
-function contextBlock(parent: ShapeBuilder, text: string, stroke: Record<string, any>) {
-    // Gradient-filled background (extends beyond inner border)
-    createRoundedRect(parent, -25, 147.45, 562, 217.1, 17, { fill: 'url(#ctx-grad)' })
-
-    // Inner rounded border as two path segments (left and right)
-    parent.append('path')
-        .attr('d', 'M109.583,179.95H17.5c-5.523,0-10,4.477-10,10V322.05c0,5.523,4.477,10,10,10H417')
-        .attrs(stroke)
-    parent.append('path')
-        .attr('d', 'M452,332.05h42.5c5.523,0,10-4.477,10-10V189.95c0-5.523-4.477-10-10-10H144.583')
-        .attrs(stroke)
-
-    // Centered label
-    createText(parent, text, 256, 270, {
-        fill: 'white',
-        'font-family': 'Arial, sans-serif',
-        'font-size': '60px',
-        'font-weight': 'bold',
-        'text-anchor': 'middle',
-        'dominant-baseline': 'middle'
-    })
+    return 3 * mt2 * t + 3 * mt * t2 + t3
 }
 
 // Creates the context shape SVG from scratch using D3
-// Returns complete SVG string with gradient and all paths
+// Returns complete SVG string with gradient and all shapes
 export function createContextShapeSVG(): string {
-    const tempContainer = select(document.createElement('div'))
+    const container = select(document.createElement('div'))
 
-    // SVG dimensions and layout constants
-    const viewBox = { x: -30, y: -30, width: 572, height: 572 }
-    const gradientArea = { x: -25, y: 147.45, width: 562, height: 217.1, radius: 17 }
-
-    const svg = tempContainer.append('svg')
+    const svg = container.append('svg')
         .attr('xmlns', 'http://www.w3.org/2000/svg')
-        .attr('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`)
+        .attr('viewBox', '-30 -30 572 572')
         .attr('width', '512')
         .attr('height', '512')
 
-    // Setup animated gradient
-    const defs = svg.append('defs')
-    const gradient = defs.append('linearGradient')
+    // Gradient definition
+    const gradient = svg.append('defs')
+        .append('linearGradient')
         .attr('id', 'ctx-grad')
-        .attr('x1', '0%')
-        .attr('y1', '0%')
-        .attr('x2', '100%')
-        .attr('y2', '100%')
+        .attr('x1', '0%').attr('y1', '0%')
+        .attr('x2', '100%').attr('y2', '100%')
 
-    const gradientColors = ['#a78bfa', '#60a5fa', '#a78bfa']
-    gradientColors.forEach((color, i) => {
+    ;['#a78bfa', '#60a5fa', '#a78bfa'].forEach((color, i) => {
         gradient.append('stop')
             .attr('offset', `${i * 50}%`)
             .attr('id', `ctx-stop-${i}`)
             .style('stop-color', color)
-            .style('stop-opacity', 1)
     })
 
     const g = svg.append('g')
 
-    // Common stroke styling
-    const stroke = {
-        fill: 'none',
-        stroke: 'white',
-        'stroke-width': 15,
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round'
-    }
+    // Gradient background rectangle
+    g.append('rect')
+        .attr('x', -25).attr('y', 147.45)
+        .attr('width', 562).attr('height', 217.1)
+        .attr('rx', 17).attr('ry', 17)
+        .attr('fill', 'url(#ctx-grad)')
 
-    // Compose blocks
-    contextBlock(g, 'CONTEXT', stroke)
-    contentBlockShape(g, stroke)
+    // White rounded border (two path segments)
+    g.append('path')
+        .attr('d', 'M109.583,179.95H17.5c-5.523,0-10,4.477-10,10V322.05c0,5.523,4.477,10,10,10H417')
+        .attr('fill', 'none').attr('stroke', 'white')
+        .attr('stroke-width', 15).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
 
-    return tempContainer.html()
+    g.append('path')
+        .attr('d', 'M452,332.05h42.5c5.523,0,10-4.477,10-10V189.95c0-5.523-4.477-10-10-10H144.583')
+        .attr('fill', 'none').attr('stroke', 'white')
+        .attr('stroke-width', 15).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+
+    // "CONTEXT" text
+    g.append('text')
+        .attr('x', 256).attr('y', 270)
+        .attr('fill', 'white')
+        .attr('font-family', 'Arial, sans-serif')
+        .attr('font-size', '60px')
+        .attr('font-weight', 'bold')
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'middle')
+        .text('CONTEXT')
+
+    // Helper for white stroked shapes
+    const addStroke = (elem: any) => elem
+        .attr('fill', 'none').attr('stroke', 'white')
+        .attr('stroke-width', 15).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+
+    // Top square
+    addStroke(g.append('rect')
+        .attr('x', 12.5).attr('y', 92)
+        .attr('width', 42.5).attr('height', 42.5)
+        .attr('rx', 5).attr('ry', 5))
+
+    // Top line (row 1) - two segments with gap between 136-163
+    addStroke(g.append('line').attr('x1', 92).attr('y1', 94.5).attr('x2', 136).attr('y2', 94.5))
+    addStroke(g.append('line').attr('x1', 163).attr('y1', 94.5).attr('x2', 399).attr('y2', 94.5))
+
+    // Top line dots
+    ;[425, 461, 497].forEach(x => {
+        addStroke(g.append('line').attr('x1', x).attr('y1', 94.5).attr('x2', x + 8).attr('y2', 94.5))
+    })
+
+    // Middle line (row 2) - solid, no gaps
+    addStroke(g.append('line').attr('x1', 92.119).attr('y1', 132.018).attr('x2', 504.5).attr('y2', 132.018))
+
+    // Bottom line 1 (row 3) - two segments with gap at 183-210
+    addStroke(g.append('line').attr('x1', 7.5).attr('y1', 380).attr('x2', 183).attr('y2', 380))
+    addStroke(g.append('line').attr('x1', 210).attr('y1', 380).attr('x2', 248.502).attr('y2', 380))
+
+    // Bottom line 2 (row 4) - two segments with gap at 54-89
+    addStroke(g.append('line').attr('x1', 7.5).attr('y1', 417.5).attr('x2', 54).attr('y2', 417.5))
+    addStroke(g.append('line').attr('x1', 89).attr('y1', 417.5).attr('x2', 248.502).attr('y2', 417.5))
+
+    // Bottom three squares
+    ;[286, 371, 457].forEach(x => {
+        addStroke(g.append('rect')
+            .attr('x', x).attr('y', 377.5)
+            .attr('width', 42.5).attr('height', 42.5)
+            .attr('rx', 5).attr('ry', 5))
+    })
+
+    return container.html()
 }
 
-// Extend D3 selection prototype
-const originalSelection = select(document.createElement('div')).constructor.prototype
-if (!originalSelection.attrs) {
-    originalSelection.attrs = function(obj: Record<string, string | number>) {
-        for (const key in obj) {
-            this.attr(key, obj[key])
-        }
-        return this
-    }
-}
 
-// Animation controller for context shape gradient
-// Call this after the SVG is rendered in the DOM
-// container - The container element where the foreignObject is rendered
-// nodeId - The ID of the node (default: 'context')
-// duration - Animation duration in milliseconds (default: 1500)
-// Returns object with stop() method to halt the animation
+// Animation controller for gradient
+// Starts animation once SVG content is detected in the DOM
 export function startContextShapeAnimation(
     container: HTMLElement,
     nodeId: string = 'context',
     duration: number = 1500
 ): { stop: () => void } {
-    let isRunning = true
-    let gradientElement: any = null
+    let running = true
+    let gradient: any = null
 
-    const animate = () => {
-        if (!isRunning || !gradientElement) return
+    const loop = () => {
+        if (!running || !gradient) return
 
-        gradientElement
-            .transition()
-            .duration(duration)
-            .ease(customEase)
-            .attr('x1', '-50%')
-            .attr('x2', '50%')
-            .transition()
-            .duration(duration)
-            .ease(customEase)
-            .attr('x1', '0%')
-            .attr('x2', '100%')
-            .on('end', () => isRunning && animate())
+        gradient
+            .transition().duration(duration).ease(customEase)
+            .attr('x1', '-50%').attr('x2', '50%')
+            .transition().duration(duration).ease(customEase)
+            .attr('x1', '0%').attr('x2', '100%')
+            .on('end', () => running && loop())
     }
 
-    // Try to find and animate gradient immediately
-    const foreignObjNode = select(container)
+    const foreignObj = select(container)
         .select(`foreignObject#node-${nodeId}`)
         .node() as SVGForeignObjectElement | null
 
-    if (foreignObjNode?.children.length) {
-        const svg = foreignObjNode.querySelector('.connector-icon svg')
+    // Try immediate selection
+    if (foreignObj?.children.length) {
+        const svg = foreignObj.querySelector('.connector-icon svg')
         if (svg) {
-            gradientElement = select(svg).select('#ctx-grad')
-            if (gradientElement && !gradientElement.empty()) {
-                animate()
-                return {
-                    stop: () => {
-                        isRunning = false
-                        if (gradientElement) {
-                            gradientElement.interrupt()
-                        }
-                    }
-                }
+            gradient = select(svg).select('#ctx-grad')
+            if (gradient && !gradient.empty()) {
+                loop()
+                return { stop: () => { running = false; gradient?.interrupt() } }
             }
         }
     }
 
-    // Fallback: Use MutationObserver if content not ready
-    if (foreignObjNode) {
+    // Watch for content insertion
+    if (foreignObj) {
         const observer = new MutationObserver(() => {
-            const svg = foreignObjNode.querySelector('.connector-icon svg')
+            const svg = foreignObj.querySelector('.connector-icon svg')
             if (svg) {
-                gradientElement = select(svg).select('#ctx-grad')
-                if (gradientElement && !gradientElement.empty()) {
+                gradient = select(svg).select('#ctx-grad')
+                if (gradient && !gradient.empty()) {
                     observer.disconnect()
-                    animate()
+                    loop()
                 }
             }
         })
 
-        observer.observe(foreignObjNode, { childList: true, subtree: true })
+        observer.observe(foreignObj, { childList: true, subtree: true })
     }
 
-    return {
-        stop: () => {
-            isRunning = false
-            if (gradientElement) {
-                gradientElement.interrupt()
-            }
-        }
-    }
+    return { stop: () => { running = false; gradient?.interrupt() } }
 }
