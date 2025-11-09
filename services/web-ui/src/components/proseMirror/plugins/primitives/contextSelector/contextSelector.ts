@@ -3,7 +3,8 @@ import { html } from '../../../components/domTemplates.ts'
 import { createConnectorRenderer } from '../infographics/connectors/index.ts'
 import {
     createIconShape,
-    createContextShapeSVG
+    createContextShapeSVG,
+    startContextShapeAnimation
 } from '../infographics/shapes/index.ts'
 import { aiRobotFaceIcon } from '../../../../../svgIcons/index.ts'
 
@@ -37,6 +38,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
     let currentThreadIdx = currentThreadIndex
     let domRef: HTMLElement | null = null
     let connector: ReturnType<typeof createConnectorRenderer> | null = null
+    let activeAnimation: { stop: () => void } | null = null
 
     // Generate unique instance ID for this selector
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
@@ -72,6 +74,12 @@ export function createContextSelector(config: ContextSelectorConfig) {
             connector.destroy()
         }
 
+        // Stop any active animation
+        if (activeAnimation) {
+            activeAnimation.stop()
+            activeAnimation = null
+        }
+
         // Create new connector renderer
         connector = createConnectorRenderer({
             container: visualizationContainer,
@@ -81,7 +89,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
         })
 
         // Common document stacking parameters
-        const docStackGap = 88
+        const docStackGap = 60
         const totalThreads = currentThreadCount
         const startOffset = -(totalThreads - 1) / 2
 
@@ -139,6 +147,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
         // Render all nodes and edges
         connector.render()
+
+        // Start the context shape gradient animation
+        activeAnimation = startContextShapeAnimation(visualizationContainer, 'doc-0', 1000)
     }
 
     // Handle button click
@@ -235,6 +246,11 @@ export function createContextSelector(config: ContextSelectorConfig) {
     }
 
     const destroy = () => {
+        // Clean up animation
+        if (activeAnimation) {
+            activeAnimation.stop()
+            activeAnimation = null
+        }
         // Clean up connector
         if (connector) {
             connector.destroy()
