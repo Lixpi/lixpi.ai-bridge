@@ -63,11 +63,20 @@
     .context-visualization {
         margin-top: 1rem;
         padding: 1rem 0.5rem;
-        background: rgba(12, 17, 28, 0.28);
-        border-radius: 10px;
 
         // Semantic styling for context selector shapes
         // Target the connector nodes with our semantic classes
+
+        // Style connector edges
+        .connector-edge {
+            stroke: $offWhite;
+        }
+
+        // Style arrowhead markers
+        .connector-arrowhead {
+            fill: $offWhite;
+            stroke: $offWhite;
+        }
 
         .shape-node.document-block-shape {
             filter: drop-shadow(0 7px 16px rgba(12, 17, 28, 0.48));
@@ -117,7 +126,7 @@
             svg {
                 width: 100%;
                 height: 100%;
-                fill: rgba(167, 139, 250, 0.92);
+                fill: $offWhite;
             }
         }
     }

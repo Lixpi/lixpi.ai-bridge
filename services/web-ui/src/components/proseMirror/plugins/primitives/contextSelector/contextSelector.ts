@@ -6,7 +6,7 @@ import {
     createContextShapeSVG,
     startContextShapeAnimation
 } from '../infographics/shapes/index.ts'
-import { aiRobotFaceIcon } from '../../../../../svgIcons/index.ts'
+import { aiLightBulbIcon } from '../../../../../svgIcons/index.ts'
 
 type ContextOption = {
     label: string
@@ -50,17 +50,17 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const documentLayout = {
         width: 92,
         height: 92,
-        x: 36,
+        x: 10,
         y: baselineY - 46
     }
 
     const docRightX = documentLayout.x + documentLayout.width
-    const connectorGap = 120
+    const connectorGap = 136
 
     const llmLayout = {
-        size: 58,
+        size: 92,
         iconX: docRightX + connectorGap,
-        iconY: baselineY - 29
+        iconY: baselineY - 46
     }
 
     // Create visualization using shape factories and connector system
@@ -118,7 +118,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
             x: llmLayout.iconX,
             y: llmLayout.iconY,
             size: llmLayout.size,
-            icon: aiRobotFaceIcon,
+            icon: aiLightBulbIcon,
             className: 'ctx-llm'
         })
         connector.addNode(llmNode)
