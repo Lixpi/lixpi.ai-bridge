@@ -88,7 +88,10 @@
         }
 
         .shape-node.document-block-shape.ctx-document-active {
-            transform: translateX(4px) scale(1.04);
+            /* Emphasize active without shifting layout */
+            transform-origin: left center;
+            transform: none; /* avoid any positional drift on foreignObject */
+            filter: drop-shadow(0 10px 20px rgba(12, 17, 28, 0.56)) brightness(1.06);
         }
 
         .shape-node.document-block-shape.ctx-document-muted {
