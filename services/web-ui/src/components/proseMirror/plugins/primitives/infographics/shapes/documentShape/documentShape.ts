@@ -47,7 +47,7 @@ export function createContextShapeSVG(config?: { withGradient?: boolean; instanc
     }
 
     // Draw thread shape with text
-    drawDocumentThreadShape(g, { text: 'CONTEXT' })
+    drawDocumentThreadShape(g, { text: 'THREAD' })
 
     // Draw bottom content block (lines + squares below context box)
     drawDocumentContentBlock(g, { variant: 'bottom' })
