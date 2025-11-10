@@ -43,7 +43,9 @@ export const aiChatThreadNodeSpec = {
         // Thread context determines scope of content extraction: 'Thread' or 'Document'
         threadContext: { default: 'Thread' },
         // Collapsed state - content is hidden but still receives streaming updates
-        isCollapsed: { default: false }
+        isCollapsed: { default: false },
+        // Workspace selection state - whether this thread is selected for workspace context
+        workspaceSelected: { default: false }
     },
     parseDOM: [
         {
@@ -53,7 +55,8 @@ export const aiChatThreadNodeSpec = {
                 status: dom.getAttribute('data-status') || 'active',
                 aiModel: dom.getAttribute('data-ai-model') || '',
                 threadContext: dom.getAttribute('data-thread-context') || 'Thread',
-                isCollapsed: dom.getAttribute('data-is-collapsed') === 'true'
+                isCollapsed: dom.getAttribute('data-is-collapsed') === 'true',
+                workspaceSelected: dom.getAttribute('data-workspace-selected') === 'true'
             })
         }
     ],
@@ -65,7 +68,8 @@ export const aiChatThreadNodeSpec = {
             'data-status': node.attrs.status,
             'data-ai-model': node.attrs.aiModel,
             'data-thread-context': node.attrs.threadContext,
-            'data-is-collapsed': node.attrs.isCollapsed
+            'data-is-collapsed': node.attrs.isCollapsed,
+            'data-workspace-selected': node.attrs.workspaceSelected
         },
         0
     ]
@@ -240,9 +244,21 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
             // Update context selector with current thread position (always, in case threads added/removed)
             const threadPosInfo = getThreadPositionInfo(view, updatedNode.attrs.threadId)
             if (threadPosInfo && contextSelector) {
+                // Collect all thread selection states for workspace mode
+                const threadSelections: Array<{ threadId: string; selected: boolean }> = []
+                view.state.doc.descendants((node, pos) => {
+                    if (node.type.name === aiChatThreadNodeType) {
+                        threadSelections.push({
+                            threadId: node.attrs.threadId,
+                            selected: node.attrs.workspaceSelected ?? false
+                        })
+                    }
+                })
+
                 contextSelector.update({
                     threadCount: threadPosInfo.totalCount,
-                    currentThreadIndex: threadPosInfo.index
+                    currentThreadIndex: threadPosInfo.index,
+                    threadSelections
                 })
             }
 
@@ -354,6 +370,17 @@ function createThreadInfoBubble(view, threadId, getPos) {
     const threadCount = threadPosInfo?.totalCount || 1
     const currentThreadIndex = threadPosInfo?.index || 0
 
+    // Collect all thread selection states for workspace mode
+    const threadSelections: Array<{ threadId: string; selected: boolean }> = []
+    view.state.doc.descendants((node, pos) => {
+        if (node.type.name === aiChatThreadNodeType) {
+            threadSelections.push({
+                threadId: node.attrs.threadId,
+                selected: node.attrs.workspaceSelected ?? false
+            })
+        }
+    })
+
     const headerContent = html`
         <div class="flex justify-start items-center">
             <div class="thread-info-bubble-header">
@@ -389,6 +416,7 @@ function createThreadInfoBubble(view, threadId, getPos) {
         selectedValue: currentThreadContext,
         threadCount,
         currentThreadIndex,
+        threadSelections,
         onChange: (value) => {
             console.log('[AI_DBG][THREAD.contextSelector] onChange', { threadId, value })
 
@@ -402,6 +430,19 @@ function createThreadInfoBubble(view, threadId, getPos) {
                     view.dispatch(tr)
                 }
             }
+        },
+        onThreadSelectionChange: (changedThreadId, selected) => {
+            console.log('[AI_DBG][THREAD.contextSelector] onThreadSelectionChange', { changedThreadId, selected })
+
+            // Find and update the thread node with matching threadId
+            view.state.doc.descendants((node, nodePos) => {
+                if (node.type.name === aiChatThreadNodeType && node.attrs.threadId === changedThreadId) {
+                    const newAttrs = { ...node.attrs, workspaceSelected: selected }
+                    const tr = view.state.tr.setNodeMarkup(nodePos, undefined, newAttrs)
+                    view.dispatch(tr)
+                    return false  // Stop searching
+                }
+            })
         }
     })
 

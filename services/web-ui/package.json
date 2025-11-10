@@ -39,7 +39,8 @@
         "http-server": "*",
         "uuid": "*",
         "@xyflow/system": "*",
-        "d3-selection": "*"
+        "d3-selection": "*",
+        "d3-ease": "*"
     },
     "dependencies": {
         "@lixpi/constants": "workspace:*",

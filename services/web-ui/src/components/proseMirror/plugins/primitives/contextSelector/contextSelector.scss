@@ -5,11 +5,12 @@
 .info-bubble-wrapper.thread-info-bubble {
     .bubble-container {
         min-width: 560px;
+        border-radius: 10px;
     }
 }
 
 .thread-info-bubble-header {
-    margin: 0 .5rem .5rem .5rem;
+    margin: .2rem .5rem .5rem .5rem;
     color: inherit;
     white-space: normal; // Allow text wrapping in header
 

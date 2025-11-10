@@ -48,7 +48,12 @@ createContextSelector({
   selectedValue?: 'opt1',          // Initial selection (defaults to first option)
   threadCount?: 3,                 // Total number of threads in document (for visualization)
   currentThreadIndex?: 1,          // This thread's 0-based position (for visualization)
-  onChange?: (value: string) => void
+  threadSelections?: [             // Workspace selection state for each thread
+    { threadId: 'thread-1', selected: false },
+    { threadId: 'thread-2', selected: true }
+  ],
+  onChange?: (value: string) => void,
+  onThreadSelectionChange?: (threadId: string, selected: boolean) => void  // Workspace checkbox handler
 })
 // Returns: {
 //   dom: HTMLElement,
@@ -66,7 +71,9 @@ createContextSelector({
 - `selectedValue`: Initial selected value (default: first option)
 - `threadCount`: Total number of threads in document (default: 3) - used for dynamic visualization
 - `currentThreadIndex`: This thread's 0-based position (default: 1) - used to highlight current thread
+- `threadSelections`: Array of workspace selection states for each thread - only used in Workspace mode
 - `onChange`: Callback executed when selection changes
+- `onThreadSelectionChange`: Callback executed when a checkbox is toggled in Workspace mode
 
 ### Return Value
 
@@ -133,6 +140,10 @@ This enables thread-specific visualizations:
 
 **Workspace Mode:**
 - Mirrors Document mode (workspace scope) with a slightly wider arc
+- Shows checkboxes to the left of each document shape
+- Checkboxes allow selective inclusion of threads in the AI context
+- Selection state is preserved even when switching to other modes
+- Only threads with checked boxes show active connections to AI
 
 ### Integration Example
 

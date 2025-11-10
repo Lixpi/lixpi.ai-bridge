@@ -7,13 +7,24 @@ import {
     startContextSelectionAnimation,
     startThreadGradientAnimation
 } from '../infographics/shapes/index.ts'
+import { createCheckbox } from '../infographics/shapes/checkbox/index.ts'
 import { aiLightBulbIcon, contextIcon, documentIcon } from '../../../../../svgIcons/index.ts'
+
+// @ts-ignore - runtime import
+import { select } from 'd3-selection'
+// @ts-ignore - runtime import
+import { easeCubicInOut } from 'd3-ease'
 
 type ContextOption = {
     label: string
     value: string
     icon?: string
     description?: string
+}
+
+type ThreadSelectionState = {
+    threadId: string
+    selected: boolean
 }
 
 type ContextSelectorConfig = {
@@ -23,6 +34,8 @@ type ContextSelectorConfig = {
     onChange?: (value: string) => void
     threadCount?: number           // Total number of threads in document
     currentThreadIndex?: number    // This thread's position (0-based)
+    threadSelections?: ThreadSelectionState[]  // Workspace selection state for each thread
+    onThreadSelectionChange?: (threadId: string, selected: boolean) => void  // Callback when checkbox changes
 }
 
 export function createContextSelector(config: ContextSelectorConfig) {
@@ -32,16 +45,20 @@ export function createContextSelector(config: ContextSelectorConfig) {
         selectedValue,
         onChange,
         threadCount = 3,
-        currentThreadIndex = 1
+        currentThreadIndex = 1,
+        threadSelections = [],
+        onThreadSelectionChange
     } = config
 
     let currentValue = selectedValue || options[0]?.value || ''
     let currentThreadCount = threadCount
     let currentThreadIdx = currentThreadIndex
+    let currentThreadSelections = threadSelections
     let domRef: HTMLElement | null = null
     let connector: ReturnType<typeof createConnectorRenderer> | null = null
     let activeAnimations: Array<{ stop: () => void }> = []
     let descriptionText: HTMLElement | null = null
+    let checkboxInstances: Map<string, ReturnType<typeof createCheckbox>> = new Map()
 
     // Generate unique instance ID for this selector
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
@@ -50,150 +67,183 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const VIEWBOX_WIDTH = 480
     const VIEWBOX_HEIGHT = 256
     const baselineY = 128
+    const CHECKBOX_SIZE = 24
+    const CHECKBOX_MARGIN = 16  // Gap between checkbox and document shape
+    const WORKSPACE_SHIFT = CHECKBOX_SIZE + CHECKBOX_MARGIN  // How much to shift docs right in workspace mode
+    
     const documentLayout = {
         width: 105.6,
         height: 105.6,
-        x: 0,  // Align to left edge (1rem padding handled by body)
+        baseX: 0,  // Base position when no checkboxes
+        get x() { return this.baseX },  // Will be dynamically updated
         y: baselineY - 52.8
     }
 
     const llmLayout = {
         size: 147.2,
-        iconX: VIEWBOX_WIDTH - 147.2,  // Align to right edge (lightbulb size = 147.2)
+        iconX: VIEWBOX_WIDTH - 147.2,  // Always aligned to right edge
         iconY: baselineY - 73.6
     }
 
     const docRightX = documentLayout.x + documentLayout.width
     const connectorGap = llmLayout.iconX - docRightX
 
-    // Create visualization using shape factories and connector system
-    const createVisualization = (contextValue: string) => {
+    // Create visualization using D3 transitions - NO CSS!
+    const createVisualization = (contextValue: string, previousValue?: string) => {
         if (!domRef) return
         const visualizationContainer = domRef.querySelector('.context-visualization') as HTMLElement
         if (!visualizationContainer) return
 
-        // Clean up existing connector
-        if (connector) {
-            connector.destroy()
-        }
-
-        // Stop any active animation
-        if (activeAnimations.length > 0) {
-            activeAnimations.forEach(anim => anim.stop())
-            activeAnimations = []
-        }
-
-        // Create new connector renderer
-        connector = createConnectorRenderer({
-            container: visualizationContainer,
-            width: VIEWBOX_WIDTH,
-            height: VIEWBOX_HEIGHT,
-            instanceId
-        })
-
+        const isWorkspaceMode = contextValue === 'Workspace'
+        const wasWorkspaceMode = previousValue === 'Workspace'
+        
+        // Calculate target X position for document group
+        // Workspace mode: shift right to make room for checkboxes
+        // Other modes: align to left
+        const targetDocX = isWorkspaceMode ? WORKSPACE_SHIFT : 0
+        
         // Common document stacking parameters
         const docStackGap = 68.8
         const totalThreads = currentThreadCount
         const startOffset = -(totalThreads - 1) / 2
 
-        // Add document shapes using the document block factory
-        for (let i = 0; i < totalThreads; i++) {
-            const y = baselineY + (startOffset + i) * docStackGap - documentLayout.height / 2
-            const isCurrentThread = i === currentThreadIdx
-            const isActive = contextValue === 'Thread' ? isCurrentThread : true
+        // FIRST RENDER or MODE CHANGE - destroy and recreate
+        const isFirstRender = !connector
+        const isModeChange = previousValue && previousValue !== contextValue
+        
+        if (isFirstRender || isModeChange) {
+            // Clean up existing
+            if (connector) connector.destroy()
+            checkboxInstances.forEach(cb => cb.destroy())
+            checkboxInstances.clear()
+            activeAnimations.forEach(anim => anim.stop())
+            activeAnimations = []
 
-            const documentNode = createIconShape({
-                id: `doc-${i}`,
-                x: documentLayout.x,
-                y,
-                size: documentLayout.width,
-                icon: createContextShapeSVG({
-                    withGradient: isActive,
-                    // withBackgroundAnimatedGradient: isActive,
-                    withBackgroundAnimatedGradient: false,    // Disabled for now, dont' remove comments
-                    instanceId: `doc-${i}`
-                }),
-                className: `document-block-shape ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
-                disabled: contextValue === 'Thread' ? !isCurrentThread : false
+            // Create new connector
+            connector = createConnectorRenderer({
+                container: visualizationContainer,
+                width: VIEWBOX_WIDTH,
+                height: VIEWBOX_HEIGHT,
+                instanceId
             })
 
-            connector.addNode(documentNode)
-        }
+            // Add document nodes at target position
+            for (let i = 0; i < totalThreads; i++) {
+                const y = baselineY + (startOffset + i) * docStackGap - documentLayout.height / 2
+                const isCurrentThread = i === currentThreadIdx
+                
+                let isActive = false
+                let shouldConnect = false
+                
+                if (contextValue === 'Thread') {
+                    isActive = isCurrentThread
+                    shouldConnect = isCurrentThread
+                } else if (contextValue === 'Document') {
+                    isActive = true
+                    shouldConnect = true
+                } else if (contextValue === 'Workspace') {
+                    const threadSelection = currentThreadSelections.find((_, idx) => idx === i)
+                    isActive = threadSelection?.selected ?? false
+                    shouldConnect = threadSelection?.selected ?? false
+                }
 
-        // Add LLM icon using the icon shape factory
-        const llmNode = createIconShape({
-            id: 'llm',
-            x: llmLayout.iconX,
-            y: llmLayout.iconY,
-            size: llmLayout.size,
-            icon: aiLightBulbIcon,
-            className: 'ctx-llm'
-        })
-        connector.addNode(llmNode)
+                connector.addNode(createIconShape({
+                    id: `doc-${i}`,
+                    x: targetDocX,  // Already at target position
+                    y,
+                    size: documentLayout.width,
+                    icon: createContextShapeSVG({
+                        withGradient: isActive,
+                        withBackgroundAnimatedGradient: false,
+                        instanceId: `doc-${i}`
+                    }),
+                    className: `document-block-shape ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
+                    disabled: !isActive
+                }))
 
-        // Add edges based on context mode
-        for (let i = 0; i < totalThreads; i++) {
-            const isCurrentThread = i === currentThreadIdx
-
-            const shouldConnect = contextValue === 'Thread'
-                ? isCurrentThread
-                : true
-
-            if (shouldConnect) {
-                connector.addEdge({
-                    id: `doc-${i}-to-llm`,
-                    source: { nodeId: `doc-${i}`, position: 'right', offset: { x: 2 } },
-                    target: { nodeId: 'llm', position: 'left', offset: { x: -6 } },
-                    pathType: 'horizontal-bezier',
-                    marker: 'arrowhead',
-                    markerSize: 12,
-                    markerOffset: { source: 5, target: 10 },
-                    lineStyle: 'solid',
-                    strokeWidth: 2,
-                    curvature: contextValue === 'Workspace' ? 0.18 : 0.12
-                })
+                if (shouldConnect) {
+                    connector.addEdge({
+                        id: `doc-${i}-to-llm`,
+                        source: { nodeId: `doc-${i}`, position: 'right', offset: { x: 2 } },
+                        target: { nodeId: 'llm', position: 'left', offset: { x: -6 } },
+                        pathType: 'horizontal-bezier',
+                        marker: 'arrowhead',
+                        markerSize: 12,
+                        markerOffset: { source: 5, target: 10 },
+                        lineStyle: 'solid',
+                        strokeWidth: 2,
+                        curvature: contextValue === 'Workspace' ? 0.18 : 0.12
+                    })
+                }
             }
+
+            // Add LLM node (always at same position)
+            connector.addNode(createIconShape({
+                id: 'llm',
+                x: llmLayout.iconX,
+                y: llmLayout.iconY,
+                size: llmLayout.size,
+                icon: aiLightBulbIcon,
+                className: 'ctx-llm'
+            }))
+
+            // Render
+            connector.render()
+
+            // Add checkboxes if workspace mode (ONLY when workspace mode is active)
+            if (isWorkspaceMode) {
+                const svg = visualizationContainer.querySelector('svg')
+                if (svg) {
+                    const svgSelection = select(svg)
+                    
+                    for (let i = 0; i < totalThreads; i++) {
+                        const y = baselineY + (startOffset + i) * docStackGap - documentLayout.height / 2
+                        const checkboxY = y + documentLayout.height / 2 - CHECKBOX_SIZE / 2
+                        const threadSelection = currentThreadSelections[i]
+                        const threadId = threadSelection?.threadId || `thread-${i}`
+                        const checked = threadSelection?.selected ?? false
+
+                        const checkbox = createCheckbox(svgSelection, {
+                            id: threadId,
+                            x: 0,  // Checkboxes at left edge
+                            y: checkboxY,
+                            size: CHECKBOX_SIZE,
+                            checked,
+                            onChange: (newChecked, id) => {
+                                onThreadSelectionChange?.(id, newChecked)
+                            }
+                        })
+                        checkboxInstances.set(threadId, checkbox)
+                    }
+                }
+            }
+
+            // Start gradient animations
+            startGradientAnimations(visualizationContainer, contextValue, totalThreads)
         }
+    }
 
-        // Render all nodes and edges
-        connector.render()
-
-        // Start the context shape gradient animation for all active documents
+    // Helper to start gradient animations
+    function startGradientAnimations(container: HTMLElement, contextValue: string, totalThreads: number) {
         if (contextValue === 'Thread') {
-            // Only animate the active thread
             const animationTargetId = `doc-${currentThreadIdx}`
             const animationGradientId = `ctx-grad-${animationTargetId}`
             const threadGradientId = `ctx-thread-grad-${animationTargetId}`
-            activeAnimations.push(startContextSelectionAnimation(
-                visualizationContainer,
-                animationTargetId,
-                1000,
-                animationGradientId
-            ))
-            activeAnimations.push(startThreadGradientAnimation(
-                visualizationContainer,
-                animationTargetId,
-                50,
-                threadGradientId
-            ))
+            activeAnimations.push(startContextSelectionAnimation(container, animationTargetId, 1000, animationGradientId))
+            activeAnimations.push(startThreadGradientAnimation(container, animationTargetId, 50, threadGradientId))
         } else {
-            // Animate all documents
             for (let i = 0; i < totalThreads; i++) {
-                const animationTargetId = `doc-${i}`
-                const animationGradientId = `ctx-grad-${animationTargetId}`
-                const threadGradientId = `ctx-thread-grad-${animationTargetId}`
-                activeAnimations.push(startContextSelectionAnimation(
-                    visualizationContainer,
-                    animationTargetId,
-                    1000,
-                    animationGradientId
-                ))
-                activeAnimations.push(startThreadGradientAnimation(
-                    visualizationContainer,
-                    animationTargetId,
-                    50,
-                    threadGradientId
-                ))
+                const shouldAnimate = contextValue === 'Workspace'
+                    ? (currentThreadSelections.find((_, idx) => idx === i)?.selected ?? false)
+                    : true
+
+                if (shouldAnimate) {
+                    const animationTargetId = `doc-${i}`
+                    const animationGradientId = `ctx-grad-${animationTargetId}`
+                    const threadGradientId = `ctx-thread-grad-${animationTargetId}`
+                    activeAnimations.push(startContextSelectionAnimation(container, animationTargetId, 1000, animationGradientId))
+                    activeAnimations.push(startThreadGradientAnimation(container, animationTargetId, 50, threadGradientId))
+                }
             }
         }
     }
@@ -202,6 +252,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const handleOptionClick = (optionValue: string) => {
         if (currentValue === optionValue) return // Already selected
 
+        const previousValue = currentValue
         currentValue = optionValue
 
         // Update button states and sliding background position
@@ -224,8 +275,8 @@ export function createContextSelector(config: ContextSelectorConfig) {
             }
         })
 
-        // Update visualization
-        createVisualization(optionValue)
+        // Update visualization with previous value for transitions
+        createVisualization(optionValue, previousValue)
 
         // Call onChange callback
         onChange?.(optionValue)
@@ -305,9 +356,14 @@ export function createContextSelector(config: ContextSelectorConfig) {
         if (newConfig.currentThreadIndex !== undefined) {
             currentThreadIdx = newConfig.currentThreadIndex
         }
+        if (newConfig.threadSelections !== undefined) {
+            currentThreadSelections = newConfig.threadSelections
+        }
 
         // Re-render visualization if thread state changed
-        if (newConfig.threadCount !== undefined || newConfig.currentThreadIndex !== undefined) {
+        if (newConfig.threadCount !== undefined ||
+            newConfig.currentThreadIndex !== undefined ||
+            newConfig.threadSelections !== undefined) {
             createVisualization(currentValue)
         }
     }
@@ -318,6 +374,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
             activeAnimations.forEach(anim => anim.stop())
             activeAnimations = []
         }
+        // Clean up checkboxes
+        checkboxInstances.forEach(checkbox => checkbox.destroy())
+        checkboxInstances.clear()
         // Clean up connector
         if (connector) {
             connector.destroy()
