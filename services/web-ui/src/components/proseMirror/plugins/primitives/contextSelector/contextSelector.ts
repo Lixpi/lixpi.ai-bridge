@@ -7,7 +7,7 @@ import {
     startContextSelectionAnimation,
     startThreadGradientAnimation
 } from '../infographics/shapes/index.ts'
-import { aiLightBulbIcon } from '../../../../../svgIcons/index.ts'
+import { aiLightBulbIcon, contextIcon, documentIcon } from '../../../../../svgIcons/index.ts'
 
 type ContextOption = {
     label: string
@@ -202,11 +202,16 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
         currentValue = optionValue
 
-        // Update button states
+        // Update button states and sliding background position
+        const optionsContainer = domRef?.querySelector('.context-options') as HTMLElement
         buttons.forEach((btn, idx) => {
             if (options[idx].value === optionValue) {
                 btn.classList.add('selected')
                 btn.setAttribute('aria-pressed', 'true')
+                // Update data-selected attribute to trigger sliding background animation
+                if (optionsContainer) {
+                    optionsContainer.setAttribute('data-selected', String(idx))
+                }
             } else {
                 btn.classList.remove('selected')
                 btn.setAttribute('aria-pressed', 'false')
@@ -244,10 +249,13 @@ export function createContextSelector(config: ContextSelectorConfig) {
         return button
     })
 
+    // Find the initial selected index
+    const initialSelectedIndex = options.findIndex(opt => opt.value === currentValue)
+
     // Create the container with visualization area
     const dom = html`
         <div className="context-selector" id="${id}" role="radiogroup" aria-label="Context Selector">
-            <div className="context-options flex gap-2 p-1">
+            <div className="context-options" data-selected="${initialSelectedIndex >= 0 ? initialSelectedIndex : 0}">
                 ${buttonElements}
             </div>
             <div className="context-visualization"></div>

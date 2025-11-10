@@ -1,6 +1,19 @@
 // @ts-nocheck
 import { v4 as uuidv4 } from 'uuid'
-import { keyboardMacCommandIcon, keyboardEnterKeyIcon, sendIcon, pauseIcon, chatThreadBoundariesInfoIcon, aiRobotFaceIcon, gptAvatarIcon, claudeIcon, chevronDownIcon, contextIcon, eyeSlashIcon } from '../../../../svgIcons/index.ts'
+import { keyboardMacCommandIcon,
+    keyboardEnterKeyIcon,
+    sendIcon,
+    pauseIcon,
+    chatThreadBoundariesInfoIcon,
+    aiRobotFaceIcon,
+    gptAvatarIcon,
+    claudeIcon,
+    chevronDownIcon,
+    contextIcon,
+    contextFilledIcon,
+    documentIcon,
+    eyeSlashIcon
+} from '../../../../svgIcons/index.ts'
 import { TextSelection } from 'prosemirror-state'
 import { AI_CHAT_THREAD_PLUGIN_KEY, USE_AI_CHAT_META, STOP_AI_CHAT_META } from './aiChatThreadPluginConstants.ts'
 import { html } from '../../components/domTemplates.ts'
@@ -355,9 +368,9 @@ function createThreadInfoBubble(view, threadId, getPos) {
     const contextSelector = createContextSelector({
         id: `thread-context-selector-${threadId}`,
         options: [
-            { label: 'Thread', value: 'Thread', icon: contextIcon },
-            { label: 'Document', value: 'Document', icon: contextIcon },
-            { label: 'Workspace', value: 'Workspace', icon: contextIcon }
+            { label: 'Thread', value: 'Thread', icon: chatThreadBoundariesInfoIcon },
+            { label: 'Document', value: 'Document', icon: documentIcon },
+            { label: 'Workspace', value: 'Workspace', icon: contextFilledIcon }
         ],
         selectedValue: currentThreadContext,
         threadCount,
