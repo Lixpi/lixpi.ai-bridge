@@ -356,10 +356,10 @@ function createThreadInfoBubble(view, threadId, getPos) {
 
     const headerContent = html`
         <div class="flex justify-start items-center">
-            <span innerHTML=${aiRobotFaceIcon}></span>
             <div>
-                <span>AI Thread Context</span>
-                <span>AI generated title will be here</span>
+                <span>AI Thread</span>
+                <br/>
+                <span>Auto generated title will be here</span>
             </div>
         </div>
     ` as HTMLElement
@@ -368,9 +368,24 @@ function createThreadInfoBubble(view, threadId, getPos) {
     const contextSelector = createContextSelector({
         id: `thread-context-selector-${threadId}`,
         options: [
-            { label: 'Thread', value: 'Thread', icon: chatThreadBoundariesInfoIcon },
-            { label: 'Document', value: 'Document', icon: documentIcon },
-            { label: 'Workspace', value: 'Workspace', icon: contextFilledIcon }
+            {
+                label: 'Thread',
+                value: 'Thread',
+                icon: chatThreadBoundariesInfoIcon,
+                description: 'Only content from this thread is included in the AI context'
+            },
+            {
+                label: 'Document',
+                value: 'Document',
+                icon: documentIcon,
+                description: 'All content from the entire document, including all threads, is included in the AI context'
+            },
+            {
+                label: 'Workspace',
+                value: 'Workspace',
+                icon: contextFilledIcon,
+                description: 'You can configure which threads are included in the AI context below'
+            }
         ],
         selectedValue: currentThreadContext,
         threadCount,

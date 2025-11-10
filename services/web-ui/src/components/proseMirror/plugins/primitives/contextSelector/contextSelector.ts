@@ -13,6 +13,7 @@ type ContextOption = {
     label: string
     value: string
     icon?: string
+    description?: string
 }
 
 type ContextSelectorConfig = {
@@ -40,6 +41,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
     let domRef: HTMLElement | null = null
     let connector: ReturnType<typeof createConnectorRenderer> | null = null
     let activeAnimations: Array<{ stop: () => void }> = []
+    let descriptionText: HTMLElement | null = null
 
     // Generate unique instance ID for this selector
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
@@ -49,10 +51,10 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const VIEWBOX_HEIGHT = 256
     const baselineY = 128
     const documentLayout = {
-        width: 132,
-        height: 132,
+        width: 105.6,
+        height: 105.6,
         x: 16,
-        y: baselineY - 66
+        y: baselineY - 52.8
     }
 
     const docRightX = documentLayout.x + documentLayout.width
@@ -90,7 +92,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
         })
 
         // Common document stacking parameters
-        const docStackGap = 86
+        const docStackGap = 68.8
         const totalThreads = currentThreadCount
         const startOffset = -(totalThreads - 1) / 2
 
@@ -212,6 +214,10 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 if (optionsContainer) {
                     optionsContainer.setAttribute('data-selected', String(idx))
                 }
+                // Update description text
+                if (descriptionText && options[idx].description) {
+                    descriptionText.textContent = options[idx].description || ''
+                }
             } else {
                 btn.classList.remove('selected')
                 btn.setAttribute('aria-pressed', 'false')
@@ -252,12 +258,21 @@ export function createContextSelector(config: ContextSelectorConfig) {
     // Find the initial selected index
     const initialSelectedIndex = options.findIndex(opt => opt.value === currentValue)
 
+    // Get initial description
+    const initialDescription = options[initialSelectedIndex >= 0 ? initialSelectedIndex : 0]?.description || ''
+
+    // Create description text element
+    descriptionText = html`
+        <div className="context-description">${initialDescription}</div>
+    ` as HTMLElement
+
     // Create the container with visualization area
     const dom = html`
         <div className="context-selector" id="${id}" role="radiogroup" aria-label="Context Selector">
             <div className="context-options" data-selected="${initialSelectedIndex >= 0 ? initialSelectedIndex : 0}">
                 ${buttonElements}
             </div>
+            ${descriptionText}
             <div className="context-visualization"></div>
         </div>
     ` as HTMLElement

@@ -195,8 +195,8 @@
         border: .06rem solid $borderColor;
 
         .bubble-header {
-            padding: .5rem .5rem;
-            background: $borderColor;
+            padding: .5rem .5rem .5rem .5rem;
+            border-bottom: 1px solid $borderColor;
             border-top-left-radius: map-get($s, bubbleRadius);
             border-top-right-radius: map-get($s, bubbleRadius);
         }
