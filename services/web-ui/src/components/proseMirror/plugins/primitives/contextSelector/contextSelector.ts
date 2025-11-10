@@ -47,24 +47,24 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
 
     // Layout constants
-    const VIEWBOX_WIDTH = 544
+    const VIEWBOX_WIDTH = 480
     const VIEWBOX_HEIGHT = 256
     const baselineY = 128
     const documentLayout = {
         width: 105.6,
         height: 105.6,
-        x: 16,
+        x: 0,  // Align to left edge (1rem padding handled by body)
         y: baselineY - 52.8
     }
 
-    const docRightX = documentLayout.x + documentLayout.width
-    const connectorGap = 217.6
-
     const llmLayout = {
         size: 147.2,
-        iconX: docRightX + connectorGap,
+        iconX: VIEWBOX_WIDTH - 147.2,  // Align to right edge (lightbulb size = 147.2)
         iconY: baselineY - 73.6
     }
+
+    const docRightX = documentLayout.x + documentLayout.width
+    const connectorGap = llmLayout.iconX - docRightX
 
     // Create visualization using shape factories and connector system
     const createVisualization = (contextValue: string) => {

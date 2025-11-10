@@ -15,6 +15,7 @@ type InfoBubbleConfig = {
     onClose?: () => void
     closeOnClickOutside?: boolean
     offset?: { x?: number, y?: number }
+    className?: string
 }
 
 export function createInfoBubble(config: InfoBubbleConfig) {
@@ -30,14 +31,15 @@ export function createInfoBubble(config: InfoBubbleConfig) {
         onOpen,
         onClose,
         closeOnClickOutside = true,
-        offset = { x: 0, y: 20 } // Default 20px spacing from anchor
+        offset = { x: 0, y: 20 }, // Default 20px spacing from anchor
+        className = ''
     } = config
 
     let isVisible = visible
 
     // Create the info bubble DOM structure
     const dom = html`
-        <div class="info-bubble-wrapper theme-${theme}" data-arrow-side="${arrowSide}" data-bubble-id="${id}">
+        <div class="info-bubble-wrapper theme-${theme} ${className}" data-arrow-side="${arrowSide}" data-bubble-id="${id}">
             <nav class="bubble-wrapper ${isVisible ? 'visible' : ''}" contenteditable="false">
                 <div class="bubble-container">
                     ${headerContent && html`<div class="bubble-header">${headerContent}</div>`}
