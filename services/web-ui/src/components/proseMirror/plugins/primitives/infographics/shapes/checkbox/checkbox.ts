@@ -4,7 +4,8 @@
 // @ts-ignore - runtime import
 import { select } from 'd3-selection'
 // @ts-ignore - runtime import
-import { easeCubicOut } from 'd3-ease'
+import { easeCubicOut, easeCubicIn } from 'd3-ease'
+import { ENTRANCE_ANIMATION_DURATION } from '../../animationConstants.ts'
 
 type CheckboxConfig = {
     id: string
@@ -87,11 +88,11 @@ export function createCheckbox(
         .attr('opacity', state.checked ? 1 : 0)
         .attr('transform', `translate(${size * 0.08}, ${size * 0.08}) scale(${size / 24})`)
 
-    // Animate checkbox into view with 600ms transition
+    // Animate checkbox into view with entrance transition
     checkboxGroup
         .transition()
-        .duration(600)
-        .ease(easeCubicOut)
+        .duration(ENTRANCE_ANIMATION_DURATION)
+        .ease(easeCubicIn)
         .attr('transform', `translate(${x}, ${y})`)  // Slide to final position
         .style('opacity', 1)  // Fade in
 

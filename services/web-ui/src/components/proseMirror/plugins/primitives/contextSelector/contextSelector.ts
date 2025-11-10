@@ -9,11 +9,12 @@ import {
 } from '../infographics/shapes/index.ts'
 import { createCheckbox } from '../infographics/shapes/checkbox/index.ts'
 import { aiLightBulbIcon, contextIcon, documentIcon } from '../../../../../svgIcons/index.ts'
+import { ENTRANCE_ANIMATION_DURATION } from '../infographics/animationConstants.ts'
 
 // @ts-ignore - runtime import
 import { select } from 'd3-selection'
 // @ts-ignore - runtime import
-import { easeCubicInOut } from 'd3-ease'
+import { easeCubicInOut, easeCubicIn } from 'd3-ease'
 
 type ContextOption = {
     label: string
@@ -70,7 +71,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const CHECKBOX_SIZE = 24
     const CHECKBOX_MARGIN = 16  // Gap between checkbox and document shape
     const WORKSPACE_SHIFT = CHECKBOX_SIZE + CHECKBOX_MARGIN  // How much to shift docs right in workspace mode
-    
+
     const documentLayout = {
         width: 105.6,
         height: 105.6,
@@ -96,12 +97,12 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
         const isWorkspaceMode = contextValue === 'Workspace'
         const wasWorkspaceMode = previousValue === 'Workspace'
-        
+
         // Calculate target X position for document group
         // Workspace mode: shift right to make room for checkboxes
         // Other modes: align to left
         const targetDocX = isWorkspaceMode ? WORKSPACE_SHIFT : 0
-        
+
         // Common document stacking parameters
         const docStackGap = 68.8
         const totalThreads = currentThreadCount
@@ -110,7 +111,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
         // FIRST RENDER or MODE CHANGE - destroy and recreate
         const isFirstRender = !connector
         const isModeChange = previousValue && previousValue !== contextValue
-        
+
         if (isFirstRender || isModeChange) {
             // Clean up existing
             if (connector) connector.destroy()
@@ -131,10 +132,10 @@ export function createContextSelector(config: ContextSelectorConfig) {
             for (let i = 0; i < totalThreads; i++) {
                 const y = baselineY + (startOffset + i) * docStackGap - documentLayout.height / 2
                 const isCurrentThread = i === currentThreadIdx
-                
+
                 let isActive = false
                 let shouldConnect = false
-                
+
                 if (contextValue === 'Thread') {
                     isActive = isCurrentThread
                     shouldConnect = isCurrentThread
@@ -190,12 +191,39 @@ export function createContextSelector(config: ContextSelectorConfig) {
             // Render
             connector.render()
 
+            // Animate document shapes sliding to their target position
+            if (isModeChange) {
+                const svg = visualizationContainer.querySelector('svg')
+                if (svg) {
+                    const svgSelection = select(svg)
+                    const previousDocX = wasWorkspaceMode ? WORKSPACE_SHIFT : 0
+
+                    // Select all document node foreignObjects and animate them
+                    for (let i = 0; i < totalThreads; i++) {
+                        const y = baselineY + (startOffset + i) * docStackGap - documentLayout.height / 2
+                        const docNode = svgSelection.select(`#node-doc-${i}`)
+
+                        if (docNode.node()) {
+                            // Set initial position to where they were in previous mode
+                            docNode.attr('x', previousDocX)
+
+                            // Animate to target position with easing
+                            docNode
+                                .transition()
+                                .duration(ENTRANCE_ANIMATION_DURATION)
+                                .ease(easeCubicIn)
+                                .attr('x', targetDocX)
+                        }
+                    }
+                }
+            }
+
             // Add checkboxes if workspace mode (ONLY when workspace mode is active)
             if (isWorkspaceMode) {
                 const svg = visualizationContainer.querySelector('svg')
                 if (svg) {
                     const svgSelection = select(svg)
-                    
+
                     for (let i = 0; i < totalThreads; i++) {
                         const y = baselineY + (startOffset + i) * docStackGap - documentLayout.height / 2
                         const checkboxY = y + documentLayout.height / 2 - CHECKBOX_SIZE / 2
