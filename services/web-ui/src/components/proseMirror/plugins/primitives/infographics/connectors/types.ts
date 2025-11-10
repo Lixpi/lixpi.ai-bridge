@@ -34,6 +34,8 @@ export type EdgeConfig = {
     className?: string
     marker?: MarkerType
     markerStart?: MarkerType    // Marker at the start of the edge (for bidirectional arrows)
+    markerSize?: number          // Arrowhead size in pixels (default: 7)
+    markerOffset?: { source?: number; target?: number }  // Gap between edge end and node (default: 5 for both)
     curvature?: number           // For bezier/smoothstep paths (default: 0.25)
     lineStyle?: 'solid' | 'dashed'  // Line style (default: 'solid')
     strokeWidth?: number         // Line thickness in pixels (default: 1.2)

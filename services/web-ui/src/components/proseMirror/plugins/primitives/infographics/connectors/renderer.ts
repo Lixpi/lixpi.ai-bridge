@@ -10,7 +10,8 @@ import type {
     NodeConfig,
     EdgeConfig,
     NodeAnchors,
-    AnchorPosition
+    AnchorPosition,
+    MarkerType
 } from './types.ts'
 import { createMarkers, getMarkerUrl, collectMarkerTypes } from './markers.ts'
 import { computePath, applyOffset } from './paths.ts'
@@ -206,11 +207,19 @@ function renderEdge(
         className,
         marker = 'none',
         markerStart,
+        markerSize = 7,
+        markerOffset = {},
         curvature = 0.25,
         lineStyle = 'solid',
         strokeWidth = 1.2,
         strokeDasharray
-    } = edge    // Get source and target anchor coordinates
+    } = edge
+
+    // Extract marker offsets with defaults
+    const sourceMarkerOffset = markerOffset.source ?? 5
+    const targetMarkerOffset = markerOffset.target ?? 5
+
+    // Get source and target anchor coordinates
     const sourceNode = anchors.get(source.nodeId)
     const targetNode = anchors.get(target.nodeId)
 
@@ -223,8 +232,44 @@ function renderEdge(
     const targetAnchor = targetNode[target.position]
 
     // Apply offsets if specified
-    const sourceCoords = applyOffset(sourceAnchor.x, sourceAnchor.y, source.offset)
-    const targetCoords = applyOffset(targetAnchor.x, targetAnchor.y, target.offset)
+    let sourceCoords = applyOffset(sourceAnchor.x, sourceAnchor.y, source.offset)
+    let targetCoords = applyOffset(targetAnchor.x, targetAnchor.y, target.offset)
+
+    // Apply marker offsets to create gap between edge and nodes
+    // Offset in the direction away from the node
+    if (sourceMarkerOffset > 0) {
+        switch (source.position) {
+            case 'right':
+                sourceCoords = { x: sourceCoords.x + sourceMarkerOffset, y: sourceCoords.y }
+                break
+            case 'left':
+                sourceCoords = { x: sourceCoords.x - sourceMarkerOffset, y: sourceCoords.y }
+                break
+            case 'top':
+                sourceCoords = { x: sourceCoords.x, y: sourceCoords.y - sourceMarkerOffset }
+                break
+            case 'bottom':
+                sourceCoords = { x: sourceCoords.x, y: sourceCoords.y + sourceMarkerOffset }
+                break
+        }
+    }
+
+    if (targetMarkerOffset > 0) {
+        switch (target.position) {
+            case 'right':
+                targetCoords = { x: targetCoords.x + targetMarkerOffset, y: targetCoords.y }
+                break
+            case 'left':
+                targetCoords = { x: targetCoords.x - targetMarkerOffset, y: targetCoords.y }
+                break
+            case 'top':
+                targetCoords = { x: targetCoords.x, y: targetCoords.y - targetMarkerOffset }
+                break
+            case 'bottom':
+                targetCoords = { x: targetCoords.x, y: targetCoords.y + targetMarkerOffset }
+                break
+        }
+    }
 
     // Compute path
     const { path } = computePath(
@@ -243,19 +288,19 @@ function renderEdge(
         .attr('id', `edge-${id}`)
         .attr('d', path)
         .attr('class', `connector-edge ${className || ''}`)
-        .attr('stroke-width', strokeWidth)
+        .style('stroke-width', `${strokeWidth}px`)
         .attr('stroke-linecap', 'round')
         .attr('stroke-linejoin', 'round')
 
     // Apply marker at end if specified
-    const markerUrl = getMarkerUrl(marker, instanceId)
+    const markerUrl = getMarkerUrl(marker, instanceId, markerSize)
     if (markerUrl) {
         pathElement.attr('marker-end', markerUrl)
     }
 
     // Apply marker at start if specified (for bidirectional arrows)
     if (markerStart) {
-        const markerStartUrl = getMarkerUrl(markerStart, instanceId)
+        const markerStartUrl = getMarkerUrl(markerStart, instanceId, markerSize)
         if (markerStartUrl) {
             pathElement.attr('marker-start', markerStartUrl)
         }
@@ -367,8 +412,22 @@ export function createConnectorRenderer(config: ConnectorConfig): ConnectorRende
             state.defs.selectAll('*').remove()
 
             // Create markers based on edge requirements
-            const markerTypes = collectMarkerTypes(state.edges.values())
-            createMarkers(state.defs, state.instanceId, markerTypes)
+            // Collect unique combinations of marker type and size
+            const markerConfigs = new Map<string, { type: MarkerType; size: number }>()
+            for (const edge of state.edges.values()) {
+                const size = edge.markerSize || 7
+                if (edge.marker && edge.marker !== 'none') {
+                    markerConfigs.set(`${edge.marker}-${size}`, { type: edge.marker, size })
+                }
+                if (edge.markerStart && edge.markerStart !== 'none') {
+                    markerConfigs.set(`${edge.markerStart}-${size}`, { type: edge.markerStart, size })
+                }
+            }
+
+            // Create all unique markers
+            for (const { type, size } of markerConfigs.values()) {
+                createMarkers(state.defs, state.instanceId, [type], size)
+            }
 
             // Render nodes
             for (const node of state.nodes.values()) {

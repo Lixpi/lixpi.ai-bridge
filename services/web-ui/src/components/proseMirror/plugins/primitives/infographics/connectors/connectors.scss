@@ -24,7 +24,7 @@
     .connector-edge {
         fill: none;
         stroke: rgba(190, 190, 200, 0.95);
-        stroke-width: 1.2;
+        // stroke-width is set via inline style in renderer for proper override
         stroke-linecap: round;
         stroke-linejoin: round;
         shape-rendering: geometricPrecision;

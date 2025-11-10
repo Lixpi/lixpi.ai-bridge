@@ -30,13 +30,13 @@ type MarkerConfig = {
 }
 
 // Get marker configuration for a specific marker type
-function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | null {
+function getMarkerConfig(type: MarkerType, instanceId: string, size: number = 7): MarkerConfig | null {
     switch (type) {
         case 'arrowhead':
             return {
-                id: `${instanceId}-arrowhead`,
-                markerWidth: 7,                // thin
-                markerHeight: 7,
+                id: `${instanceId}-arrowhead-${size}`,
+                markerWidth: size,
+                markerHeight: size,
                 viewBox: '0 0 256 256',       // native icon viewBox
                 refX: 48,                      // line terminates at arrow BASE (left edge)
                 refY: 128,                     // center vertically
@@ -46,9 +46,9 @@ function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | n
 
         case 'arrowhead-muted':
             return {
-                id: `${instanceId}-arrowhead-muted`,
-                markerWidth: 7,
-                markerHeight: 7,
+                id: `${instanceId}-arrowhead-muted-${size}`,
+                markerWidth: size,
+                markerHeight: size,
                 viewBox: '0 0 256 256',
                 refX: 48,                      // line terminates at arrow BASE
                 refY: 128,
@@ -78,15 +78,17 @@ function getMarkerConfig(type: MarkerType, instanceId: string): MarkerConfig | n
 // defs - D3 selection of the defs element
 // instanceId - Unique instance identifier for marker IDs
 // types - Array of marker types to create
+// size - Optional marker size (default: 7)
 export function createMarkers(
     defs: Selection<SVGDefsElement, unknown, null, undefined>,
     instanceId: string,
-    types: MarkerType[]
+    types: MarkerType[],
+    size: number = 7
 ): void {
     types.forEach(type => {
         if (type === 'none') return
 
-        const config = getMarkerConfig(type, instanceId)
+        const config = getMarkerConfig(type, instanceId, size)
         if (!config) return
 
         const marker = defs.append('marker')
@@ -111,10 +113,10 @@ export function createMarkers(
 }
 
 // Get the marker URL reference for use in SVG path elements
-// Returns URL reference string like "url(#instance-arrowhead)" or undefined for 'none'
-export function getMarkerUrl(type: MarkerType, instanceId: string): string | undefined {
+// Returns URL reference string like "url(#instance-arrowhead-7)" or undefined for 'none'
+export function getMarkerUrl(type: MarkerType, instanceId: string, size: number = 7): string | undefined {
     if (type === 'none') return undefined
-    const config = getMarkerConfig(type, instanceId)
+    const config = getMarkerConfig(type, instanceId, size)
     return config ? `url(#${config.id})` : undefined
 }
 

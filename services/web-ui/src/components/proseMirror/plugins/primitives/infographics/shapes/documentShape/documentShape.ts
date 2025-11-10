@@ -9,9 +9,15 @@ import { drawDocumentContentBlock } from './documentContentBlock.ts'
 
 // Creates the context shape SVG from scratch using modular primitives
 // Returns complete SVG string with gradient and all shapes
-export function createContextShapeSVG(config?: { withGradient?: boolean; instanceId?: string }): string {
-    const withGradient = config?.withGradient !== false
-    const instanceId = config?.instanceId || 'default'
+export function createContextShapeSVG({
+    withGradient = true,
+    withBackgroundAnimatedGradient = true,
+    instanceId = 'default'
+}: {
+    withGradient?: boolean
+    withBackgroundAnimatedGradient?: boolean
+    instanceId?: string
+} = {}): string {
     const gradientId = `ctx-grad-${instanceId}`
     const threadGradientId = `ctx-thread-grad-${instanceId}`
     const container = select(document.createElement('div'))
@@ -37,7 +43,7 @@ export function createContextShapeSVG(config?: { withGradient?: boolean; instanc
     drawDocumentContentBlock(g, { variant: 'top' })
 
     // Draw gradient background selection
-    if (withGradient) {
+    if (withBackgroundAnimatedGradient) {
         drawContextSelection(g, { gradientId })
     }
 

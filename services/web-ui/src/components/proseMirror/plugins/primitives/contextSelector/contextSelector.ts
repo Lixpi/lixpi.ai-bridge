@@ -45,23 +45,23 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
 
     // Layout constants
-    const VIEWBOX_WIDTH = 340
-    const VIEWBOX_HEIGHT = 160
-    const baselineY = 80
+    const VIEWBOX_WIDTH = 544
+    const VIEWBOX_HEIGHT = 256
+    const baselineY = 128
     const documentLayout = {
-        width: 92,
-        height: 92,
-        x: 10,
-        y: baselineY - 46
+        width: 147.2,
+        height: 147.2,
+        x: 16,
+        y: baselineY - 73.6
     }
 
     const docRightX = documentLayout.x + documentLayout.width
-    const connectorGap = 136
+    const connectorGap = 217.6
 
     const llmLayout = {
-        size: 92,
+        size: 147.2,
         iconX: docRightX + connectorGap,
-        iconY: baselineY - 46
+        iconY: baselineY - 73.6
     }
 
     // Create visualization using shape factories and connector system
@@ -90,7 +90,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
         })
 
         // Common document stacking parameters
-        const docStackGap = 60
+        const docStackGap = 96
         const totalThreads = currentThreadCount
         const startOffset = -(totalThreads - 1) / 2
 
@@ -105,7 +105,12 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 x: documentLayout.x,
                 y,
                 size: documentLayout.width,
-                icon: createContextShapeSVG({ withGradient: isActive, instanceId: `doc-${i}` }),
+                icon: createContextShapeSVG({
+                    withGradient: isActive,
+                    // withBackgroundAnimatedGradient: isActive,
+                    withBackgroundAnimatedGradient: false,    // Disabled for now, dont' remove comments
+                    instanceId: `doc-${i}`
+                }),
                 className: `document-block-shape ctx-document ${isActive ? 'ctx-document-active' : 'ctx-document-muted'}`,
                 disabled: contextValue === 'Thread' ? !isCurrentThread : false
             })
@@ -139,8 +144,10 @@ export function createContextSelector(config: ContextSelectorConfig) {
                     target: { nodeId: 'llm', position: 'left', offset: { x: -6 } },
                     pathType: 'horizontal-bezier',
                     marker: 'arrowhead',
+                    markerSize: 12,
+                    markerOffset: { source: 5, target: 10 },
                     lineStyle: 'solid',
-                    strokeWidth: 1.6,
+                    strokeWidth: 2,
                     curvature: contextValue === 'Workspace' ? 0.18 : 0.12
                 })
             }
