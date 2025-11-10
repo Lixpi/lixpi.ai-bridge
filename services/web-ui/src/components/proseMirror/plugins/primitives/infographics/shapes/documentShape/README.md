@@ -48,36 +48,65 @@ drawDocumentContentBlock(svgGroup, { variant: 'bottom' })
 
 ### `documentThreadShape.ts`
 
-Draws white rounded border rectangle with centered text label.
+Draws white rounded border rectangle with centered text label. **Owns its gradient setup and animation logic.**
 
 **API:**
 ```typescript
+// Draw the thread shape
 drawDocumentThreadShape(parent: D3Selection, config: {
   text: string
   gradientId?: string  // Optional: gradient ID for stroke (instead of white)
   colors?: string[]    // Optional: colors for gradient (not used directly, for reference)
 })
+
+// Setup the gradient definition
+setupThreadGradient(defs: D3Selection, config: {
+  gradientId: string
+})
+
+// Animate the gradient
+startThreadGradientAnimation(
+  container: HTMLElement,
+  nodeId?: string,         // default: 'context'
+  duration?: number,       // default: 50ms (smooth rotation steps)
+  threadGradientId?: string  // default: 'ctx-thread-grad'
+): { stop: () => void }
 ```
 
 **Features:**
 - Default: white stroke
-- With `gradientId`: applies gradient to stroke for visual emphasis
+- With `gradientId`: applies animated rotating gradient to stroke
+- Gradient rotates counterclockwise around the border creating a flowing snake effect
+- Uses blue-dominant color palette with purple accents
 
 **Usage:**
 ```typescript
-import { drawDocumentThreadShape } from './documentShape'
+import {
+  drawDocumentThreadShape,
+  setupThreadGradient,
+  startThreadGradientAnimation
+} from './documentShape'
 
-// Solid white stroke
-drawDocumentThreadShape(svgGroup, { text: 'CONTEXT' })
+// In SVG defs section
+setupThreadGradient(defs, { gradientId: 'my-thread-grad' })
 
-// Gradient stroke
+// Draw the thread shape
 drawDocumentThreadShape(svgGroup, {
   text: 'THREAD',
-  gradientId: 'my-gradient'
+  gradientId: 'my-thread-grad'
 })
-```
 
----
+// Start animation after DOM insertion
+const animation = startThreadGradientAnimation(
+  containerElement,
+  'my-node-id',
+  50,
+  'my-thread-grad'
+)
+
+// Stop when needed
+animation.stop()
+```---
 
 ### `documentContextSelection.ts`
 
