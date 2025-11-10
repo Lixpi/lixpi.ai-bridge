@@ -4,7 +4,7 @@ import { createConnectorRenderer } from '../infographics/connectors/index.ts'
 import {
     createIconShape,
     createContextShapeSVG,
-    startContextShapeAnimation,
+    startContextSelectionAnimation,
     startThreadGradientAnimation
 } from '../infographics/shapes/index.ts'
 import { aiLightBulbIcon } from '../../../../../svgIcons/index.ts'
@@ -155,7 +155,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
             const animationTargetId = `doc-${currentThreadIdx}`
             const animationGradientId = `ctx-grad-${animationTargetId}`
             const threadGradientId = `ctx-thread-grad-${animationTargetId}`
-            activeAnimations.push(startContextShapeAnimation(
+            activeAnimations.push(startContextSelectionAnimation(
                 visualizationContainer,
                 animationTargetId,
                 1000,
@@ -173,7 +173,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 const animationTargetId = `doc-${i}`
                 const animationGradientId = `ctx-grad-${animationTargetId}`
                 const threadGradientId = `ctx-thread-grad-${animationTargetId}`
-                activeAnimations.push(startContextShapeAnimation(
+                activeAnimations.push(startContextSelectionAnimation(
                     visualizationContainer,
                     animationTargetId,
                     1000,

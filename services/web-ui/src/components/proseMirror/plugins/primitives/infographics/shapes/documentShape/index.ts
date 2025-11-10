@@ -2,5 +2,5 @@
 
 export { drawDocumentContentBlock } from './documentContentBlock.ts'
 export { drawDocumentThreadShape, setupThreadGradient, startThreadGradientAnimation } from './documentThreadShape.ts'
-export { setupContextGradient, drawContextSelection } from './documentContextSelection.ts'
-export { createContextShapeSVG, startContextShapeAnimation } from './documentShape.ts'
+export { setupContextGradient, drawContextSelection, startContextSelectionAnimation } from './documentContextSelection.ts'
+export { createContextShapeSVG } from './documentShape.ts'
