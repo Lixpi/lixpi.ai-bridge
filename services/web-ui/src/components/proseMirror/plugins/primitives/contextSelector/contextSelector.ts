@@ -49,10 +49,10 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const VIEWBOX_HEIGHT = 256
     const baselineY = 128
     const documentLayout = {
-        width: 147.2,
-        height: 147.2,
+        width: 132,
+        height: 132,
         x: 16,
-        y: baselineY - 73.6
+        y: baselineY - 66
     }
 
     const docRightX = documentLayout.x + documentLayout.width
@@ -90,7 +90,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
         })
 
         // Common document stacking parameters
-        const docStackGap = 96
+        const docStackGap = 86
         const totalThreads = currentThreadCount
         const startOffset = -(totalThreads - 1) / 2
 
