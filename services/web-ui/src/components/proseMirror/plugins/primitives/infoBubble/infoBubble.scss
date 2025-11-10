@@ -40,4 +40,23 @@
         max-width: 30px;
         max-height: 30px;
     }
+
+    .thread-info-bubble-header {
+        margin: .5rem 0 .3rem 0;
+        color: inherit;
+
+        h2 {
+            font-size: 2rem;
+            line-height: 1.2;
+            margin: 0;
+            color: inherit;
+        }
+
+        p {
+            font-size: 0.9rem;
+            line-height: 1.3;
+            margin: .1rem 0 0 0;
+            color: inherit;
+        }
+    }
 }

@@ -356,10 +356,9 @@ function createThreadInfoBubble(view, threadId, getPos) {
 
     const headerContent = html`
         <div class="flex justify-start items-center">
-            <div>
-                <span>AI Thread</span>
-                <br/>
-                <span>Auto generated title will be here</span>
+            <div class="thread-info-bubble-header">
+                <h2>Thread</h2>
+                <p>Auto generated title will be here</p>
             </div>
         </div>
     ` as HTMLElement
