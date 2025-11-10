@@ -54,14 +54,27 @@ Draws white rounded border rectangle with centered text label.
 ```typescript
 drawDocumentThreadShape(parent: D3Selection, config: {
   text: string
+  gradientId?: string  // Optional: gradient ID for stroke (instead of white)
+  colors?: string[]    // Optional: colors for gradient (not used directly, for reference)
 })
 ```
+
+**Features:**
+- Default: white stroke
+- With `gradientId`: applies gradient to stroke for visual emphasis
 
 **Usage:**
 ```typescript
 import { drawDocumentThreadShape } from './documentShape'
 
+// Solid white stroke
 drawDocumentThreadShape(svgGroup, { text: 'CONTEXT' })
+
+// Gradient stroke
+drawDocumentThreadShape(svgGroup, {
+  text: 'THREAD',
+  gradientId: 'my-gradient'
+})
 ```
 
 ---
@@ -106,11 +119,14 @@ Main composition that combines all primitives to create the complete context vis
 // Create complete context shape SVG
 createContextShapeSVG(): string
 
-// Start gradient animation
+// Start gradient animation (background and/or thread stroke)
 startContextShapeAnimation(
   container: HTMLElement,
-  nodeId?: string,        // default: 'context'
-  duration?: number       // default: 1500ms
+  nodeId?: string,              // default: 'context'
+  duration?: number,             // default: 1500ms
+  gradientId?: string,           // default: 'ctx-grad'
+  animateThreadGradient?: boolean, // default: false - animate thread stroke
+  threadGradientId?: string      // default: 'ctx-thread-grad'
 ): { stop: () => void }
 ```
 
@@ -122,7 +138,15 @@ import { createContextShapeSVG, startContextShapeAnimation } from './documentSha
 const svgString = createContextShapeSVG()
 
 // Start animation after DOM insertion
-const animation = startContextShapeAnimation(containerElement)
+// Animates both background and thread stroke gradients
+const animation = startContextShapeAnimation(
+  containerElement,
+  'my-node-id',
+  1500,
+  'ctx-grad-my-node-id',
+  true,  // Enable thread gradient animation
+  'ctx-thread-grad-my-node-id'
+)
 
 // Stop animation when needed
 animation.stop()

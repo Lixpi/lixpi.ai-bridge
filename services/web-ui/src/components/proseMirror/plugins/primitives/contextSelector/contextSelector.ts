@@ -153,13 +153,29 @@ export function createContextSelector(config: ContextSelectorConfig) {
             // Only animate the active thread
             const animationTargetId = `doc-${currentThreadIdx}`
             const animationGradientId = `ctx-grad-${animationTargetId}`
-            activeAnimations.push(startContextShapeAnimation(visualizationContainer, animationTargetId, 1000, animationGradientId))
+            const threadGradientId = `ctx-thread-grad-${animationTargetId}`
+            activeAnimations.push(startContextShapeAnimation(
+                visualizationContainer,
+                animationTargetId,
+                1000,
+                animationGradientId,
+                true, // animate thread gradient
+                threadGradientId
+            ))
         } else {
             // Animate all documents
             for (let i = 0; i < totalThreads; i++) {
                 const animationTargetId = `doc-${i}`
                 const animationGradientId = `ctx-grad-${animationTargetId}`
-                activeAnimations.push(startContextShapeAnimation(visualizationContainer, animationTargetId, 1000, animationGradientId))
+                const threadGradientId = `ctx-thread-grad-${animationTargetId}`
+                activeAnimations.push(startContextShapeAnimation(
+                    visualizationContainer,
+                    animationTargetId,
+                    1000,
+                    animationGradientId,
+                    true, // animate thread gradient
+                    threadGradientId
+                ))
             }
         }
     }

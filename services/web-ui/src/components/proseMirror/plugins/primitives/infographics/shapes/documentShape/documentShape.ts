@@ -22,6 +22,7 @@ export function createContextShapeSVG(config?: { withGradient?: boolean; instanc
     const withGradient = config?.withGradient !== false
     const instanceId = config?.instanceId || 'default'
     const gradientId = `ctx-grad-${instanceId}`
+    const threadGradientId = `ctx-thread-grad-${instanceId}`
     const container = select(document.createElement('div'))
 
     const svg = container.append('svg')
@@ -33,21 +34,53 @@ export function createContextShapeSVG(config?: { withGradient?: boolean; instanc
     const defs = svg.append('defs')
     const g = svg.append('g')
 
-    // Setup gradient definition
+    // Setup gradient definitions
+    const colors = ['#a78bfa', '#60a5fa', '#a78bfa']
     if (withGradient) {
-        setupContextGradient(defs, { gradientId })
+        setupContextGradient(defs, { gradientId, colors })
+        // Setup linear gradient for thread stroke with diagonal orientation
+        // that will be rotated to create continuous flow effect
+        const threadGradient = defs.append('linearGradient')
+            .attr('id', threadGradientId)
+            .attr('gradientUnits', 'userSpaceOnUse')
+            .attr('x1', '0').attr('y1', '256')  // Center of the shape
+            .attr('x2', '512').attr('y2', '256')
+
+        // Create smooth gradient with more blue, less purple
+        const extendedColors = [
+            '#60a5fa',  // blue
+            '#7c9ff9',  // blue-purple transition
+            // '#b6a4eeff',  // purple
+            '#a0afe8ff',  // purple
+            '#7c9ff9',  // purple-blue transition
+            '#60a5fa'   // blue
+        ]
+
+        const numRepeats = 2
+        for (let i = 0; i <= numRepeats * extendedColors.length; i++) {
+            const colorIndex = i % extendedColors.length
+            const offset = (i / (numRepeats * extendedColors.length)) * 100
+            threadGradient.append('stop')
+                .attr('offset', `${offset}%`)
+                .style('stop-color', extendedColors[colorIndex])
+        }
     }
 
     // Draw top content block (square + lines above context box)
     drawDocumentContentBlock(g, { variant: 'top' })
 
+    // T
     // Draw gradient background selection
-    if (withGradient) {
-        drawContextSelection(g, { gradientId })
-    }
+    // if (withGradient) {
+    //     drawContextSelection(g, { gradientId })
+    // }
 
-    // Draw thread shape with text
-    drawDocumentThreadShape(g, { text: 'THREAD' })
+    // Draw thread shape with text (with optional gradient stroke)
+    drawDocumentThreadShape(g, {
+        text: 'THREAD',
+        gradientId: withGradient ? threadGradientId : undefined,
+        colors
+    })
 
     // Draw bottom content block (lines + squares below context box)
     drawDocumentContentBlock(g, { variant: 'bottom' })
@@ -62,10 +95,13 @@ export function startContextShapeAnimation(
     container: HTMLElement,
     nodeId: string = 'context',
     duration: number = 1500,
-    gradientId: string = 'ctx-grad'
+    gradientId: string = 'ctx-grad',
+    animateThreadGradient: boolean = false,
+    threadGradientId: string = 'ctx-thread-grad'
 ): { stop: () => void } {
     let running = true
     let gradient: any = null
+    let threadGradient: any = null
 
     const loop = () => {
         if (!running || !gradient) return
@@ -76,6 +112,42 @@ export function startContextShapeAnimation(
             .transition().duration(duration).ease(customEase)
             .attr('x1', '0%').attr('x2', '100%')
             .on('end', () => running && loop())
+    }
+
+    const threadLoop = () => {
+        if (!running || !threadGradient) return
+
+        // Get current angle and calculate new position for rotation effect
+        const centerX = 256
+        const centerY = 256
+        const radius = 300
+
+        let angle = 0
+
+        const animate = () => {
+            if (!running) return
+
+            // Calculate gradient endpoints based on rotating angle
+            const x1 = centerX + radius * Math.cos(angle)
+            const y1 = centerY + radius * Math.sin(angle)
+            const x2 = centerX + radius * Math.cos(angle + Math.PI)
+            const y2 = centerY + radius * Math.sin(angle + Math.PI)
+
+            threadGradient
+                .transition()
+                .duration(50)  // Small steps for smooth rotation
+                .ease(customEase)
+                .attr('x1', x1)
+                .attr('y1', y1)
+                .attr('x2', x2)
+                .attr('y2', y2)
+                .on('end', () => {
+                    angle -= 0.1  // Negative for counterclockwise
+                    if (running) animate()
+                })
+        }
+
+        animate()
     }
 
     const foreignObj = select(container)
@@ -89,7 +161,22 @@ export function startContextShapeAnimation(
             gradient = select(svg).select(`#${gradientId}`)
             if (gradient && !gradient.empty()) {
                 loop()
-                return { stop: () => { running = false; gradient?.interrupt() } }
+
+                // Animate thread gradient if requested
+                if (animateThreadGradient) {
+                    threadGradient = select(svg).select(`#${threadGradientId}`)
+                    if (threadGradient && !threadGradient.empty()) {
+                        threadLoop()
+                    }
+                }
+
+                return {
+                    stop: () => {
+                        running = false
+                        gradient?.interrupt()
+                        threadGradient?.interrupt()
+                    }
+                }
             }
         }
     }
@@ -103,6 +190,14 @@ export function startContextShapeAnimation(
                 if (gradient && !gradient.empty()) {
                     observer.disconnect()
                     loop()
+
+                    // Animate thread gradient if requested
+                    if (animateThreadGradient) {
+                        threadGradient = select(svg).select(`#${threadGradientId}`)
+                        if (threadGradient && !threadGradient.empty()) {
+                            threadLoop()
+                        }
+                    }
                 }
             }
         })
@@ -110,5 +205,11 @@ export function startContextShapeAnimation(
         observer.observe(foreignObj, { childList: true, subtree: true })
     }
 
-    return { stop: () => { running = false; gradient?.interrupt() } }
+    return {
+        stop: () => {
+            running = false
+            gradient?.interrupt()
+            threadGradient?.interrupt()
+        }
+    }
 }
