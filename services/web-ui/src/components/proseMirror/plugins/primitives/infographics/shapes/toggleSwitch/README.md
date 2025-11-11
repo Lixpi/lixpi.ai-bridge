@@ -23,16 +23,6 @@ The toggle switch is rendered as an SVG group containing:
 - **Checkmark** (`.toggle-checkmark`): Icon that appears inside knob when active
 - **Group** (`.toggle-switch-group`): Container with transform for positioning
 
-## Visual States
-
-| State | Track Fill | Track Stroke | Knob Position |
-|-------|-----------|--------------|---------------|
-| Inactive | `rgba(128, 128, 128, 0.4)` | `rgba(128, 128, 128, 0.6)` | Left |
-| Active | `rgba(85, 150, 124, 0.95)` | `rgba(85, 150, 124, 1)` | Right |
-| Hover (inactive) | `rgba(128, 128, 128, 0.5)` | - | - |
-| Hover (active) | `rgba(85, 150, 124, 1)` | - | - |
-| Disabled | Same as above @ 0.4 opacity | - | - |
-
 ## API
 
 ### `createToggleSwitch(parent, config)`
@@ -132,28 +122,6 @@ The toggle switch is used in workspace mode to allow users to select which threa
 3. Document shapes shift right by `TOGGLE_SWITCH_SIZE + TOGGLE_SWITCH_MARGIN`
 4. State synchronized with ProseMirror document via `workspaceSelected` attribute
 
-## Styling
-
-Colors are defined in the `COLORS` constant in `toggleSwitch.ts`:
-
-```typescript
-const COLORS = {
-    active: {
-        fill: 'rgba(85, 150, 124, 0.95)',
-        fillHover: 'rgba(85, 150, 124, 1)',
-        stroke: 'rgba(85, 150, 124, 1)'
-    },
-    inactive: {
-        fill: 'rgba(128, 128, 128, 0.4)',
-        fillHover: 'rgba(128, 128, 128, 0.5)',
-        stroke: 'rgba(128, 128, 128, 0.6)'
-    },
-    knob: {
-        fill: 'rgba(255, 255, 255, 0.98)',
-        stroke: 'rgba(255, 255, 255, 0.2)'
-    }
-}
-```
 
 ## Implementation Notes
 
