@@ -68,7 +68,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const VIEWBOX_WIDTH = 480
     const VIEWBOX_HEIGHT = 256
     const baselineY = 128
-    const CHECKBOX_SIZE = 24
+    const CHECKBOX_SIZE = 12
     const CHECKBOX_MARGIN = 16  // Gap between checkbox and document shape
     const WORKSPACE_SHIFT = CHECKBOX_SIZE + CHECKBOX_MARGIN  // How much to shift docs right in workspace mode
 

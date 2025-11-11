@@ -1,4 +1,4 @@
-// Checkbox SVG primitive - renders interactive checkboxes as SVG elements
+// Toggle switch SVG primitive - renders interactive toggle switches as SVG elements
 // Emits events on state changes for parent to handle
 
 // @ts-ignore - runtime import
@@ -6,6 +6,7 @@ import { select } from 'd3-selection'
 // @ts-ignore - runtime import
 import { easeCubicOut, easeCubicIn } from 'd3-ease'
 import { ENTRANCE_ANIMATION_DURATION } from '../../animationConstants.ts'
+import { checkMarkIcon } from '../../../../../../../svgIcons/index.ts'
 
 type CheckboxConfig = {
     id: string
@@ -31,10 +32,32 @@ type CheckboxInstance = {
     destroy: () => void
 }
 
-// SVG path for checkmark icon (scaled for 24x24 viewport)
-const CHECKMARK_PATH = 'M20 6L9 17l-5-5'
+// Toggle switch dimensions (based on standard toggle proportions)
+// Width is ~2x height for proper pill shape
+const TOGGLE_HEIGHT_RATIO = 1.0  // Height relative to size
+const TOGGLE_WIDTH_RATIO = 1.8   // Width relative to size
+const KNOB_SIZE_RATIO = 0.7      // Knob size relative to toggle height
+const KNOB_PADDING = 0.15        // Padding around knob (as ratio of toggle height)
 
-// Render a checkbox as SVG group
+// Color constants
+const COLORS = {
+    active: {
+        fill: 'rgba(85, 150, 124, 0.95)',
+        fillHover: 'rgba(85, 150, 124, 1)',
+        stroke: 'rgba(85, 150, 124, 1)'
+    },
+    inactive: {
+        fill: 'rgba(128, 128, 128, 0.4)',
+        fillHover: 'rgba(128, 128, 128, 0.5)',
+        stroke: 'rgba(128, 128, 128, 0.6)'
+    },
+    knob: {
+        fill: 'rgba(255, 255, 255, 0.98)',
+        stroke: 'rgba(255, 255, 255, 0.2)'
+    }
+}
+
+// Render a toggle switch as SVG group
 export function createCheckbox(
     parent: any,
     config: CheckboxConfig
@@ -55,41 +78,73 @@ export function createCheckbox(
         disabled
     }
 
-    // Create checkbox group - start invisible and off-screen
-    const checkboxGroup = parent.append('g')
-        .attr('class', `checkbox-group ${className}`)
+    // Calculate toggle dimensions
+    const toggleHeight = size * TOGGLE_HEIGHT_RATIO
+    const toggleWidth = size * TOGGLE_WIDTH_RATIO
+    const knobSize = toggleHeight * KNOB_SIZE_RATIO
+    const knobPadding = toggleHeight * KNOB_PADDING
+    const knobRadius = knobSize / 2
+    const trackRadius = toggleHeight / 2
+
+    // Knob positions (center Y, X for unchecked and checked states)
+    const knobCenterY = toggleHeight / 2
+    const knobUncheckedX = trackRadius  // Aligned to left
+    const knobCheckedX = toggleWidth - trackRadius  // Aligned to right
+
+    // Create toggle group - start invisible and off-screen
+    const toggleGroup = parent.append('g')
+        .attr('class', `checkbox-group toggle-switch ${className}`)
         .attr('transform', `translate(${x - 30}, ${y})`)  // Start 30px left
         .attr('data-checkbox-id', id)
         .style('cursor', disabled ? 'not-allowed' : 'pointer')
         .style('opacity', 0)  // Start invisible
 
-    // Outer square/circle container
-    const box = checkboxGroup.append('rect')
-        .attr('class', 'checkbox-box')
+    // Track (pill-shaped background)
+    const track = toggleGroup.append('rect')
+        .attr('class', 'toggle-track')
         .attr('x', 0)
         .attr('y', 0)
-        .attr('width', size)
-        .attr('height', size)
-        .attr('rx', 4)
-        .attr('ry', 4)
-        .attr('fill', 'rgba(19, 26, 41, 0.88)')
-        .attr('stroke', state.checked ? 'rgba(96, 165, 250, 0.95)' : 'rgba(255, 255, 255, 0.18)')
-        .attr('stroke-width', state.checked ? 2 : 1.25)
+        .attr('width', toggleWidth)
+        .attr('height', toggleHeight)
+        .attr('rx', trackRadius)
+        .attr('ry', trackRadius)
+        .attr('fill', state.checked ? COLORS.active.fill : COLORS.inactive.fill)
+        .attr('stroke', state.checked ? COLORS.active.stroke : COLORS.inactive.stroke)
+        .attr('stroke-width', 1)
 
-    // Checkmark path (visible when checked)
-    const checkmark = checkboxGroup.append('path')
-        .attr('class', 'checkbox-checkmark')
-        .attr('d', CHECKMARK_PATH)
-        .attr('fill', 'none')
-        .attr('stroke', 'rgba(96, 165, 250, 0.95)')
-        .attr('stroke-width', 2.5)
-        .attr('stroke-linecap', 'round')
-        .attr('stroke-linejoin', 'round')
+    // Knob (circular slider)
+    const knob = toggleGroup.append('circle')
+        .attr('class', 'toggle-knob')
+        .attr('cx', state.checked ? knobCheckedX : knobUncheckedX)
+        .attr('cy', knobCenterY)
+        .attr('r', knobRadius)
+        .attr('fill', COLORS.knob.fill)
+        .attr('stroke', COLORS.knob.stroke)
+        .attr('stroke-width', 1)
+
+    // Checkmark icon inside knob (only visible when checked)
+    // Parse the SVG icon and extract the path
+    const parser = new DOMParser()
+    const svgDoc = parser.parseFromString(checkMarkIcon, 'image/svg+xml')
+    const pathElement = svgDoc.querySelector('path')
+    const checkmarkPath = pathElement ? pathElement.getAttribute('d') : ''
+
+    const checkmarkIconSize = knobSize * 0.6  // Icon is 60% of knob size
+    const checkmarkScale = checkmarkIconSize / 24  // checkMarkIcon is 24x24
+    const checkmarkOffsetX = (knobSize - checkmarkIconSize) / 2
+    const checkmarkOffsetY = (knobSize - checkmarkIconSize) / 2
+
+    const checkmark = toggleGroup.append('g')
+        .attr('class', 'toggle-checkmark')
         .attr('opacity', state.checked ? 1 : 0)
-        .attr('transform', `translate(${size * 0.08}, ${size * 0.08}) scale(${size / 24})`)
 
-    // Animate checkbox into view with entrance transition
-    checkboxGroup
+    checkmark.append('path')
+        .attr('d', checkmarkPath)
+        .attr('fill', COLORS.active.fill)
+        .attr('transform', `translate(${(state.checked ? knobCheckedX : knobUncheckedX) - knobRadius + checkmarkOffsetX}, ${knobCenterY - knobRadius + checkmarkOffsetY}) scale(${checkmarkScale})`)
+
+    // Animate toggle into view with entrance transition
+    toggleGroup
         .transition()
         .duration(ENTRANCE_ANIMATION_DURATION)
         .ease(easeCubicIn)
@@ -98,18 +153,18 @@ export function createCheckbox(
 
     // Hover effect (only if not disabled)
     if (!state.disabled) {
-        checkboxGroup
+        toggleGroup
             .on('mouseenter', () => {
-                box.attr('stroke', state.checked ? 'rgba(96, 165, 250, 1)' : 'rgba(255, 255, 255, 0.3)')
+                track.attr('fill', state.checked ? COLORS.active.fillHover : COLORS.inactive.fillHover)
             })
             .on('mouseleave', () => {
-                box.attr('stroke', state.checked ? 'rgba(96, 165, 250, 0.95)' : 'rgba(255, 255, 255, 0.18)')
+                track.attr('fill', state.checked ? COLORS.active.fill : COLORS.inactive.fill)
             })
     }
 
     // Click handler
     if (!state.disabled && onChange) {
-        checkboxGroup.on('click', (event: MouseEvent) => {
+        toggleGroup.on('click', (event: MouseEvent) => {
             event.stopPropagation()
             const newChecked = !state.checked
             setChecked(newChecked)
@@ -117,18 +172,39 @@ export function createCheckbox(
         })
     }
 
-    // Render function to update visual state
+    // Render function to update visual state with smooth transitions
     function render() {
-        box
-            .attr('stroke', state.checked ? 'rgba(96, 165, 250, 0.95)' : 'rgba(255, 255, 255, 0.18)')
-            .attr('stroke-width', state.checked ? 2 : 1.25)
-            .attr('opacity', state.disabled ? 0.4 : 1)
+        const duration = 200  // Smooth toggle animation
 
+        // Animate track color
+        track
+            .transition()
+            .duration(duration)
+            .ease(easeCubicOut)
+            .attr('fill', state.checked ? COLORS.active.fill : COLORS.inactive.fill)
+            .attr('stroke', state.checked ? COLORS.active.stroke : COLORS.inactive.stroke)
+            .attr('opacity', state.disabled ? 0.4 : 1)        // Animate knob position
+        const targetX = state.checked ? knobCheckedX : knobUncheckedX
+        knob
+            .transition()
+            .duration(duration)
+            .ease(easeCubicOut)
+            .attr('cx', targetX)
+
+        // Animate checkmark opacity and position
         checkmark
+            .transition()
+            .duration(duration)
+            .ease(easeCubicOut)
             .attr('opacity', state.checked ? 1 : 0)
-            .attr('stroke', state.disabled ? 'rgba(96, 165, 250, 0.5)' : 'rgba(96, 165, 250, 0.95)')
 
-        checkboxGroup
+        checkmark.select('path')
+            .transition()
+            .duration(duration)
+            .ease(easeCubicOut)
+            .attr('transform', `translate(${targetX - knobRadius + checkmarkOffsetX}, ${knobCenterY - knobRadius + checkmarkOffsetY}) scale(${checkmarkScale})`)
+
+        toggleGroup
             .style('cursor', state.disabled ? 'not-allowed' : 'pointer')
     }
 
@@ -144,22 +220,22 @@ export function createCheckbox(
 
         // Re-attach event handlers if needed
         if (disabled) {
-            checkboxGroup.on('click', null)
-            checkboxGroup.on('mouseenter', null)
-            checkboxGroup.on('mouseleave', null)
+            toggleGroup.on('click', null)
+            toggleGroup.on('mouseenter', null)
+            toggleGroup.on('mouseleave', null)
         } else if (onChange) {
-            checkboxGroup.on('click', (event: MouseEvent) => {
+            toggleGroup.on('click', (event: MouseEvent) => {
                 event.stopPropagation()
                 const newChecked = !state.checked
                 setChecked(newChecked)
                 onChange(newChecked, id)
             })
-            checkboxGroup
+            toggleGroup
                 .on('mouseenter', () => {
-                    box.attr('stroke', state.checked ? 'rgba(96, 165, 250, 1)' : 'rgba(255, 255, 255, 0.3)')
+                    track.attr('fill', state.checked ? COLORS.active.fillHover : COLORS.inactive.fillHover)
                 })
                 .on('mouseleave', () => {
-                    box.attr('stroke', state.checked ? 'rgba(96, 165, 250, 0.95)' : 'rgba(255, 255, 255, 0.18)')
+                    track.attr('fill', state.checked ? COLORS.active.fill : COLORS.inactive.fill)
                 })
         }
     }
@@ -169,11 +245,11 @@ export function createCheckbox(
     }
 
     function destroy() {
-        checkboxGroup.remove()
+        toggleGroup.remove()
     }
 
-    // Initial render
-    render()
+    // Initial render (without animation for initial state)
+    // The entrance animation will handle the initial appearance
 
     return {
         render,

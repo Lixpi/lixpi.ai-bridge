@@ -9,7 +9,6 @@ import { keyboardMacCommandIcon,
     gptAvatarIcon,
     claudeIcon,
     chevronDownIcon,
-    contextIcon,
     contextFilledIcon,
     documentIcon,
     eyeSlashIcon
@@ -108,7 +107,6 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
         contentSize: node.content.size
     })
 
-    const threadContextDropdown = createThreadContextDropdown(view, node, getPos, threadId)
     const modelSelectorDropdown = createAiModelSelectorDropdown(view, node, getPos, threadId)
 
     // Create AI submit button
@@ -117,8 +115,7 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
     // Create thread boundary indicator for context visualization
     const { boundaryIndicator: threadBoundaryIndicator, collapseToggleIcon, infoBubble, contextSelector } = createThreadBoundaryIndicator(dom, view, threadId, getPos, node.attrs.isCollapsed)
 
-    // Append controls to controls container (flex layout: context, model, submit)
-    controlsContainer.appendChild(threadContextDropdown.dom)
+    // Append controls to controls container (flex layout: model, submit)
     controlsContainer.appendChild(modelSelectorDropdown.dom)
     controlsContainer.appendChild(submitButton)
 
@@ -225,17 +222,11 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
                 }
             }
 
-            // Sync threadContext change to context dropdown and context selector
+            // Sync threadContext change to context selector
             if (node.attrs.threadContext !== updatedNode.attrs.threadContext) {
                 console.log('[AI_DBG][THREAD.nodeView.update] threadContext attr changed', { from: node.attrs.threadContext, to: updatedNode.attrs.threadContext, threadId: updatedNode.attrs.threadContext })
 
-                threadContextDropdown.update({
-                    title: updatedNode.attrs.threadContext,
-                    icon: contextIcon,
-                    value: updatedNode.attrs.threadContext
-                })
-
-                // Also update the context selector in the info bubble
+                // Update the context selector in the info bubble
                 contextSelector?.update({
                     selectedValue: updatedNode.attrs.threadContext
                 })
@@ -278,7 +269,6 @@ export const aiChatThreadNodeView = (node, view, getPos) => {
             console.log('[AI_DBG][THREAD.nodeView.destroy] CALLED', { threadId: node.attrs.threadId })
             // Clean up pure dropdowns
             modelSelectorDropdown?.destroy()
-            threadContextDropdown?.destroy()
             // Clean up info bubble and context selector
             infoBubble?.destroy()
             contextSelector?.destroy()
@@ -538,59 +528,6 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
                 const threadNode = view.state.doc.nodeAt(pos)
                 if (threadNode) {
                     const newAttrs = { ...threadNode.attrs, aiModel: option.aiModel }
-                    const tr = view.state.tr.setNodeMarkup(pos, undefined, newAttrs)
-                    view.dispatch(tr)
-                }
-            }
-        }
-    })
-}
-
-// Helper function to create thread context selector dropdown (direct DOM, no document node)
-function createThreadContextDropdown(view, node, getPos, threadId) {
-    const dropdownId = `thread-context-dropdown-${threadId}`
-
-    const currentThreadContext = node.attrs.threadContext || 'Thread'
-    console.log('[AI_DBG][THREAD.contextDropdown] creating dropdown', { threadId, currentThreadContext })
-
-    // Define thread context options
-    const threadContextOptions = [
-        {
-            title: 'Thread',
-            icon: contextIcon,
-            value: 'Thread'
-        },
-        {
-            title: 'Document',
-            icon: contextIcon,
-            value: 'Document'
-        }
-    ]
-
-    // Find selected value
-    const selectedValue = threadContextOptions.find(opt => opt.value === currentThreadContext) || threadContextOptions[0]
-
-    // Create pure dropdown (no document node, just DOM)
-    return createPureDropdown({
-        id: dropdownId,
-        selectedValue,
-        options: threadContextOptions,
-        theme: 'dark',
-
-        buttonIcon: chevronDownIcon,
-        ignoreColorValuesForOptions: true,
-        ignoreColorValuesForSelectedValue: false,
-        renderIconForSelectedValue: false,
-        renderIconForOptions: true,
-        onSelect: (option) => {
-            console.log('[AI_DBG][THREAD.contextDropdown] onSelect', { threadId, option })
-
-            // Update thread node attrs via transaction
-            const pos = getPos()
-            if (pos !== undefined) {
-                const threadNode = view.state.doc.nodeAt(pos)
-                if (threadNode) {
-                    const newAttrs = { ...threadNode.attrs, threadContext: option.value }
                     const tr = view.state.tr.setNodeMarkup(pos, undefined, newAttrs)
                     view.dispatch(tr)
                 }
