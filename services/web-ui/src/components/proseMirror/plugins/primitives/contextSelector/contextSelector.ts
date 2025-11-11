@@ -7,7 +7,7 @@ import {
     startContextSelectionAnimation,
     startThreadGradientAnimation
 } from '../infographics/shapes/index.ts'
-import { createCheckbox } from '../infographics/shapes/checkbox/index.ts'
+import { createToggleSwitch } from '../infographics/shapes/toggleSwitch/index.ts'
 import { aiLightBulbIcon, contextIcon, documentIcon } from '../../../../../svgIcons/index.ts'
 import { ENTRANCE_ANIMATION_DURATION } from '../infographics/animationConstants.ts'
 
@@ -59,7 +59,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
     let connector: ReturnType<typeof createConnectorRenderer> | null = null
     let activeAnimations: Array<{ stop: () => void }> = []
     let descriptionText: HTMLElement | null = null
-    let checkboxInstances: Map<string, ReturnType<typeof createCheckbox>> = new Map()
+    let toggleSwitchInstances: Map<string, ReturnType<typeof createToggleSwitch>> = new Map()
 
     // Generate unique instance ID for this selector
     const instanceId = `ctx-${Math.random().toString(36).substr(2, 9)}`
@@ -68,9 +68,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
     const VIEWBOX_WIDTH = 480
     const VIEWBOX_HEIGHT = 256
     const baselineY = 128
-    const CHECKBOX_SIZE = 12
-    const CHECKBOX_MARGIN = 16  // Gap between checkbox and document shape
-    const WORKSPACE_SHIFT = CHECKBOX_SIZE + CHECKBOX_MARGIN  // How much to shift docs right in workspace mode
+    const TOGGLE_SWITCH_SIZE = 12
+    const TOGGLE_SWITCH_MARGIN = 16  // Gap between toggle switch and document shape
+    const WORKSPACE_SHIFT = TOGGLE_SWITCH_SIZE + TOGGLE_SWITCH_MARGIN  // How much to shift docs right in workspace mode
 
     const documentLayout = {
         width: 105.6,
@@ -115,8 +115,8 @@ export function createContextSelector(config: ContextSelectorConfig) {
         if (isFirstRender || isModeChange) {
             // Clean up existing
             if (connector) connector.destroy()
-            checkboxInstances.forEach(cb => cb.destroy())
-            checkboxInstances.clear()
+            toggleSwitchInstances.forEach(ts => ts.destroy())
+            toggleSwitchInstances.clear()
             activeAnimations.forEach(anim => anim.stop())
             activeAnimations = []
 
@@ -218,7 +218,7 @@ export function createContextSelector(config: ContextSelectorConfig) {
                 }
             }
 
-            // Add checkboxes if workspace mode (ONLY when workspace mode is active)
+            // Add toggle switches if workspace mode (ONLY when workspace mode is active)
             if (isWorkspaceMode) {
                 const svg = visualizationContainer.querySelector('svg')
                 if (svg) {
@@ -226,22 +226,22 @@ export function createContextSelector(config: ContextSelectorConfig) {
 
                     for (let i = 0; i < totalThreads; i++) {
                         const y = baselineY + (startOffset + i) * docStackGap - documentLayout.height / 2
-                        const checkboxY = y + documentLayout.height / 2 - CHECKBOX_SIZE / 2
+                        const toggleSwitchY = y + documentLayout.height / 2 - TOGGLE_SWITCH_SIZE / 2
                         const threadSelection = currentThreadSelections[i]
                         const threadId = threadSelection?.threadId || `thread-${i}`
                         const checked = threadSelection?.selected ?? false
 
-                        const checkbox = createCheckbox(svgSelection, {
+                        const toggleSwitch = createToggleSwitch(svgSelection, {
                             id: threadId,
-                            x: 0,  // Checkboxes at left edge
-                            y: checkboxY,
-                            size: CHECKBOX_SIZE,
+                            x: 0,  // Toggle switches at left edge
+                            y: toggleSwitchY,
+                            size: TOGGLE_SWITCH_SIZE,
                             checked,
                             onChange: (newChecked, id) => {
                                 onThreadSelectionChange?.(id, newChecked)
                             }
                         })
-                        checkboxInstances.set(threadId, checkbox)
+                        toggleSwitchInstances.set(threadId, toggleSwitch)
                     }
                 }
             }
@@ -402,9 +402,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
             activeAnimations.forEach(anim => anim.stop())
             activeAnimations = []
         }
-        // Clean up checkboxes
-        checkboxInstances.forEach(checkbox => checkbox.destroy())
-        checkboxInstances.clear()
+        // Clean up toggle switches
+        toggleSwitchInstances.forEach(toggleSwitch => toggleSwitch.destroy())
+        toggleSwitchInstances.clear()
         // Clean up connector
         if (connector) {
             connector.destroy()

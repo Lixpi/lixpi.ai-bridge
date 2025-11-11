@@ -8,7 +8,7 @@ import { easeCubicOut, easeCubicIn } from 'd3-ease'
 import { ENTRANCE_ANIMATION_DURATION } from '../../animationConstants.ts'
 import { checkMarkIcon } from '../../../../../../../svgIcons/index.ts'
 
-type CheckboxConfig = {
+type ToggleSwitchConfig = {
     id: string
     x: number
     y: number
@@ -19,12 +19,12 @@ type CheckboxConfig = {
     onChange?: (checked: boolean, id: string) => void
 }
 
-type CheckboxState = {
+type ToggleSwitchState = {
     checked: boolean
     disabled: boolean
 }
 
-type CheckboxInstance = {
+type ToggleSwitchInstance = {
     render: () => void
     setChecked: (checked: boolean) => void
     setDisabled: (disabled: boolean) => void
@@ -58,10 +58,10 @@ const COLORS = {
 }
 
 // Render a toggle switch as SVG group
-export function createCheckbox(
+export function createToggleSwitch(
     parent: any,
-    config: CheckboxConfig
-): CheckboxInstance {
+    config: ToggleSwitchConfig
+): ToggleSwitchInstance {
     const {
         id,
         x,
@@ -73,7 +73,7 @@ export function createCheckbox(
         onChange
     } = config
 
-    let state: CheckboxState = {
+    let state: ToggleSwitchState = {
         checked,
         disabled
     }
@@ -93,9 +93,9 @@ export function createCheckbox(
 
     // Create toggle group - start invisible and off-screen
     const toggleGroup = parent.append('g')
-        .attr('class', `checkbox-group toggle-switch ${className}`)
+        .attr('class', `toggle-switch-group toggle-switch ${className}`)
         .attr('transform', `translate(${x - 30}, ${y})`)  // Start 30px left
-        .attr('data-checkbox-id', id)
+        .attr('data-toggle-switch-id', id)
         .style('cursor', disabled ? 'not-allowed' : 'pointer')
         .style('opacity', 0)  // Start invisible
 
