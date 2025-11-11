@@ -211,5 +211,14 @@
                 font-family: 'Herculanum LT Pro', sans-serif !important;
             }
         }
+
+        // Muted state for LLM when no documents are connected
+        .shape-node.ctx-llm-muted {
+            opacity: 0.32;
+
+            .icon-content svg {
+                filter: saturate(0.35) brightness(0.75);
+            }
+        }
     }
 }

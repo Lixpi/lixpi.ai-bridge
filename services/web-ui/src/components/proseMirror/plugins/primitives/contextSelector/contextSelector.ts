@@ -127,15 +127,30 @@ function createDocumentNodeConfig(
 }
 
 // Create node configuration for LLM (light bulb) icon
-function createLlmNodeConfig(x: number, y: number, size: number) {
+function createLlmNodeConfig(x: number, y: number, size: number, isActive: boolean = true) {
     return createIconShape({
         id: 'llm',
         x,
         y,
         size,
         icon: aiLightBulbIcon,
-        className: 'ctx-llm'
+        className: `ctx-llm ${isActive ? '' : 'ctx-llm-muted'}`.trim(),
+        disabled: !isActive
     })
+}
+
+// Check if there are any active connections (at least one document connected)
+function hasActiveConnections(
+    contextValue: string,
+    totalThreads: number,
+    currentThreadIndex: number,
+    threadSelections: ThreadSelectionState[]
+): boolean {
+    for (let i = 0; i < totalThreads; i++) {
+        const { shouldConnect } = calculateDocumentState(contextValue, i, currentThreadIndex, threadSelections)
+        if (shouldConnect) return true
+    }
+    return false
 }
 
 export function createContextSelector(config: ContextSelectorConfig) {
@@ -246,7 +261,9 @@ export function createContextSelector(config: ContextSelectorConfig) {
             }
 
             // Add LLM node (always at same position)
-            connector.addNode(createLlmNodeConfig(llmLayout.iconX, llmLayout.iconY, llmLayout.size))
+            // Muted if no documents are connected
+            const llmIsActive = hasActiveConnections(contextValue, totalThreads, currentThreadIdx, currentThreadSelections)
+            connector.addNode(createLlmNodeConfig(llmLayout.iconX, llmLayout.iconY, llmLayout.size, llmIsActive))
 
             // Render
             connector.render()
@@ -330,6 +347,32 @@ export function createContextSelector(config: ContextSelectorConfig) {
                                             // Remove edge if unchecked
                                             connector.removeEdge(edgeId)
                                         }
+
+                                        // Update LLM node state based on whether there are any active connections
+                                        // We need to check the updated state, so we manually count active connections
+                                        let hasAnyActiveConnection = false
+                                        for (let j = 0; j < totalThreads; j++) {
+                                            if (j === threadIndex) {
+                                                // For the current toggle, use the new state
+                                                if (newChecked) {
+                                                    hasAnyActiveConnection = true
+                                                    break
+                                                }
+                                            } else {
+                                                // For other toggles, check their current state
+                                                const otherThreadSelection = currentThreadSelections[j]
+                                                if (otherThreadSelection?.selected) {
+                                                    hasAnyActiveConnection = true
+                                                    break
+                                                }
+                                            }
+                                        }
+
+                                        const llmNodeConfig = createLlmNodeConfig(llmLayout.iconX, llmLayout.iconY, llmLayout.size, hasAnyActiveConnection)
+                                        connector.updateNode('llm', {
+                                            className: llmNodeConfig.className,
+                                            disabled: llmNodeConfig.disabled
+                                        })
 
                                         // Re-render connector (this will replace DOM elements and break animations)
                                         connector.render()
