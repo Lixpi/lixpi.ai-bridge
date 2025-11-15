@@ -54,82 +54,25 @@ rm -Rf ./services/api/node_modules/@lixpi && mkdir ./services/api/node_modules/@
 cp -r packages/lixpi/* ./services/api/node_modules/@lixpi
 ```
 
-## SST
-
-##### Build SST image (only if Dockerfile-SST has been changed)
+## LLM API
 
 ```shell
 # remove all previous builds including dangling images and force re-build and run
 # unix
-./rebuild-containers.sh lixpi-sst
+./rebuild-containers.sh lixpi-llm-api
 
 # Then run single service
-docker-compose --env-file .env.<stage-name> up lixpi-sst
-
-# Copy node_modules from the container to the host so that TypeScript types would be available to the IDE type checker
-docker cp lixpi-sst:/usr/src/service/node_modules ./
+docker-compose --env-file .env.<stage-name> up lixpi-llm-api
 ```
 
-##### Run a single SST container:
+**Note:** Before running the LLM API service, ensure you have generated NKey credentials:
 
 ```shell
-# run existing containers, for daily usage when there hasn't been any changes to Dockerfile-SST
-docker-compose --env-file .env.<stage-name> up lixpi-sst
+# Generate LLM service NKey user credentials (NOT account!)
+docker exec -it lixpi-nats-cli nsc generate nkey --user
 
-# run production instance
-FUCKING DOGSHIT !!! WHEN THE FUCK ARE YOU GOING TO DO THIS PROPERLY ?????
-1. In docker-compose.yml replace
-`- ./.env:/usr/src/service/.env` with `- ./.env.production:/usr/src/service/.env`
-2. Run
-docker-compose --env-file .env.production up lixpi-sst
-2. Then run
-`docker exec -it lixpi-sst pnpm run deploy`  make sure to use `run` command because it's that command conflicts with pnpm built in command https://github.com/pnpm/pnpm/issues/5163
-
-
-docker-compose --env-file .env.development up lixpi-sst
-```
-
-##### Run SST commands
-
-```shell
-# authenticate AWS account
-docker exec -it lixpi-sst pnpm aws-login
-
-# start SST dev stack
-docker exec -it lixpi-sst pnpm dev
-
-# remove all SST stacks
-docker exec -it lixpi-sst pnpm remove-stack
-
-# remove single SST stack
-docker exec -it lixpi-sst pnpm remove-stack <stack-name>
-```
-
-##### Or enter SST container
-
-```shell
-docker exec -it lixpi-sst /bin/sh
-```
-
-##### NATS
-
-We use NATS as a main communication between clients, main api and all microservices.
-
-To rebuild NATS container from scratch run:
-
-```shell
-./rebuild-containers.sh lixpi-nats-1 lixpi-nats-2 lixpi-nats-3
-```
-
-To run NATS cluster:
-```shell
-docker-compose --env-file .env.<stage-name> up lixpi-nats-1 lixpi-nats-2 lixpi-nats-3
-```
-
-To edit NATS cli connection
-```shell
-nats context edit syscontext
-nats context edit regularcontex
+# Add the seed to your .env file as NATS_LLM_SERVICE_NKEY_SEED
+# Add the public key to your .env file as NATS_LLM_SERVICE_NKEY_PUBLIC
 ```
 
 

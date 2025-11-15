@@ -110,6 +110,28 @@ await startNatsAuthCalloutService({
     algorithms: ['RS256'],
     jwksUri: `${env.AUTH0_DOMAIN}/.well-known/jwks.json`,
     natsAuthAccount: env.NATS_AUTH_ACCOUNT,
+    // Configure internal services that use self-issued JWT authentication.
+    // Each service signs its own tokens with an NKey, we verify signatures using public keys.
+    serviceAuthConfigs: [
+        {
+            publicKey: env.NATS_LLM_SERVICE_NKEY_PUBLIC,
+            userId: 'svc:llm-service',
+            permissions: {
+                pub: {
+                    allow: [
+                        "llm.chat.error.>",           // Publish errors back to API
+                        "aiChat.receiveMessage.>"     // Stream LLM responses to web-ui
+                    ]
+                },
+                sub: {
+                    allow: [
+                        "llm.chat.process",            // Subscribe to chat processing requests
+                        "llm.chat.stop.>"              // Subscribe to stop requests
+                    ]
+                }
+            }
+        }
+    ]
 })
 
 

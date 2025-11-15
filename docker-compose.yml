@@ -50,6 +50,7 @@ services:
             NATS_REGULAR_USER_PASSWORD: ${NATS_REGULAR_USER_PASSWORD}
             NATS_AUTH_NKEY_ISSUER_PUBLIC: ${NATS_AUTH_NKEY_ISSUER_PUBLIC}
             NATS_AUTH_XKEY_ISSUER_PUBLIC: ${NATS_AUTH_XKEY_ISSUER_PUBLIC}
+            NATS_LLM_SERVICE_NKEY_PUBLIC: ${NATS_LLM_SERVICE_NKEY_PUBLIC}
             NATS_SAME_ORIGIN: ${NATS_SAME_ORIGIN}
             NATS_ALLOWED_ORIGINS: ${NATS_ALLOWED_ORIGINS}
             # Certificate management (always required for TLS)
@@ -87,6 +88,7 @@ services:
             NATS_REGULAR_USER_PASSWORD: ${NATS_REGULAR_USER_PASSWORD}
             NATS_AUTH_NKEY_ISSUER_PUBLIC: ${NATS_AUTH_NKEY_ISSUER_PUBLIC}
             NATS_AUTH_XKEY_ISSUER_PUBLIC: ${NATS_AUTH_XKEY_ISSUER_PUBLIC}
+            NATS_LLM_SERVICE_NKEY_PUBLIC: ${NATS_LLM_SERVICE_NKEY_PUBLIC}
             NATS_SAME_ORIGIN: ${NATS_SAME_ORIGIN}
             NATS_ALLOWED_ORIGINS: ${NATS_ALLOWED_ORIGINS}
             # Certificate management (always required for TLS)
@@ -123,6 +125,7 @@ services:
             NATS_REGULAR_USER_PASSWORD: ${NATS_REGULAR_USER_PASSWORD}
             NATS_AUTH_NKEY_ISSUER_PUBLIC: ${NATS_AUTH_NKEY_ISSUER_PUBLIC}
             NATS_AUTH_XKEY_ISSUER_PUBLIC: ${NATS_AUTH_XKEY_ISSUER_PUBLIC}
+            NATS_LLM_SERVICE_NKEY_PUBLIC: ${NATS_LLM_SERVICE_NKEY_PUBLIC}
             NATS_SAME_ORIGIN: ${NATS_SAME_ORIGIN}
             NATS_ALLOWED_ORIGINS: ${NATS_ALLOWED_ORIGINS}
             # Certificate management (always required for TLS)
@@ -255,6 +258,7 @@ services:
             NATS_AUTH_XKEY_ISSUER_SEED: ${NATS_AUTH_XKEY_ISSUER_SEED}
             NATS_SYS_USER_PASSWORD: ${NATS_SYS_USER_PASSWORD}
             NATS_REGULAR_USER_PASSWORD: ${NATS_REGULAR_USER_PASSWORD}
+            NATS_LLM_SERVICE_NKEY_PUBLIC: ${NATS_LLM_SERVICE_NKEY_PUBLIC}
 
             # AI config
             OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -308,6 +312,55 @@ services:
         ports:
             - 3005:3000
             - 35795:35795
+
+    lixpi-llm-api:
+        container_name: lixpi-llm-api
+        restart: always
+        image: lixpi/llm-api
+        build:
+            dockerfile: Dockerfile
+            context: services/llm-api
+        environment:
+            # NATS configuration
+            NATS_SERVERS: ${NATS_SERVERS}
+            NATS_NKEY_SEED: ${NATS_LLM_SERVICE_NKEY_SEED}
+
+            # Auth0 configuration (for JWT verification)
+            AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+            AUTH0_API_IDENTIFIER: ${AUTH0_API_IDENTIFIER}
+
+            # AI Provider API Keys
+            OPENAI_API_KEY: ${OPENAI_API_KEY}
+            ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+            # Circuit breaker settings
+            LLM_TIMEOUT_SECONDS: 1200
+
+            # Logging
+            LOG_LEVEL: INFO
+
+        volumes:
+            # Mount source for hot-reload during development
+            - ./services/llm-api/src:/app/src:cached
+            - ./services/llm-api/pyproject.toml:/app/pyproject.toml:cached
+            # TLS certificates for NATS connection
+            - caddy-certs:/opt/nats/certs:ro
+
+        networks:
+            - nats
+
+        working_dir: /app
+
+        # Health check
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+        ports:
+            - 8002:8000
 
     # SST container is deprecated and will be removed later in the future. DON'T USE IT !
     # lixpi-sst:
