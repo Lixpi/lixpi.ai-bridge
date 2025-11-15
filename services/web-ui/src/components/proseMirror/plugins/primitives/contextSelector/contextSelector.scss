@@ -3,9 +3,11 @@
 
 // Thread-specific infoBubble overrides
 .info-bubble-wrapper.thread-info-bubble {
+    .bubble-wrapper, .bubble-container {
+        border-radius: 10px;    // When changind default infoBubble border radius, make sure to apply it to both `.bubble-wrapper` and `.bubble-container` to avoid square artifacts
+    }
     .bubble-container {
         min-width: 560px;
-        border-radius: 10px;
     }
 }
 

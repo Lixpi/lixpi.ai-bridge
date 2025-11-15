@@ -451,6 +451,7 @@ function createThreadInfoBubble(view, threadId, getPos) {
         bodyContent: contextSelector.dom,
         visible: false,
         offset: { x: 0, y: 30 },
+        arrowCrossOffset: 15, // Move arrow further from corner to accommodate larger border-radius (10px)
         className: 'thread-info-bubble'
     })
 
