@@ -318,8 +318,8 @@ services:
         restart: always
         image: lixpi/llm-api
         build:
-            dockerfile: Dockerfile
-            context: services/llm-api
+            dockerfile: services/llm-api/Dockerfile
+            context: .
         environment:
             # NATS configuration
             NATS_SERVERS: ${NATS_SERVERS}
@@ -343,6 +343,8 @@ services:
             # Mount source for hot-reload during development
             - ./services/llm-api/src:/app/src:cached
             - ./services/llm-api/pyproject.toml:/app/pyproject.toml:cached
+            # Mount lixpi-constants package for development (includes nats-subjects.json)
+            - ./packages/lixpi/constants:/app/packages/lixpi/constants:cached
             # TLS certificates for NATS connection
             - caddy-certs:/opt/nats/certs:ro
 

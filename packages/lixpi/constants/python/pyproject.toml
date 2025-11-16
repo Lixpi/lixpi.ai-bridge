@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_backend"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "lixpi-constants"
@@ -15,4 +15,4 @@ packages = ["lixpi_constants"]
 lixpi_constants = "."
 
 [tool.setuptools.package-data]
-lixpi_constants = ["../nats-subjects.json"]
+lixpi_constants = ["nats-subjects.json"]
