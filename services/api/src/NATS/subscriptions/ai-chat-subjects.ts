@@ -8,8 +8,10 @@ import { AI_CHAT_SUBJECTS, type AiModelId, type AiChatSendMessagePayload, type A
 
 import AiModel from '../../models/ai-model.ts'
 
-import OpenAiChatService from '../../services/LLM-providers/OpenAI/chat-service.ts'
-import AnthropicChatService from '../../services/LLM-providers/Anthropic/chat-service.ts'
+// Internal NATS subjects for communication with llm-api service
+const LLM_CHAT_PROCESS = 'llm.chat.process'
+const LLM_CHAT_STOP = 'llm.chat.stop'
+const LLM_CHAT_ERROR = 'llm.chat.error'
 
 export const aiChatSubjects = [
     {
@@ -49,103 +51,60 @@ export const aiChatSubjects = [
             const [provider, model] = (aiModel as string).split(':')
             const natsService = await NATS_Service.getInstance();
 
-            // Fetch AI model meta info
-            const aiModelMetaInfo = await AiModel.getAiModel({ provider, model, omitPricing: false })
+            try {
+                // Fetch AI model meta info with pricing (for llm-api service)
+                const aiModelMetaInfo = await AiModel.getAiModel({ provider, model, omitPricing: false })
 
-            if (!aiModelMetaInfo || !aiModelMetaInfo.modelVersion) {
-                console.error('AI model meta info not found in the database', {aiModel})
-                return
-            }
+                if (!aiModelMetaInfo || !aiModelMetaInfo.modelVersion) {
+                    err('AI model meta info not found in the database', { aiModel })
 
-            // One stream per thread - use documentId:threadId as unique key
-            const instanceKey = `${documentId}:${threadId}`
-
-            infoStr([
-                chalk.cyan('🚀 [AI_CHAT] NEW REQUEST'),
-                ' :: instanceKey:',
-                chalk.yellow(instanceKey),
-                ' :: provider:',
-                chalk.green(provider)
-            ])
-
-            // Anthropic ---------------------------------------------------------------------------------------
-            if (provider === 'Anthropic') {
-                const anthropicChatService = AnthropicChatService.getInstance(instanceKey)
-
-                try {
-                    // Subscribe to chat content
-                    anthropicChatService.subscribeToTokenReceive((content: any, unsubscribe: any) => {
-                        natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, { content, threadId })
-
-                        if (content.status === 'END_STREAM') {
-                            infoStr([
-                                chalk.green('✅ [AI_CHAT] STREAM COMPLETE'),
-                                ' :: instanceKey:',
-                                chalk.yellow(instanceKey),
-                                ' :: Cleaning up'
-                            ])
-                            unsubscribe();
-                            AnthropicChatService.removeInstance(instanceKey);
-                        }
-                    });
-
-                    // Don't await - let it run concurrently so we can process next message immediately
-                    anthropicChatService.generate({
-                        messages,
-                        aiModelMetaInfo,
-                        eventMeta: {
-                            userId,
-                            stripeCustomerId,
-                            organizationId,
-                            documentId
-                        }
+                    // Publish error directly to client
+                    natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, {
+                        error: `AI model not found: ${aiModel}`
                     })
-                } catch (error) {
-                    console.error('❌ [AI_CHAT] Anthropic error for instanceKey:', instanceKey, error)
-                    natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, { error: error instanceof Error ? error.message : String(error) })
+                    return
                 }
 
-            }
-            // End AI Chat ---------------------------------------------------------------------------------------------------
+                // One stream per thread - use documentId:threadId as unique key
+                const instanceKey = threadId ? `${documentId}:${threadId}` : documentId
 
+                infoStr([
+                    chalk.cyan('🚀 [AI_CHAT] GATEWAY'),
+                    ' :: Forwarding to llm-api',
+                    ' :: instanceKey:',
+                    chalk.yellow(instanceKey),
+                    ' :: provider:',
+                    chalk.green(provider)
+                ])
 
-            // OpenAI ---------------------------------------------------------------------------------------
-            if (provider === 'OpenAI') {
-                const openAiChatService = OpenAiChatService.getInstance(instanceKey)
+                // Forward request to llm-api service via internal NATS subject
+                natsService.publish(LLM_CHAT_PROCESS, {
+                    messages,
+                    aiModelMetaInfo,
+                    threadId,
+                    documentId,
+                    eventMeta: {
+                        userId,
+                        stripeCustomerId,
+                        organizationId,
+                        documentId
+                    }
+                })
 
-                try {
-                    // Subscribe to chat content
-                    openAiChatService.subscribeToTokenReceive((content: any, unsubscribe: any) => {
-                        natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, { content, threadId })
+                infoStr([
+                    chalk.green('✅ [AI_CHAT] GATEWAY'),
+                    ' :: Request forwarded to llm-api',
+                    ' :: instanceKey:',
+                    chalk.yellow(instanceKey)
+                ])
 
-                        if (content.status === 'END_STREAM') {
-                            infoStr([
-                                chalk.green('✅ [AI_CHAT] STREAM COMPLETE'),
-                                ' :: instanceKey:',
-                                chalk.yellow(instanceKey),
-                                ' :: Cleaning up'
-                            ])
-                            unsubscribe();
-                            OpenAiChatService.removeInstance(instanceKey);
-                        }
-                    });
+            } catch (error) {
+                err('❌ [AI_CHAT] GATEWAY ERROR:', error)
 
-                    // Don't await - let it run concurrently so we can process next message immediately
-                    openAiChatService.generate({
-                        messages,
-                        aiModelMetaInfo,
-                        eventMeta: {
-                            userId,
-                            stripeCustomerId,
-                            organizationId,
-                            documentId
-                        }
-                    })
-
-                } catch (error) {
-                    console.error('❌ [AI_CHAT] OpenAI error for instanceKey:', instanceKey, error)
-                    natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, { error: error instanceof Error ? error.message : String(error) })
-                }
+                // Publish error to client
+                natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, {
+                    error: error instanceof Error ? error.message : String(error)
+                })
             }
         }
     },
@@ -175,44 +134,59 @@ export const aiChatSubjects = [
                 documentId: string
             } & AiChatStopMessagePayload
 
+            const natsService = await NATS_Service.getInstance()
+            const instanceKey = threadId ? `${documentId}:${threadId}` : documentId
+
             infoStr([
-                chalk.yellow('AiChatService -> '),
-                'STOP_MESSAGE received :: ',
-                chalk.red('Stopping stream'),
-                ' :: documentId:',
-                documentId,
-                ' threadId:',
-                threadId
+                chalk.yellow('🛑 [AI_CHAT] GATEWAY'),
+                ' :: Relaying STOP to llm-api',
+                ' :: instanceKey:',
+                chalk.red(instanceKey)
             ])
 
-            // Try to find and stop the active service instance for this thread
-            // Check both Anthropic and OpenAI services since we don't know which one is active
-            const instanceKey = `${documentId}:${threadId}`
-            let serviceStopped = false
+            // Relay stop request to llm-api service
+            natsService.publish(`${LLM_CHAT_STOP}.${instanceKey}`, {
+                documentId,
+                threadId,
+                userId
+            })
 
-            if (AnthropicChatService.instances.has(instanceKey)) {
-                const service = AnthropicChatService.getInstance(instanceKey)
-                service.stopStream()
-                serviceStopped = true
-                infoStr([
-                    chalk.green('✓ Stopped Anthropic service for instanceKey:'),
-                    instanceKey
-                ])
-            }
+            infoStr([
+                chalk.green('✅ [AI_CHAT] GATEWAY'),
+                ' :: STOP request relayed to llm-api',
+                ' :: instanceKey:',
+                chalk.yellow(instanceKey)
+            ])
+        }
+    },
 
-            if (OpenAiChatService.instances.has(instanceKey)) {
-                const service = OpenAiChatService.getInstance(instanceKey)
-                service.stopStream()
-                serviceStopped = true
-                infoStr([
-                    chalk.green('✓ Stopped OpenAI service for instanceKey:'),
-                    instanceKey
-                ])
+    // Handle errors from llm-api service
+    {
+        subject: `${LLM_CHAT_ERROR}.>`,
+        type: 'subscribe',
+        queue: 'aiChat',
+        payloadType: 'json',
+        permissions: {
+            sub: {
+                allow: [
+                    `${LLM_CHAT_ERROR}.>`
+                ]
             }
+        },
+        handler: async (data, msg) => {
+            const { error, instanceKey } = data as { error: string; instanceKey: string }
 
-            if (!serviceStopped) {
-                warn(`No active AI service found for instanceKey: ${instanceKey} (documentId: ${documentId}, threadId: ${threadId})`)
-            }
+            const natsService = await NATS_Service.getInstance()
+
+            // Extract documentId from instanceKey (format: documentId or documentId:threadId)
+            const documentId = instanceKey.split(':')[0]
+
+            err('❌ [AI_CHAT] ERROR from llm-api:', { instanceKey, error })
+
+            // Forward error to client
+            natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, {
+                error
+            })
         }
     },
 ]
