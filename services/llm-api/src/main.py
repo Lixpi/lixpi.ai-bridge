@@ -6,6 +6,7 @@ Python-based microservice for handling AI model interactions via NATS.
 import asyncio
 from contextlib import asynccontextmanager
 from colorama import Fore, Style
+import uvicorn
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -87,7 +88,6 @@ async def root():
 
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
