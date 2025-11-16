@@ -1,4 +1,4 @@
 packages:
-  - "packages/lixpi/*/js"
+  - "packages/lixpi/*/ts"
   - "packages/lixpi/*"
   - "lambda-functions/**/*"

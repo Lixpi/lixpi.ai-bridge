@@ -11,7 +11,7 @@ Provides a unified API for NATS messaging with support for:
 
 ## ⚠️ CRITICAL: Keeping TypeScript and Python Versions in Sync
 
-**THIS IS EXTREMELY IMPORTANT!** Both the TypeScript (`js/nats-service.ts`) and Python (`python/nats_service.py`) implementations **MUST** remain synchronized.
+**THIS IS EXTREMELY IMPORTANT!** Both the TypeScript (`ts/nats-service.ts`) and Python (`python/nats_service.py`) implementations **MUST** remain synchronized.
 
 ### Why This Matters
 
@@ -76,7 +76,7 @@ Any bug fix, feature addition, or behavioral change in one version **MUST** be r
 
 ### TypeScript is the Source of Truth
 
-When in doubt about behavior or implementation details, **refer to the TypeScript version** (`js/nats-service.ts`) as the authoritative source. The Python version should mirror its behavior as closely as Python idioms allow.
+When in doubt about behavior or implementation details, **refer to the TypeScript version** (`ts/nats-service.ts`) as the authoritative source. The Python version should mirror its behavior as closely as Python idioms allow.
 
 ---
 
@@ -84,12 +84,12 @@ When in doubt about behavior or implementation details, **refer to the TypeScrip
 
 ```
 packages/lixpi/nats-service/
-├── js/                      # TypeScript/JavaScript package
+├── ts/                      # TypeScript package
 │   ├── nats-service.ts      # Main implementation
 │   └── package.json
 ├── python/                  # Python package
 │   ├── __init__.py
-│   ├── nats_client.py       # Main implementation
+│   ├── nats_service.py      # Main implementation
 │   └── pyproject.toml
 └── README.md
 ```
