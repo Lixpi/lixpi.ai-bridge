@@ -190,8 +190,7 @@ services:
             - ./services/web-ui/tsconfig.json:/usr/src/service/tsconfig.json:cached
 
 
-            - ./packages/lixpi/constants/src:/usr/src/service/packages/lixpi/constants/src:cached
-            - ./packages/lixpi/constants/package.json:/usr/src/service/packages/lixpi/constants/package.json:cached
+            - ./packages/lixpi/constants/js:/usr/src/service/packages/lixpi/constants/js:cached
             - ./packages/lixpi/debug-tools/src:/usr/src/service/packages/lixpi/debug-tools/src:cached
             - ./packages/lixpi/debug-tools/package.json:/usr/src/service/packages/lixpi/debug-tools/package.json:cached
             - ./packages/lixpi/nats-service/js:/usr/src/service/packages/lixpi/nats-service/js:cached
@@ -278,8 +277,7 @@ services:
             - ./services/api/temp-ai-responses:/usr/src/service/temp-ai-responses:cached
 
             # - ./packages:/usr/src/service/packages
-            - ./packages/lixpi/constants/src:/usr/src/service/packages/lixpi/constants/src:cached
-            - ./packages/lixpi/constants/package.json:/usr/src/service/packages/lixpi/constants/package.json:cached
+            - ./packages/lixpi/constants/js:/usr/src/service/packages/lixpi/constants/js:cached
             - ./packages/lixpi/debug-tools/src:/usr/src/service/packages/lixpi/debug-tools/src:cached
             - ./packages/lixpi/debug-tools/package.json:/usr/src/service/packages/lixpi/debug-tools/package.json:cached
             - ./packages/lixpi/dynamodb-service/src:/usr/src/service/packages/lixpi/dynamodb-service/src:cached
@@ -342,7 +340,7 @@ services:
             - ./services/llm-api/src:/app/src:cached
             - ./services/llm-api/pyproject.toml:/app/pyproject.toml:cached
             # Mount lixpi packages for development
-            - ./packages/lixpi/constants:/app/packages/lixpi/constants:cached
+            - ./packages/lixpi/constants/python:/app/packages/lixpi/constants/python:cached
             - ./packages/lixpi/nats-service/python:/app/packages/lixpi/nats-service/python:cached
             # TLS certificates for NATS connection
             - caddy-certs:/opt/nats/certs:ro
@@ -520,8 +518,7 @@ services:
             - ./services:/usr/src/service/services:cached
 
             # Lixpi packages
-            - ./packages/lixpi/constants/src:/usr/src/service/packages/lixpi/constants/src:cached
-            - ./packages/lixpi/constants/package.json:/usr/src/service/packages/lixpi/constants/package.json:cached
+            - ./packages/lixpi/constants/js:/usr/src/service/packages/lixpi/constants/js:cached
             - ./packages/lixpi/debug-tools/src:/usr/src/service/packages/lixpi/debug-tools/src:cached
             - ./packages/lixpi/debug-tools/package.json:/usr/src/service/packages/lixpi/debug-tools/package.json:cached
             - ./packages/lixpi/dynamodb-service/src:/usr/src/service/packages/lixpi/dynamodb-service/src:cached
