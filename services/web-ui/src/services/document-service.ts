@@ -1,9 +1,8 @@
 'use strict'
 
-import {
-	DOCUMENT_SUBJECTS,
-	LoadingStatus,
-} from '@lixpi/constants'
+import { NATS_SUBJECTS, LoadingStatus } from '@lixpi/constants'
+
+const { DOCUMENT_SUBJECTS } = NATS_SUBJECTS
 
 import AuthService from './auth0-service.ts'
 import RouterService from './router-service.ts'

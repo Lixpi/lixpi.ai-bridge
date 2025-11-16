@@ -21,7 +21,7 @@ import { createServer } from 'http'
 import { jwtAuthMiddleware } from './NATS/middleware/nats-auth-middleware.ts'
 import { userSubjects } from './NATS/subscriptions/user-subjects.ts'
 import { aiModelSubjects } from './NATS/subscriptions/ai-model-subjects.ts'
-import { aiChatSubjects } from './NATS/subscriptions/ai-chat-subjects.ts'
+import { aiInteractionSubjects } from './NATS/subscriptions/ai-interaction-subjects.ts'
 import { documentSubjects } from './NATS/subscriptions/document-subjects.ts'
 import { subscriptionSubjects } from './NATS/subscriptions/subscription-subjects.ts'
 
@@ -84,7 +84,7 @@ const subscriptions = [
     ...userSubjects,
     ...subscriptionSubjects,
     ...aiModelSubjects,
-    ...aiChatSubjects,
+    ...aiInteractionSubjects,
     ...documentSubjects,
 ]
 
@@ -119,14 +119,14 @@ await startNatsAuthCalloutService({
             permissions: {
                 pub: {
                     allow: [
-                        "llm.chat.error.>",           // Publish errors back to API
-                        "aiChat.receiveMessage.>"     // Stream LLM responses to web-ui
+                        "ai.interaction.chat.error.>",           // Publish errors back to API
+                        "ai.interaction.chat.receiveMessage.>"     // Stream LLM responses to web-ui
                     ]
                 },
                 sub: {
                     allow: [
-                        "llm.chat.process",            // Subscribe to chat processing requests
-                        "llm.chat.stop.>"              // Subscribe to stop requests
+                        "ai.interaction.chat.process",            // Subscribe to chat processing requests
+                        "ai.interaction.chat.stop.>"              // Subscribe to stop requests
                     ]
                 }
             }

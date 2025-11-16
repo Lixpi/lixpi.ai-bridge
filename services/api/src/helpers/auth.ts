@@ -4,10 +4,7 @@ import process from 'process'
 import jwt from 'jsonwebtoken'
 import jwksClient from 'jwks-rsa'
 
-import {
-    AI_CHAT_SUBJECTS,
-    AuthenticationStatus
-} from '@lixpi/constants'
+import { NATS_SUBJECTS, AuthenticationStatus } from '@lixpi/constants'
 
 import { log, info, infoStr, warn, err } from '@lixpi/debug-tools'
 
@@ -24,6 +21,8 @@ const USE_CACHED_JWKS = false
 
 const registrationService = new RegistrationService()
 const subscriptionService = new SubscriptionService()
+
+const { AI_INTERACTION_SUBJECTS } = NATS_SUBJECTS
 
 const client = jwksClient({
     jwksUri: `${AUTH0_DOMAIN}/.well-known/jwks.json`,
@@ -95,7 +94,7 @@ const { user, error } = await registrationService.verifyRegistration({ decodedTo
                 // TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 err('TODO: Turn back balance verification !!!!!!!!!!!!!!!', decoded)
 
-                // if (eventName === AI_CHAT_SUBJECTS.SEND_MESSAGE) {
+                // if (eventName === AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE) {
                 //     const userSubscriptionStatus = await subscriptionService.checkUserBalance({ userId: decoded.sub })
 
                 //     if (userSubscriptionStatus === AuthenticationStatus.noActiveSubscription) {

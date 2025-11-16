@@ -5,12 +5,13 @@
     "type": "module",
     "exports": {
         ".": {
-            "import": "./src/constants.ts",
-            "types": "./src/types.ts"
+            "import": "./index.ts",
+            "types": "./types.ts"
         }
     },
     "files": [
-        "src"
+        "*.ts",
+        "../nats-subjects.json"
     ],
     "scripts": {},
     "devDependencies": {

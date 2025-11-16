@@ -129,8 +129,8 @@ That's it. No changes to the auth callout code needed.
 Each service gets minimal permissions for its specific use case. The `svc:` prefix clearly identifies service accounts vs real users.
 
 Example for llm-api:
-- Can publish to `llm.chat.error.*` and `aiChat.receiveMessage.*`
-- Can subscribe to `llm.chat.process` and `llm.chat.stop.*`
+- Can publish to `ai.interaction.chat.error.*` and `ai.interaction.chat.receiveMessage.*`
+- Can subscribe to `ai.interaction.chat.process` and `ai.interaction.chat.stop.*`
 - **Cannot** use `_INBOX.*` (no request-reply)
 - **Cannot** publish to system subjects
 - **Cannot** access admin operations

@@ -4,30 +4,32 @@ import chalk from 'chalk'
 
 import NATS_Service from '@lixpi/nats-service'
 import { log, info, infoStr, warn, err } from '@lixpi/debug-tools'
-import { AI_CHAT_SUBJECTS, type AiModelId, type AiChatSendMessagePayload, type AiChatStopMessagePayload } from '@lixpi/constants'
+import { NATS_SUBJECTS, type AiModelId, type AiInteractionChatSendMessagePayload, type AiInteractionChatStopMessagePayload } from '@lixpi/constants'
 
 import AiModel from '../../models/ai-model.ts'
 
-// Internal NATS subjects for communication with llm-api service
-const LLM_CHAT_PROCESS = 'llm.chat.process'
-const LLM_CHAT_STOP = 'llm.chat.stop'
-const LLM_CHAT_ERROR = 'llm.chat.error'
+const { AI_INTERACTION_SUBJECTS } = NATS_SUBJECTS
 
-export const aiChatSubjects = [
+// Internal NATS subjects for communication with llm-api service
+const AI_INTERACTION_CHAT_PROCESS = 'ai.interaction.chat.process'
+const AI_INTERACTION_CHAT_STOP = 'ai.interaction.chat.stop'
+const AI_INTERACTION_CHAT_ERROR = 'ai.interaction.chat.error'
+
+export const aiInteractionSubjects = [
     {
-        subject: AI_CHAT_SUBJECTS.SEND_MESSAGE,
+        subject: AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE,
         type: 'subscribe',
-        queue: 'aiChat',
+        queue: 'aiInteraction',
         payloadType: 'json',
         permissions: {
             pub: {
                 allow: [
-                    AI_CHAT_SUBJECTS.SEND_MESSAGE
+                    AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE
                 ]
             },
             sub: {
                 allow: [
-                    `${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.>`
+                    `${AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE_RESPONSE}.>`
                 ]
             }
         },
@@ -46,7 +48,7 @@ export const aiChatSubjects = [
                 user: { userId: string; stripeCustomerId: string }
                 documentId: string
                 organizationId: string
-            } & AiChatSendMessagePayload
+            } & AiInteractionChatSendMessagePayload
 
             const [provider, model] = (aiModel as string).split(':')
             const natsService = await NATS_Service.getInstance();
@@ -59,7 +61,7 @@ export const aiChatSubjects = [
                     err('AI model meta info not found in the database', { aiModel })
 
                     // Publish error directly to client
-                    natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, {
+                    natsService.publish(`${AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE_RESPONSE}.${documentId}`, {
                         error: `AI model not found: ${aiModel}`
                     })
                     return
@@ -69,7 +71,7 @@ export const aiChatSubjects = [
                 const instanceKey = threadId ? `${documentId}:${threadId}` : documentId
 
                 infoStr([
-                    chalk.cyan('🚀 [AI_CHAT] GATEWAY'),
+                    chalk.cyan('🚀 [AI_INTERACTION] GATEWAY'),
                     ' :: Forwarding to llm-api',
                     ' :: instanceKey:',
                     chalk.yellow(instanceKey),
@@ -78,7 +80,7 @@ export const aiChatSubjects = [
                 ])
 
                 // Forward request to llm-api service via internal NATS subject
-                natsService.publish(LLM_CHAT_PROCESS, {
+                natsService.publish(AI_INTERACTION_CHAT_PROCESS, {
                     messages,
                     aiModelMetaInfo,
                     threadId,
@@ -92,17 +94,17 @@ export const aiChatSubjects = [
                 })
 
                 infoStr([
-                    chalk.green('✅ [AI_CHAT] GATEWAY'),
+                    chalk.green('✅ [AI_INTERACTION] GATEWAY'),
                     ' :: Request forwarded to llm-api',
                     ' :: instanceKey:',
                     chalk.yellow(instanceKey)
                 ])
 
             } catch (error) {
-                err('❌ [AI_CHAT] GATEWAY ERROR:', error)
+                err('❌ [AI_INTERACTION] GATEWAY ERROR:', error)
 
                 // Publish error to client
-                natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, {
+                natsService.publish(`${AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE_RESPONSE}.${documentId}`, {
                     error: error instanceof Error ? error.message : String(error)
                 })
             }
@@ -111,14 +113,14 @@ export const aiChatSubjects = [
 
     // Stop AI message streaming
     {
-        subject: AI_CHAT_SUBJECTS.STOP_MESSAGE,
+        subject: AI_INTERACTION_SUBJECTS.CHAT_STOP_MESSAGE,
         type: 'subscribe',
-        queue: 'aiChat',
+        queue: 'aiInteraction',
         payloadType: 'json',
         permissions: {
             pub: {
                 allow: [
-                    AI_CHAT_SUBJECTS.STOP_MESSAGE
+                    AI_INTERACTION_SUBJECTS.CHAT_STOP_MESSAGE
                 ]
             }
         },
@@ -132,27 +134,27 @@ export const aiChatSubjects = [
             } = data as {
                 user: { userId: string }
                 documentId: string
-            } & AiChatStopMessagePayload
+            } & AiInteractionChatStopMessagePayload
 
             const natsService = await NATS_Service.getInstance()
             const instanceKey = threadId ? `${documentId}:${threadId}` : documentId
 
             infoStr([
-                chalk.yellow('🛑 [AI_CHAT] GATEWAY'),
+                chalk.yellow('🛑 [AI_INTERACTION] GATEWAY'),
                 ' :: Relaying STOP to llm-api',
                 ' :: instanceKey:',
                 chalk.red(instanceKey)
             ])
 
             // Relay stop request to llm-api service
-            natsService.publish(`${LLM_CHAT_STOP}.${instanceKey}`, {
+            natsService.publish(`${AI_INTERACTION_CHAT_STOP}.${instanceKey}`, {
                 documentId,
                 threadId,
                 userId
             })
 
             infoStr([
-                chalk.green('✅ [AI_CHAT] GATEWAY'),
+                chalk.green('✅ [AI_INTERACTION] GATEWAY'),
                 ' :: STOP request relayed to llm-api',
                 ' :: instanceKey:',
                 chalk.yellow(instanceKey)
@@ -162,14 +164,14 @@ export const aiChatSubjects = [
 
     // Handle errors from llm-api service
     {
-        subject: `${LLM_CHAT_ERROR}.>`,
+        subject: `${AI_INTERACTION_CHAT_ERROR}.>`,
         type: 'subscribe',
-        queue: 'aiChat',
+        queue: 'aiInteraction',
         payloadType: 'json',
         permissions: {
             sub: {
                 allow: [
-                    `${LLM_CHAT_ERROR}.>`
+                    `${AI_INTERACTION_CHAT_ERROR}.>`
                 ]
             }
         },
@@ -181,10 +183,10 @@ export const aiChatSubjects = [
             // Extract documentId from instanceKey (format: documentId or documentId:threadId)
             const documentId = instanceKey.split(':')[0]
 
-            err('❌ [AI_CHAT] ERROR from llm-api:', { instanceKey, error })
+            err('❌ [AI_INTERACTION] ERROR from llm-api:', { instanceKey, error })
 
             // Forward error to client
-            natsService.publish(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, {
+            natsService.publish(`${AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE_RESPONSE}.${documentId}`, {
                 error
             })
         }

@@ -1,7 +1,9 @@
 'use strict'
 
-import { AI_CHAT_SUBJECTS } from '@lixpi/constants'
-import type { AiModelId, AiChatSendMessagePayload, AiChatStopMessagePayload } from '@lixpi/constants'
+import { NATS_SUBJECTS } from '@lixpi/constants'
+import type { AiModelId, AiInteractionChatSendMessagePayload, AiInteractionChatStopMessagePayload } from '@lixpi/constants'
+
+const { AI_INTERACTION_SUBJECTS } = NATS_SUBJECTS
 
 import AuthService from './auth0-service.ts'
 import SegmentsReceiver from '$src/services/segmentsReceiver-service.js'
@@ -25,7 +27,7 @@ export default class ChatService {
 
     async initNatsSubscriptions() {
         try {
-            servicesStore.getData('nats')!.getSubscriptions(['aiChat.receiveMessage.*']).forEach(sub => sub.unsubscribe())    // Unsubscribe from all previous subscriptions to avoid duplicate receives
+            servicesStore.getData('nats')!.getSubscriptions(['ai.interaction.chat.receiveMessage.*']).forEach(sub => sub.unsubscribe())    // Unsubscribe from all previous subscriptions to avoid duplicate receives
 
             if (!this.instanceKey)
                 throw new Error('aiChat this.instanceKey is `undefined` !!!')
@@ -37,7 +39,7 @@ export default class ChatService {
     }
 
     async subscribeToChatMessages(documentId: string) {
-        servicesStore.getData('nats')!.subscribe(`${AI_CHAT_SUBJECTS.SEND_MESSAGE_RESPONSE}.${documentId}`, (data, msg) => {
+        servicesStore.getData('nats')!.subscribe(`${AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE_RESPONSE}.${documentId}`, (data, msg) => {
             this.onChatMessageResponse(data);
         })
     }
@@ -53,7 +55,7 @@ export default class ChatService {
         this.segmentsReceiver.receiveSegment({ ...data.content, threadId: data.threadId });
     }
 
-    async sendMessage({ messages, aiModel, threadId }: AiChatSendMessagePayload) {
+    async sendMessage({ messages, aiModel, threadId }: AiInteractionChatSendMessagePayload) {
         console.log('🚀 [SEND_MESSAGE] START', { threadId, aiModel })
 
         const organizationId = organizationStore.getData('organizationId')
@@ -67,10 +69,10 @@ export default class ChatService {
             threadId,
             organizationId
         }
-        servicesStore.getData('nats')!.publish(AI_CHAT_SUBJECTS.SEND_MESSAGE, payload)
+        servicesStore.getData('nats')!.publish(AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE, payload)
     }
 
-    async stopMessage({ threadId }: AiChatStopMessagePayload) {
+    async stopMessage({ threadId }: AiInteractionChatStopMessagePayload) {
         console.log('[AI_DBG][SERVICE.stopMessage] called', { documentId: this.instanceKey, threadId })
 
         const payload = {
@@ -79,7 +81,7 @@ export default class ChatService {
             threadId
         }
 
-        servicesStore.getData('nats')!.publish(AI_CHAT_SUBJECTS.STOP_MESSAGE, payload)
+        servicesStore.getData('nats')!.publish(AI_INTERACTION_SUBJECTS.CHAT_STOP_MESSAGE, payload)
     }
 
     disconnect() {}

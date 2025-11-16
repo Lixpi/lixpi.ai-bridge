@@ -82,13 +82,13 @@ export type SubscriptionBalanceUpdateEvent = {
 }
 
 // AI Chat message types
-export type AiChatSendMessagePayload = {
+export type AiInteractionChatSendMessagePayload = {
     messages: Array<{ role: string; content: string }>
     aiModel: AiModelId
     threadId: string
 }
 
-export type AiChatStopMessagePayload = {
+export type AiInteractionChatStopMessagePayload = {
     threadId: string
 }
 
