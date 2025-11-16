@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from nats_client.client import NatsClient
+from lixpi_nats_service import NatsService, NatsServiceConfig
 from providers.registry import ProviderRegistry
 
 # Configure logging
@@ -25,21 +25,32 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager - handles startup and shutdown."""
     logger.info("🚀 Starting Lixpi LLM API Service...")
-    
-    # Initialize NATS client
-    nats_client = NatsClient()
-    await nats_client.connect()
+
+    # Initialize NATS client with self-issued JWT
+    from config import settings
+
+    nats_config = NatsServiceConfig(
+        servers=[s.strip() for s in settings.NATS_SERVERS.split(',')],
+        name="llm-api-service",
+        nkey_seed=settings.NATS_NKEY_SEED,
+        user_id="svc:llm-service",
+        tls_ca_cert="/opt/nats/certs/ca.crt",
+        max_reconnect_attempts=-1,
+        reconnect_time_wait=2
+    )
+
+    nats_client = await NatsService.init(nats_config)
     app.state.nats_client = nats_client
-    
+
     # Initialize provider registry
     provider_registry = ProviderRegistry(nats_client)
     await provider_registry.initialize()
     app.state.provider_registry = provider_registry
-    
+
     logger.info("✅ Lixpi LLM API Service started successfully")
-    
+
     yield
-    
+
     # Cleanup
     logger.info("🛑 Shutting down Lixpi LLM API Service...")
     await provider_registry.shutdown()

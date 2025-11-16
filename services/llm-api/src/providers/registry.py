@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Optional
 
 from lixpi_constants import NATS_SUBJECTS
-from nats_client.client import NatsClient
+from lixpi_nats_service import NatsService
 from providers.openai.provider import OpenAIProvider
 from providers.anthropic.provider import AnthropicProvider
 from services.usage_reporter import UsageReporter
@@ -26,7 +26,7 @@ class ProviderRegistry:
     Manages LLM provider instances and handles NATS message routing.
     """
 
-    def __init__(self, nats_client: NatsClient):
+    def __init__(self, nats_client: NatsService):
         """
         Initialize provider registry.
 

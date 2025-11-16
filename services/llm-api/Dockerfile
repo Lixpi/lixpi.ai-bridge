@@ -10,9 +10,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Set working directory
 WORKDIR /app
 
-# Copy lixpi-constants package (needed for local file:// dependency)
+# Copy lixpi packages (needed for local file:// dependencies)
 COPY packages/lixpi/constants/python ./packages/lixpi/constants/python
 COPY packages/lixpi/constants/nats-subjects.json ./packages/lixpi/constants/python/nats-subjects.json
+COPY packages/lixpi/nats-service/python ./packages/lixpi/nats-service/python
 
 # Copy dependency files
 COPY services/llm-api/pyproject.toml ./

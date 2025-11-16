@@ -20,6 +20,7 @@ dependencies = [
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
     "lixpi-constants @ file:///app/packages/lixpi/constants/python",
+    "lixpi-nats-service @ file:///app/packages/lixpi/nats-service/python",
 ]
 
 [build-system]

@@ -194,8 +194,7 @@ services:
             - ./packages/lixpi/constants/package.json:/usr/src/service/packages/lixpi/constants/package.json:cached
             - ./packages/lixpi/debug-tools/src:/usr/src/service/packages/lixpi/debug-tools/src:cached
             - ./packages/lixpi/debug-tools/package.json:/usr/src/service/packages/lixpi/debug-tools/package.json:cached
-            - ./packages/lixpi/nats-service/src:/usr/src/service/packages/lixpi/nats-service/src:cached
-            - ./packages/lixpi/nats-service/package.json:/usr/src/service/packages/lixpi/nats-service/package.json:cached
+            - ./packages/lixpi/nats-service/js:/usr/src/service/packages/lixpi/nats-service/js:cached
 
             # - ./packages-vendor/bits-ui/packages/bits-ui:/usr/src/service/packages/bits-ui
             - ./packages-vendor/shadcn-svelte/sites/docs/src/lib:/usr/src/service/packages/shadcn-svelte/lib:cached
@@ -293,8 +292,7 @@ services:
             - ./packages/lixpi/ssm-service/package.json:/usr/src/service/packages/lixpi/ssm-service/package.json:cached
             - ./packages/lixpi/sns-service/src:/usr/src/service/packages/lixpi/sns-service/src:cached
             - ./packages/lixpi/sns-service/package.json:/usr/src/service/packages/lixpi/sns-service/package.json:cached
-            - ./packages/lixpi/nats-service/src:/usr/src/service/packages/lixpi/nats-service/src:cached
-            - ./packages/lixpi/nats-service/package.json:/usr/src/service/packages/lixpi/nats-service/package.json:cached
+            - ./packages/lixpi/nats-service/js:/usr/src/service/packages/lixpi/nats-service/js:cached
             - ./packages/lixpi/nats-auth-callout-service/src:/usr/src/service/packages/lixpi/nats-auth-callout-service/src:cached
             - ./packages/lixpi/nats-auth-callout-service/package.json:/usr/src/service/packages/lixpi/nats-auth-callout-service/package.json:cached
 
@@ -343,8 +341,9 @@ services:
             # Mount source for hot-reload during development
             - ./services/llm-api/src:/app/src:cached
             - ./services/llm-api/pyproject.toml:/app/pyproject.toml:cached
-            # Mount lixpi-constants package for development (includes nats-subjects.json)
+            # Mount lixpi packages for development
             - ./packages/lixpi/constants:/app/packages/lixpi/constants:cached
+            - ./packages/lixpi/nats-service/python:/app/packages/lixpi/nats-service/python:cached
             # TLS certificates for NATS connection
             - caddy-certs:/opt/nats/certs:ro
 
@@ -535,8 +534,7 @@ services:
             - ./packages/lixpi/ssm-service/package.json:/usr/src/service/packages/lixpi/ssm-service/package.json:cached
             - ./packages/lixpi/sns-service/src:/usr/src/service/packages/lixpi/sns-service/src:cached
             - ./packages/lixpi/sns-service/package.json:/usr/src/service/packages/lixpi/sns-service/package.json:cached
-            - ./packages/lixpi/nats-service/src:/usr/src/service/packages/lixpi/nats-service/src:cached
-            - ./packages/lixpi/nats-service/package.json:/usr/src/service/packages/lixpi/nats-service/package.json:cached
+            - ./packages/lixpi/nats-service/js:/usr/src/service/packages/lixpi/nats-service/js:cached
             - ./packages/lixpi/nats-auth-callout-service/src:/usr/src/service/packages/lixpi/nats-auth-callout-service/src:cached
             - ./packages/lixpi/nats-auth-callout-service/package.json:/usr/src/service/packages/lixpi/nats-auth-callout-service/package.json:cached
 
