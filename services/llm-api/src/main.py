@@ -4,27 +4,21 @@ Python-based microservice for handling AI model interactions via NATS.
 """
 
 import asyncio
-import logging
 from contextlib import asynccontextmanager
+from colorama import Fore, Style
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from lixpi_debug_tools import log, info, err, info_str
 from lixpi_nats_service import NatsService, NatsServiceConfig
 from providers.registry import ProviderRegistry
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager - handles startup and shutdown."""
-    logger.info("🚀 Starting Lixpi LLM API Service...")
+    info_str([Fore.MAGENTA, "=== ", Fore.CYAN, "Lixpi LLM API Service Starting ", Fore.MAGENTA, "===" , Style.RESET_ALL])
 
     # Initialize NATS client with self-issued JWT
     from config import settings
@@ -36,7 +30,7 @@ async def lifespan(app: FastAPI):
         user_id="svc:llm-service",
         tls_ca_cert="/opt/nats/certs/ca.crt",
         max_reconnect_attempts=-1,
-        reconnect_time_wait=2
+        reconnect_time_wait=0.5
     )
 
     nats_client = await NatsService.init(nats_config)
@@ -47,15 +41,16 @@ async def lifespan(app: FastAPI):
     await provider_registry.initialize()
     app.state.provider_registry = provider_registry
 
-    logger.info("✅ Lixpi LLM API Service started successfully")
+    info("Lixpi LLM API Service started successfully")
+    print("\n\n")
 
     yield
 
     # Cleanup
-    logger.info("🛑 Shutting down Lixpi LLM API Service...")
+    info("Shutting down Lixpi LLM API Service...")
     await provider_registry.shutdown()
     await nats_client.disconnect()
-    logger.info("✅ Shutdown complete")
+    info("Shutdown complete")
 
 
 app = FastAPI(

@@ -19,7 +19,9 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
+    "colorama>=0.4.6",
     "lixpi-constants @ file:///app/packages/lixpi/constants/python",
+    "lixpi-debug-tools @ file:///app/packages/lixpi/debug-tools/python",
     "lixpi-nats-service @ file:///app/packages/lixpi/nats-service/python",
 ]
 

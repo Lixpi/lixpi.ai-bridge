@@ -191,8 +191,7 @@ services:
 
 
             - ./packages/lixpi/constants/js:/usr/src/service/packages/lixpi/constants/js:cached
-            - ./packages/lixpi/debug-tools/src:/usr/src/service/packages/lixpi/debug-tools/src:cached
-            - ./packages/lixpi/debug-tools/package.json:/usr/src/service/packages/lixpi/debug-tools/package.json:cached
+            - ./packages/lixpi/debug-tools/js:/usr/src/service/packages/lixpi/debug-tools/js:cached
             - ./packages/lixpi/nats-service/js:/usr/src/service/packages/lixpi/nats-service/js:cached
 
             # - ./packages-vendor/bits-ui/packages/bits-ui:/usr/src/service/packages/bits-ui
@@ -278,8 +277,7 @@ services:
 
             # - ./packages:/usr/src/service/packages
             - ./packages/lixpi/constants/js:/usr/src/service/packages/lixpi/constants/js:cached
-            - ./packages/lixpi/debug-tools/src:/usr/src/service/packages/lixpi/debug-tools/src:cached
-            - ./packages/lixpi/debug-tools/package.json:/usr/src/service/packages/lixpi/debug-tools/package.json:cached
+            - ./packages/lixpi/debug-tools/js:/usr/src/service/packages/lixpi/debug-tools/js:cached
             - ./packages/lixpi/dynamodb-service/src:/usr/src/service/packages/lixpi/dynamodb-service/src:cached
             - ./packages/lixpi/dynamodb-service/package.json:/usr/src/service/packages/lixpi/dynamodb-service/package.json:cached
             - ./packages/lixpi/lambda-service/src:/usr/src/service/packages/lixpi/lambda-service/src:cached
@@ -317,6 +315,10 @@ services:
             dockerfile: services/llm-api/Dockerfile
             context: .
         environment:
+            # Force color output in the terminal
+            FORCE_COLOR: 1
+            PYTHONUNBUFFERED: 1
+
             # NATS configuration
             NATS_SERVERS: ${NATS_SERVERS}
             NATS_NKEY_SEED: ${NATS_LLM_SERVICE_NKEY_SEED}
@@ -341,6 +343,7 @@ services:
             - ./services/llm-api/pyproject.toml:/app/pyproject.toml:cached
             # Mount lixpi packages for development
             - ./packages/lixpi/constants/python:/app/packages/lixpi/constants/python:cached
+            - ./packages/lixpi/debug-tools/python:/app/packages/lixpi/debug-tools/python:cached
             - ./packages/lixpi/nats-service/python:/app/packages/lixpi/nats-service/python:cached
             # TLS certificates for NATS connection
             - caddy-certs:/opt/nats/certs:ro
@@ -519,8 +522,7 @@ services:
 
             # Lixpi packages
             - ./packages/lixpi/constants/js:/usr/src/service/packages/lixpi/constants/js:cached
-            - ./packages/lixpi/debug-tools/src:/usr/src/service/packages/lixpi/debug-tools/src:cached
-            - ./packages/lixpi/debug-tools/package.json:/usr/src/service/packages/lixpi/debug-tools/package.json:cached
+            - ./packages/lixpi/debug-tools/js:/usr/src/service/packages/lixpi/debug-tools/js:cached
             - ./packages/lixpi/dynamodb-service/src:/usr/src/service/packages/lixpi/dynamodb-service/src:cached
             - ./packages/lixpi/dynamodb-service/package.json:/usr/src/service/packages/lixpi/dynamodb-service/package.json:cached
             - ./packages/lixpi/lambda-service/src:/usr/src/service/packages/lixpi/lambda-service/src:cached

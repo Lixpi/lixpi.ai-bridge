@@ -3,16 +3,15 @@ Provider registry for managing LLM provider instances.
 Handles instance lifecycle, NATS subscriptions, and routing.
 """
 
-import logging
 from typing import Dict, Optional
+from colorama import Fore, Style
 
+from lixpi_debug_tools import log, info, warn, err, info_str
 from lixpi_constants import NATS_SUBJECTS
 from lixpi_nats_service import NatsService
 from providers.openai.provider import OpenAIProvider
 from providers.anthropic.provider import AnthropicProvider
 from services.usage_reporter import UsageReporter
-
-logger = logging.getLogger(__name__)
 
 # Extract AI interaction subjects
 AI_INTERACTION_SUBJECTS = NATS_SUBJECTS["AI_INTERACTION_SUBJECTS"]
@@ -41,34 +40,35 @@ class ProviderRegistry:
 
     async def initialize(self) -> None:
         """Initialize NATS subscriptions for LLM operations."""
-        logger.info("Initializing provider registry...")
+        info("Initializing provider registry...")
 
         # Subscribe to chat processing requests
         await self.nats_client.subscribe(
             CHAT_PROCESS,
             self._handle_chat_process,
-            queue="llm-workers"
+            {'queue': 'llm-workers'}
         )
 
         # Subscribe to stop requests (wildcard)
         await self.nats_client.subscribe(
             f"{CHAT_STOP}.>",
-            self._handle_chat_stop
+            self._handle_chat_stop,
+            {}
         )
 
-        logger.info("✅ Provider registry initialized")
+        info("Provider registry initialized")
 
     async def shutdown(self) -> None:
         """Shutdown all active provider instances."""
-        logger.info("Shutting down provider registry...")
+        info("Shutting down provider registry...")
 
         # Stop all active instances
         for instance_key, provider in list(self.instances.items()):
-            logger.info(f"Stopping instance: {instance_key}")
+            info(f"Stopping instance: {instance_key}")
             await provider.stop()
 
         self.instances.clear()
-        logger.info("✅ Provider registry shutdown complete")
+        info("Provider registry shutdown complete")
 
     async def _handle_chat_process(self, data: Dict, msg) -> None:
         """
@@ -86,17 +86,17 @@ class ProviderRegistry:
             provider_name = ai_model_meta_info.get('provider')
 
             if not document_id:
-                logger.error("Missing documentId in request")
+                err("Missing documentId in request")
                 return
 
             if not provider_name:
-                logger.error("Missing provider in aiModelMetaInfo")
+                err("Missing provider in aiModelMetaInfo")
                 return
 
             # Create instance key
             instance_key = f"{document_id}:{thread_id}" if thread_id else document_id
 
-            logger.info(f"Processing chat request for {instance_key} using {provider_name}")
+            info(f"Processing chat request for {instance_key} using {provider_name}")
 
             # Get or create provider instance
             provider = self._get_or_create_instance(instance_key, provider_name)
@@ -108,7 +108,7 @@ class ProviderRegistry:
             self._remove_instance(instance_key)
 
         except Exception as e:
-            logger.error(f"Error handling chat process: {e}", exc_info=True)
+            err(f"Error handling chat process: {e}")
 
             # Publish error back to services/api
             instance_key = data.get('documentId', 'unknown')
@@ -136,18 +136,18 @@ class ProviderRegistry:
             else:
                 instance_key = data.get('instanceKey', data.get('documentId', ''))
 
-            logger.info(f"Received stop request for {instance_key}")
+            info(f"Received stop request for {instance_key}")
 
             # Find and stop the instance
             provider = self.instances.get(instance_key)
             if provider:
                 await provider.stop()
-                logger.info(f"✅ Stopped instance: {instance_key}")
+                info(f"Stopped instance: {instance_key}")
             else:
-                logger.warning(f"Instance not found: {instance_key}")
+                warn(f"Instance not found: {instance_key}")
 
         except Exception as e:
-            logger.error(f"Error handling chat stop: {e}", exc_info=True)
+            err(f"Error handling chat stop: {e}")
 
     def _get_or_create_instance(self, instance_key: str, provider_name: str):
         """
@@ -162,11 +162,11 @@ class ProviderRegistry:
         """
         # Return existing instance if available
         if instance_key in self.instances:
-            logger.info(f"Reusing existing instance: {instance_key}")
+            info(f"Reusing existing instance: {instance_key}")
             return self.instances[instance_key]
 
         # Create new instance
-        logger.info(f"Creating new {provider_name} instance: {instance_key}")
+        info(f"Creating new {provider_name} instance: {instance_key}")
 
         if provider_name == 'OpenAI':
             provider = OpenAIProvider(
@@ -196,5 +196,5 @@ class ProviderRegistry:
             instance_key: Instance identifier
         """
         if instance_key in self.instances:
-            logger.info(f"Removing instance: {instance_key}")
+            info(f"Removing instance: {instance_key}")
             del self.instances[instance_key]

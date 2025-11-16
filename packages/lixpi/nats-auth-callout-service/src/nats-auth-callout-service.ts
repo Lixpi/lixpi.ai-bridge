@@ -13,7 +13,7 @@ import { log, info, infoStr, warn, err } from '@lixpi/debug-tools'
 const getPermissionsForUser = (userId: string, subscriptions, servicePermissions?: { pub: { allow: string[] }, sub: { allow: string[] } }) => {
     // If service-specific permissions are provided, use them
     if (servicePermissions) {
-        info('🔒 Service permissions (restricted service account):', servicePermissions)
+        info('Service permissions (restricted service account):', servicePermissions)
         return servicePermissions
     }
 
@@ -149,7 +149,7 @@ const authenticateServiceJWT = async (
     token: string,
     serviceConfig: ServiceAuthConfig
 ): Promise<{ userId: string, permissions: ServiceAuthConfig['permissions'] }> => {
-    info(`🔐 Auth callout: Verifying self-issued JWT from service (issuer: ${serviceConfig.publicKey.substring(0, 10)}...)`)
+    info(`Auth callout: Verifying self-issued JWT from service (issuer: ${serviceConfig.publicKey.substring(0, 10)}...)`)
 
     const { decoded, error } = await verifyNKeySignedJWT({
         token,
@@ -171,7 +171,7 @@ const authenticateServiceJWT = async (
         throw new Error(`User ID mismatch: expected ${serviceConfig.userId}, got ${userId}`)
     }
 
-    info(`✅ Auth callout: Service authenticated via self-issued JWT (${userId})`)
+    info(`Auth callout: Service authenticated via self-issued JWT (${userId})`)
 
     return { userId, permissions: serviceConfig.permissions }
 }
@@ -186,7 +186,7 @@ const authenticateAuth0JWT = async (
     jwtIssuer: string,
     jwtAlgorithms: string[]
 ): Promise<{ userId: string }> => {
-    info('🔐 Auth callout: Verifying Auth0 JWT...')
+    info('Auth callout: Verifying Auth0 JWT...')
 
     const { decoded, error } = await authenticateTokenOnRequest({
         getKey,
@@ -206,7 +206,7 @@ const authenticateAuth0JWT = async (
         throw new Error('User ID ("sub") missing in Auth0 JWT')
     }
 
-    info(`✅ Auth callout: Auth0 user authenticated (${userId})`)
+    info(`Auth callout: Auth0 user authenticated (${userId})`)
 
     return { userId }
 }

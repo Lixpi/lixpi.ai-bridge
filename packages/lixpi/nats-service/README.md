@@ -9,6 +9,77 @@ Provides a unified API for NATS messaging with support for:
 - Queue groups for load balancing
 - Optional self-issued JWT authentication via NKeys
 
+## ⚠️ CRITICAL: Keeping TypeScript and Python Versions in Sync
+
+**THIS IS EXTREMELY IMPORTANT!** Both the TypeScript (`js/nats-service.ts`) and Python (`python/nats_service.py`) implementations **MUST** remain synchronized.
+
+### Why This Matters
+
+Both versions are used across different services in the Lixpi ecosystem:
+- **TypeScript version**: Used by `lixpi-api` and other Node.js services
+- **Python version**: Used by `lixpi-llm-api` and other Python services
+
+Any bug fix, feature addition, or behavioral change in one version **MUST** be replicated in the other version to maintain consistency across the entire system.
+
+### Synchronization Rules
+
+1. **Structure Alignment**: Both implementations follow the same structure:
+   - Same class/method organization
+   - Same configuration options
+   - Same error handling patterns
+   - Same connection retry behavior
+   - Same middleware support
+
+2. **Method Signatures**: Keep method signatures as similar as possible:
+   ```typescript
+   // TypeScript
+   subscribe(subject: string, handler: MessageHandler, options: SubscriptionOptions, payloadType: 'json' | 'buffer')
+   ```
+   ```python
+   # Python
+   async def subscribe(subject: str, handler: Callable, options: Dict[str, str], payload_type: str)
+   ```
+
+3. **Behavior Parity**: Both versions must:
+   - Handle connection failures the same way (retry without crashing)
+   - Use identical timeout defaults (`initialConnectTimeout = 2s`, `request timeout = 3s`)
+   - Apply the same authentication priority (NKey JWT → Token → User/Pass)
+   - Log messages in the same format
+
+4. **When Making Changes**:
+   - ✅ **DO**: Update both TypeScript AND Python versions
+   - ✅ **DO**: Test both implementations after changes
+   - ✅ **DO**: Keep comments and documentation in sync
+   - ✅ **DO**: Match error messages across both versions
+   - ❌ **DON'T**: Change one version without updating the other
+   - ❌ **DON'T**: Add features to only one implementation
+   - ❌ **DON'T**: Fix bugs in only one version
+
+5. **Known Acceptable Differences**:
+   - **Async/Sync**: Python NATS is fully async, TypeScript allows sync methods for publish/subscribe
+   - **Naming**: Python uses `snake_case`, TypeScript uses `camelCase`
+   - **Status Monitoring**: TypeScript has status iterator, Python uses callbacks (inherent library difference)
+   - **TLS Config**: Python has explicit `tls_ca_cert` parameter (platform difference)
+   - **Type System**: Python uses type hints, TypeScript uses native types
+
+6. **Validation Checklist** (use this when making changes):
+   ```
+   [ ] Updated TypeScript version (js/nats-service.ts)
+   [ ] Updated Python version (python/nats_service.py)
+   [ ] Connection retry works identically in both
+   [ ] Authentication flow matches
+   [ ] Error messages are consistent
+   [ ] Timeout values are the same
+   [ ] Both versions tested in their respective services
+   [ ] README updated if API changed
+   ```
+
+### TypeScript is the Source of Truth
+
+When in doubt about behavior or implementation details, **refer to the TypeScript version** (`js/nats-service.ts`) as the authoritative source. The Python version should mirror its behavior as closely as Python idioms allow.
+
+---
+
 ## Structure
 
 ```
