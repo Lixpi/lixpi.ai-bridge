@@ -4,9 +4,13 @@ export * from './types.ts'
 export * from './aws-resources.ts'
 
 import natsSubjects from '../nats-subjects.json' with { type: 'json' }
+import aiInteractionConstants from '../ai-interaction-constants.json' with { type: 'json' }
 
 // Single dynamic export of all NATS subjects
 export const NATS_SUBJECTS = natsSubjects
+
+// AI interaction constants
+export const AI_INTERACTION_CONSTANTS = aiInteractionConstants
 
 
 export const BILLING_CONFIG: Record<string, string> = {

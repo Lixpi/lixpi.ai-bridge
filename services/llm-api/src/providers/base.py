@@ -16,16 +16,19 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from config import settings
 from prompts import get_system_prompt
 from services.usage_reporter import UsageReporter
+from lixpi_constants import AI_INTERACTION_CONSTANTS
 
 logger = logging.getLogger(__name__)
 
 
+_STREAM_STATUS = AI_INTERACTION_CONSTANTS.get("STREAM_STATUS", {})
+
 class StreamStatus(str, Enum):
     """Status of streaming response."""
-    START_STREAM = "START_STREAM"
-    STREAMING = "STREAMING"
-    END_STREAM = "END_STREAM"
-    ERROR = "ERROR"
+    START_STREAM = _STREAM_STATUS.get("START_STREAM", "START_STREAM")
+    STREAMING = _STREAM_STATUS.get("STREAMING", "STREAMING")
+    END_STREAM = _STREAM_STATUS.get("END_STREAM", "END_STREAM")
+    ERROR = _STREAM_STATUS.get("ERROR", "ERROR")
 
 
 class ProviderState(TypedDict, total=False):

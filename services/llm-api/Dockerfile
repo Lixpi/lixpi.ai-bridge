@@ -13,6 +13,7 @@ WORKDIR /app
 # Copy lixpi packages (needed for local file:// dependencies)
 COPY packages/lixpi/constants/python ./packages/lixpi/constants/python
 COPY packages/lixpi/constants/nats-subjects.json ./packages/lixpi/constants/python/nats-subjects.json
+COPY packages/lixpi/constants/ai-interaction-constants.json ./packages/lixpi/constants/ai-interaction-constants.json
 COPY packages/lixpi/debug-tools/python ./packages/lixpi/debug-tools/python
 COPY packages/lixpi/nats-service/python ./packages/lixpi/nats-service/python
 

@@ -15,4 +15,4 @@ packages = ["lixpi_constants"]
 lixpi_constants = "."
 
 [tool.setuptools.package-data]
-lixpi_constants = ["nats-subjects.json"]
+lixpi_constants = ["*.json", "../*.json"]

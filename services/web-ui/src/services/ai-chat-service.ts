@@ -1,9 +1,10 @@
 'use strict'
 
-import { NATS_SUBJECTS } from '@lixpi/constants'
+import { NATS_SUBJECTS, AI_INTERACTION_CONSTANTS } from '@lixpi/constants'
 import type { AiModelId, AiInteractionChatSendMessagePayload, AiInteractionChatStopMessagePayload } from '@lixpi/constants'
 
 const { AI_INTERACTION_SUBJECTS } = NATS_SUBJECTS
+const { STREAM_STATUS } = AI_INTERACTION_CONSTANTS
 
 import AuthService from './auth0-service.ts'
 import SegmentsReceiver from '$src/services/segmentsReceiver-service.js'
@@ -103,15 +104,15 @@ export default class ChatService {
         }
 
         // Route raw tokens through markdown parser (exact replication of backend pattern)
-        if (content.status === 'START_STREAM') {
+        if (content.status === STREAM_STATUS.START_STREAM) {
             // Initialize fresh parser instance for this stream
             this.initMarkdownParser()
             // startParsing() will emit START_STREAM event internally via subscribeToTokenParse callback
             this.markdownStreamParser.startParsing()
-        } else if (content.status === 'STREAMING' && content.text) {
+        } else if (content.status === STREAM_STATUS.STREAMING && content.text) {
             // Feed raw token to parser - it will emit parsed segments via subscribeToTokenParse callback
             this.markdownStreamParser.parseToken(content.text)
-        } else if (content.status === 'END_STREAM') {
+        } else if (content.status === STREAM_STATUS.END_STREAM) {
             // stopParsing() will emit END_STREAM event internally via subscribeToTokenParse callback
             this.markdownStreamParser.stopParsing()
         }
