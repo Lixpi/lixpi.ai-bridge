@@ -102,3 +102,11 @@ To build Web-ui
 ```shell
 docker exec -it lixpi-web-ui pnpm build
 ```
+
+
+
+
+Credits:
+
+CSS Spinners: https://cssloaders.github.io/
+
