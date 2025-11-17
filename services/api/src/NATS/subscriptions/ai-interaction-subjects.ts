@@ -10,11 +10,6 @@ import AiModel from '../../models/ai-model.ts'
 
 const { AI_INTERACTION_SUBJECTS } = NATS_SUBJECTS
 
-// Internal NATS subjects for communication with llm-api service
-const AI_INTERACTION_CHAT_PROCESS = 'ai.interaction.chat.process'
-const AI_INTERACTION_CHAT_STOP = 'ai.interaction.chat.stop'
-const AI_INTERACTION_CHAT_ERROR = 'ai.interaction.chat.error'
-
 export const aiInteractionSubjects = [
     {
         subject: AI_INTERACTION_SUBJECTS.CHAT_SEND_MESSAGE,
@@ -80,7 +75,7 @@ export const aiInteractionSubjects = [
                 ])
 
                 // Forward request to llm-api service via internal NATS subject
-                natsService.publish(AI_INTERACTION_CHAT_PROCESS, {
+                natsService.publish(AI_INTERACTION_SUBJECTS.CHAT_PROCESS, {
                     messages,
                     aiModelMetaInfo,
                     threadId,
@@ -147,7 +142,7 @@ export const aiInteractionSubjects = [
             ])
 
             // Relay stop request to llm-api service
-            natsService.publish(`${AI_INTERACTION_CHAT_STOP}.${instanceKey}`, {
+            natsService.publish(`${AI_INTERACTION_SUBJECTS.CHAT_STOP}.${instanceKey}`, {
                 documentId,
                 threadId,
                 userId
@@ -164,14 +159,14 @@ export const aiInteractionSubjects = [
 
     // Handle errors from llm-api service
     {
-        subject: `${AI_INTERACTION_CHAT_ERROR}.>`,
+        subject: `${AI_INTERACTION_SUBJECTS.CHAT_ERROR}.>`,
         type: 'subscribe',
         queue: 'aiInteraction',
         payloadType: 'json',
         permissions: {
             sub: {
                 allow: [
-                    `${AI_INTERACTION_CHAT_ERROR}.>`
+                    `${AI_INTERACTION_SUBJECTS.CHAT_ERROR}.>`
                 ]
             }
         },

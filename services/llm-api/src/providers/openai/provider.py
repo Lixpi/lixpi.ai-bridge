@@ -76,6 +76,9 @@ class OpenAIProvider(BaseLLMProvider):
         logger.debug(f"Messages count: {len(formatted_messages)}")
 
         try:
+            # Publish stream start event
+            await self._publish_stream_start(document_id, thread_id)
+
             # Create streaming completion
             stream = await self.client.chat.completions.create(
                 model=model_version,

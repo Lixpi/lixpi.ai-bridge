@@ -71,9 +71,12 @@ class AnthropicProvider(BaseLLMProvider):
             })
 
         logger.info(f"Streaming from Anthropic model: {model_version}")
-        logger.debug(f"Messages: {[{role: m['role'], length: len(m['content'])} for m in formatted_messages]}")
+        logger.debug(f"Messages: {[{'role': m['role'], 'length': len(m['content'])} for m in formatted_messages]}")
 
         try:
+            # Publish stream start event
+            await self._publish_stream_start(document_id, thread_id)
+
             # Create streaming completion
             async with self.client.messages.stream(
                 model=model_version,

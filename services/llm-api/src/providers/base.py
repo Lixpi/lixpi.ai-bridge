@@ -7,7 +7,7 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, Any, Optional, AsyncIterator
+from typing import Dict, Any, Optional, AsyncIterator, TypedDict
 from enum import Enum
 
 from langgraph.graph import StateGraph, END
@@ -22,12 +22,13 @@ logger = logging.getLogger(__name__)
 
 class StreamStatus(str, Enum):
     """Status of streaming response."""
+    START_STREAM = "START_STREAM"
     STREAMING = "STREAMING"
     END_STREAM = "END_STREAM"
     ERROR = "ERROR"
 
 
-class ProviderState(Dict[str, Any]):
+class ProviderState(TypedDict, total=False):
     """
     State for LangGraph provider workflow.
 
@@ -49,7 +50,22 @@ class ProviderState(Dict[str, Any]):
         - ai_request_received_at: Request start timestamp
         - ai_request_finished_at: Request end timestamp
     """
-    pass
+    messages: list
+    ai_model_meta_info: Dict[str, Any]
+    event_meta: Dict[str, Any]
+    thread_id: Optional[str]
+    document_id: str
+    instance_key: str
+    provider: str
+    model_version: str
+    max_completion_size: Optional[int]
+    temperature: float
+    stream_active: bool
+    error: Optional[str]
+    usage: Dict[str, Any]
+    ai_vendor_request_id: Optional[str]
+    ai_request_received_at: int
+    ai_request_finished_at: Optional[int]
 
 
 class BaseLLMProvider(ABC):
@@ -266,6 +282,29 @@ class BaseLLMProvider(ABC):
 
     # Helper methods
 
+    async def _publish_stream_start(
+        self,
+        document_id: str,
+        thread_id: Optional[str] = None
+    ) -> None:
+        """
+        Publish stream start marker to the client.
+
+        Args:
+            document_id: Document identifier
+            thread_id: Optional thread identifier
+        """
+        self.nats_client.publish(
+            f"ai.interaction.chat.receiveMessage.{document_id}",
+            {
+                'content': {
+                    'status': StreamStatus.START_STREAM,
+                    'aiProvider': self.get_provider_name()
+                },
+                'threadId': thread_id
+            }
+        )
+
     async def _publish_stream_chunk(
         self,
         document_id: str,
@@ -280,12 +319,13 @@ class BaseLLMProvider(ABC):
             text: Text content to stream
             thread_id: Optional thread identifier
         """
-        await self.nats_client.publish(
+        self.nats_client.publish(
             f"ai.interaction.chat.receiveMessage.{document_id}",
             {
                 'content': {
                     'text': text,
-                    'status': StreamStatus.STREAMING
+                    'status': StreamStatus.STREAMING,
+                    'aiProvider': self.get_provider_name()
                 },
                 'threadId': thread_id
             }
@@ -303,12 +343,13 @@ class BaseLLMProvider(ABC):
             document_id: Document identifier
             thread_id: Optional thread identifier
         """
-        await self.nats_client.publish(
+        self.nats_client.publish(
             f"ai.interaction.chat.receiveMessage.{document_id}",
             {
                 'content': {
                     'text': '',
-                    'status': StreamStatus.END_STREAM
+                    'status': StreamStatus.END_STREAM,
+                    'aiProvider': self.get_provider_name()
                 },
                 'threadId': thread_id
             }
@@ -322,7 +363,7 @@ class BaseLLMProvider(ABC):
             instance_key: Instance key (documentId or documentId:threadId)
             error_message: Error message
         """
-        await self.nats_client.publish(
+        self.nats_client.publish(
             f"ai.interaction.chat.error.{instance_key}",
             {
                 'error': error_message,

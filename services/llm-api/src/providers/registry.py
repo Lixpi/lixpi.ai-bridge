@@ -48,6 +48,7 @@ class ProviderRegistry:
             self._handle_chat_process,
             {'queue': 'llm-workers'}
         )
+        info_str([Fore.GREEN, "NATS -> ", Style.RESET_ALL, Fore.WHITE, "register: ", Fore.CYAN, "subscribe".ljust(10, ' '), Style.RESET_ALL, Fore.WHITE, ": ", Style.RESET_ALL, Fore.GREEN, CHAT_PROCESS, Style.RESET_ALL, Fore.WHITE, f" with queue: llm-workers", Style.RESET_ALL])
 
         # Subscribe to stop requests (wildcard)
         await self.nats_client.subscribe(
@@ -55,6 +56,7 @@ class ProviderRegistry:
             self._handle_chat_stop,
             {}
         )
+        info_str([Fore.GREEN, "NATS -> ", Style.RESET_ALL, Fore.WHITE, "register: ", Fore.CYAN, "subscribe".ljust(10, ' '), Style.RESET_ALL, Fore.WHITE, ": ", Style.RESET_ALL, Fore.GREEN, f"{CHAT_STOP}.>", Style.RESET_ALL])
 
         info("Provider registry initialized")
 
@@ -112,7 +114,7 @@ class ProviderRegistry:
 
             # Publish error back to services/api
             instance_key = data.get('documentId', 'unknown')
-            await self.nats_client.publish(
+            self.nats_client.publish(
                 f"{CHAT_ERROR}.{instance_key}",
                 {
                     'error': str(e),
