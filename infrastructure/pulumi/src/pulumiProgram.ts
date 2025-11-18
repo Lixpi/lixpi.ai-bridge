@@ -207,8 +207,8 @@ export const createInfrastructure = async () => {
         functionName: 'nats-cert-manager',
         timeout: 900, // 15 minutes for certificate generation
         memorySize: 1024,
-        dockerBuildContext: '/usr/src/service/src/resources/certificate-manager',
-        dockerfilePath: '/usr/src/service/src/resources/certificate-manager/Dockerfile',
+        dockerBuildContext: '/usr/src/service/infrastructure/pulumi/src/resources/certificate-manager',
+        dockerfilePath: '/usr/src/service/infrastructure/pulumi/src/resources/certificate-manager/Dockerfile',
         environment: {
             // Any additional environment variables for Lambda
         },

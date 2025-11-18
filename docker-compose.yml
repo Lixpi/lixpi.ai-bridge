@@ -190,9 +190,9 @@ services:
             - ./services/web-ui/tsconfig.json:/usr/src/service/tsconfig.json:cached
 
 
-            - ./packages/lixpi/constants/ts:/usr/src/service/packages/lixpi/constants/ts:cached
-            - ./packages/lixpi/debug-tools/ts:/usr/src/service/packages/lixpi/debug-tools/ts:cached
-            - ./packages/lixpi/nats-service/ts:/usr/src/service/packages/lixpi/nats-service/ts:cached
+            - ./packages/lixpi/constants:/usr/src/service/packages/lixpi/constants:cached
+            - ./packages/lixpi/debug-tools:/usr/src/service/packages/lixpi/debug-tools:cached
+            - ./packages/lixpi/nats-service:/usr/src/service/packages/lixpi/nats-service:cached
 
             # - ./packages-vendor/bits-ui/packages/bits-ui:/usr/src/service/packages/bits-ui
             - ./packages-vendor/shadcn-svelte/sites/docs/src/lib:/usr/src/service/packages/shadcn-svelte/lib:cached
@@ -276,21 +276,15 @@ services:
             - ./services/api/temp-ai-responses:/usr/src/service/temp-ai-responses:cached
 
             # - ./packages:/usr/src/service/packages
-            - ./packages/lixpi/constants/ts:/usr/src/service/packages/lixpi/constants/ts:cached
-            - ./packages/lixpi/debug-tools/ts:/usr/src/service/packages/lixpi/debug-tools/ts:cached
-            - ./packages/lixpi/dynamodb-service/src:/usr/src/service/packages/lixpi/dynamodb-service/src:cached
-            - ./packages/lixpi/dynamodb-service/package.json:/usr/src/service/packages/lixpi/dynamodb-service/package.json:cached
-            - ./packages/lixpi/lambda-service/src:/usr/src/service/packages/lixpi/lambda-service/src:cached
-            - ./packages/lixpi/lambda-service/package.json:/usr/src/service/packages/lixpi/lambda-service/package.json:cached
-            - ./packages/lixpi/sqs-service/src:/usr/src/service/packages/lixpi/sqs-service/src:cached
-            - ./packages/lixpi/sqs-service/package.json:/usr/src/service/packages/lixpi/sqs-service/package.json:cached
-            - ./packages/lixpi/ssm-service/src:/usr/src/service/packages/lixpi/ssm-service/src:cached
-            - ./packages/lixpi/ssm-service/package.json:/usr/src/service/packages/lixpi/ssm-service/package.json:cached
-            - ./packages/lixpi/sns-service/src:/usr/src/service/packages/lixpi/sns-service/src:cached
-            - ./packages/lixpi/sns-service/package.json:/usr/src/service/packages/lixpi/sns-service/package.json:cached
-            - ./packages/lixpi/nats-service/ts:/usr/src/service/packages/lixpi/nats-service/ts:cached
-            - ./packages/lixpi/nats-auth-callout-service/src:/usr/src/service/packages/lixpi/nats-auth-callout-service/src:cached
-            - ./packages/lixpi/nats-auth-callout-service/package.json:/usr/src/service/packages/lixpi/nats-auth-callout-service/package.json:cached
+            - ./packages/lixpi/constants:/usr/src/service/packages/lixpi/constants:cached
+            - ./packages/lixpi/debug-tools:/usr/src/service/packages/lixpi/debug-tools:cached
+            - ./packages/lixpi/dynamodb-service:/usr/src/service/packages/lixpi/dynamodb-service:cached
+            - ./packages/lixpi/lambda-service:/usr/src/service/packages/lixpi/lambda-service:cached
+            - ./packages/lixpi/sqs-service:/usr/src/service/packages/lixpi/sqs-service:cached
+            - ./packages/lixpi/ssm-service:/usr/src/service/packages/lixpi/ssm-service:cached
+            - ./packages/lixpi/sns-service:/usr/src/service/packages/lixpi/sns-service:cached
+            - ./packages/lixpi/nats-service:/usr/src/service/packages/lixpi/nats-service:cached
+            - ./packages/lixpi/nats-auth-callout-service:/usr/src/service/packages/lixpi/nats-auth-callout-service:cached
 
         networks:
             - nats
@@ -512,36 +506,9 @@ services:
 
             # Pulumi infrastructure
             - pulumi-local-state:/var/opt/lixpi/.pulumi-local-state
-            - ./infrastructure/pulumi:/usr/src/service:cached
 
             # Allow container to access docker on the host machine so that it can build docker images inside the container utilizing docker on the host machine
             - /var/run/docker.sock:/var/run/docker.sock:cached
-
-            # Mounting all services
-            - ./services:/usr/src/service/services:cached
-
-            # Lixpi packages
-            - ./packages/lixpi/constants/ts:/usr/src/service/packages/lixpi/constants/ts:cached
-            - ./packages/lixpi/debug-tools/ts:/usr/src/service/packages/lixpi/debug-tools/ts:cached
-            - ./packages/lixpi/dynamodb-service/src:/usr/src/service/packages/lixpi/dynamodb-service/src:cached
-            - ./packages/lixpi/dynamodb-service/package.json:/usr/src/service/packages/lixpi/dynamodb-service/package.json:cached
-            - ./packages/lixpi/lambda-service/src:/usr/src/service/packages/lixpi/lambda-service/src:cached
-            - ./packages/lixpi/lambda-service/package.json:/usr/src/service/packages/lixpi/lambda-service/package.json:cached
-            - ./packages/lixpi/sqs-service/src:/usr/src/service/packages/lixpi/sqs-service/src:cached
-            - ./packages/lixpi/sqs-service/package.json:/usr/src/service/packages/lixpi/sqs-service/package.json:cached
-            - ./packages/lixpi/ssm-service/src:/usr/src/service/packages/lixpi/ssm-service/src:cached
-            - ./packages/lixpi/ssm-service/package.json:/usr/src/service/packages/lixpi/ssm-service/package.json:cached
-            - ./packages/lixpi/sns-service/src:/usr/src/service/packages/lixpi/sns-service/src:cached
-            - ./packages/lixpi/sns-service/package.json:/usr/src/service/packages/lixpi/sns-service/package.json:cached
-            - ./packages/lixpi/nats-service/ts:/usr/src/service/packages/lixpi/nats-service/ts:cached
-            - ./packages/lixpi/nats-auth-callout-service/src:/usr/src/service/packages/lixpi/nats-auth-callout-service/src:cached
-            - ./packages/lixpi/nats-auth-callout-service/package.json:/usr/src/service/packages/lixpi/nats-auth-callout-service/package.json:cached
-
-            # Web-UI specific dependencies
-            - ./packages-vendor/shadcn-svelte/sites/docs/src/lib:/usr/src/service/packages-vendor/shadcn-svelte/sites/docs/src/lib:cached
-
-            # pnpm config
-            - ./pnpm-workspace.yaml:/usr/src/service/pnpm-workspace.yaml:cached
         working_dir: /usr/src/service
         entrypoint: /bin/bash
         # command: -c "pnpm install && pulumi up --stack dev --non-interactive"
@@ -606,15 +573,6 @@ services:
 
             # Lambda function source (for live editing)
             - ./lambda-functions/ai-models-synchronization/ai-models-synchronization.ts:/app/ai-models-synchronization.ts:cached
-
-            # # Workspace packages
-            # - ./packages/lixpi/constants/src:/app/packages/lixpi/constants/src:cached
-            # - ./packages/lixpi/constants/package.json:/app/packages/lixpi/constants/package.json:cached
-            # - ./packages/lixpi/debug-tools/src:/app/packages/lixpi/debug-tools/src:cached
-            # - ./packages/lixpi/debug-tools/package.json:/app/packages/lixpi/debug-tools/package.json:cached
-            # - ./packages/lixpi/dynamodb-service/src:/app/packages/lixpi/dynamodb-service/src:cached
-            # - ./packages/lixpi/dynamodb-service/package.json:/app/packages/lixpi/dynamodb-service/package.json:cached
-
         working_dir: /app
         command: node handler.ts
         networks:

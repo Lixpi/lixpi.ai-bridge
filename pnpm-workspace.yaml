@@ -2,3 +2,4 @@ packages:
   - "packages/lixpi/*/ts"
   - "packages/lixpi/*"
   - "lambda-functions/**/*"
+  - "infrastructure/pulumi"

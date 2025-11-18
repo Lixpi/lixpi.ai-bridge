@@ -166,8 +166,8 @@ export const createNatsClusterService = async (args: NatsClusterServiceArgs) => 
         functionName: `${serviceName}-sd`,
         timeout: 60,
         memorySize: 512,
-        dockerBuildContext: '/usr/src/service/src/resources/NATS-cluster/nats-service-discovery-sidecar',
-        dockerfilePath: '/usr/src/service/src/resources/NATS-cluster/nats-service-discovery-sidecar/Dockerfile',
+        dockerBuildContext: '/usr/src/service/infrastructure/pulumi/src/resources/NATS-cluster/nats-service-discovery-sidecar',
+        dockerfilePath: '/usr/src/service/infrastructure/pulumi/src/resources/NATS-cluster/nats-service-discovery-sidecar/Dockerfile',
     });
 
     // ECS Task Execution Role - used by ECS agent
