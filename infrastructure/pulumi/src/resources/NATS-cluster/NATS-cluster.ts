@@ -139,7 +139,7 @@ export const createNatsClusterService = async (args: NatsClusterServiceArgs) => 
         ecsCluster: ecsCluster,
         vpc: vpc,
         privateSubnets: privateSubnets,
-        functionName: `${serviceName}-sd`,
+        functionName: `${serviceName}-sidecar`,
         timeout: 60,
         memorySize: 512,
         dockerBuildContext: '/usr/src/service/infrastructure/pulumi/src/resources/NATS-cluster/nats-service-discovery-sidecar',
@@ -427,6 +427,7 @@ export const createNatsClusterService = async (args: NatsClusterServiceArgs) => 
         },
         forceNewDeployment: true,
         enableExecuteCommand: true, // Enable for debugging
+        waitForSteadyState: false,  // Don't wait - let it deploy async
     }, {
         customTimeouts: {
             create: '10m',
