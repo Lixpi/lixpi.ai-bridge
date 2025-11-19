@@ -100,7 +100,7 @@ export const createLambdaCertificateManager = async (
     const formattedFunctionName = formatStageResourceName(functionName, ORG_NAME || 'lixpi', STAGE || 'dev')
 
     // Build and push certificate manager Lambda Docker image to ECR
-    const { repository, image, imageRef } = buildDockerImage({
+    const { repository, image, imageRef, imageTag } = buildDockerImage({
         imageName: formattedFunctionName,
         dockerBuildContext,
         dockerfilePath,

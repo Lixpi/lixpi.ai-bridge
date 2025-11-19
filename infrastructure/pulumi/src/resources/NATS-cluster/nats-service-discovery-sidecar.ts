@@ -46,19 +46,16 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
         ecsCluster,
         vpc,
         privateSubnets,
-        functionName = 'nats-sd',
+        functionName = 'nats-cluster-sidecar',
         timeout = 60,
         memorySize = 512,
         dockerBuildContext,
         dockerfilePath,
     } = args
 
-    // Format names consistently
-    const formattedFunctionName = formatStageResourceName(functionName, ORG_NAME || 'lixpi', STAGE || 'dev')
-
     // Build and push Lambda Docker image to ECR
     const { repository, image, imageRef } = buildDockerImage({
-        imageName: formattedFunctionName,
+        imageName: functionName,
         dockerBuildContext,
         dockerfilePath,
         platforms: ['linux/amd64'],
@@ -66,7 +63,7 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
     }) as DockerImageBuildResult;
 
     // Lambda execution role
-    const lambdaRole = new aws.iam.Role(`${formattedFunctionName}-role`, {
+    const lambdaRole = new aws.iam.Role(`${functionName}-role`, {
         assumeRolePolicy: JSON.stringify({
             Version: '2012-10-17',
             Statement: [{
@@ -80,20 +77,20 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
     })
 
     // Attach basic Lambda execution policy
-    new aws.iam.RolePolicyAttachment(`${formattedFunctionName}-basic-execution`, {
+    new aws.iam.RolePolicyAttachment(`${functionName}-basic-execution`, {
         role: lambdaRole.name,
         policyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
     })
 
     // Attach VPC execution policy for Lambda in VPC
-    new aws.iam.RolePolicyAttachment(`${formattedFunctionName}-vpc-execution`, {
+    new aws.iam.RolePolicyAttachment(`${functionName}-vpc-execution`, {
         role: lambdaRole.name,
         policyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole',
     })
 
     // Custom policy for Route53, ECS operations
-    const lambdaPolicy = new aws.iam.Policy(`${formattedFunctionName}-policy`, {
-        policy: pulumi.all([route53HostedZoneId]).apply(([hostedZoneId]) =>
+    const lambdaPolicy = new aws.iam.Policy(`${functionName}-policy`, {
+        policy: pulumi.all([route53HostedZoneId]).apply(([hostedZoneId]: [string]) =>
             JSON.stringify({
                 Version: '2012-10-17',
                 Statement: [
@@ -141,13 +138,13 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
         )
     })
 
-    new aws.iam.RolePolicyAttachment(`${formattedFunctionName}-policy-attachment`, {
+    new aws.iam.RolePolicyAttachment(`${functionName}-policy-attachment`, {
         role: lambdaRole.name,
         policyArn: lambdaPolicy.arn,
     })
 
     // Security group for Lambda
-    const lambdaSecurityGroup = new aws.ec2.SecurityGroup(`${formattedFunctionName}-sg`, {
+    const lambdaSecurityGroup = new aws.ec2.SecurityGroup(`${functionName}-sg`, {
         vpcId: vpc.id,
         description: 'Security group for NATS service discovery Lambda',
         egress: [
@@ -159,24 +156,40 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
                 description: 'Allow all outbound traffic',
             },
         ],
-        tags: { Name: `${formattedFunctionName}-SG` },
+        tags: { Name: `${functionName}-SG` },
     }, {
         // Ensure security group is created after VPC but deleted before VPC
         deleteBeforeReplace: true,
     })
 
     // CloudWatch Log Group for Lambda
-    const logGroup = new aws.cloudwatch.LogGroup(`${formattedFunctionName}-logs`, {
-        name: `/aws/lambda/${formattedFunctionName}`,
+    const logGroup = new aws.cloudwatch.LogGroup(`${functionName}-logs`, {
+        name: `/aws/lambda/${functionName}`,
         retentionInDays: 7,
     })
 
     // Lambda function using Container Image
     // Create Lambda function
-    const lambdaFunction = new aws.lambda.Function(`${formattedFunctionName}-function`, {
+    const lambdaFunction = new aws.lambda.Function(`${functionName}-func`, {
+        name: functionName,
         packageType: 'Image',
         imageUri: imageRef,
-        dependsOn: [image, logGroup],
+        role: lambdaRole.arn,
+        timeout,
+        memorySize,
+        environment: {
+            variables: {
+                ROUTE53_HOSTED_ZONE_ID: pulumi.output(route53HostedZoneId).apply((id: string) => id),
+                NATS_RECORD_NAME: natsRecordName,
+                ECS_CLUSTER_ARN: ecsCluster.arn,
+            },
+        },
+        vpcConfig: {
+            subnetIds: privateSubnets.map(subnet => subnet.id),
+            securityGroupIds: [lambdaSecurityGroup.id],
+        },
+    }, {
+        dependsOn: [image, logGroup, lambdaRole],
         // Ensure Lambda is deleted before VPC components by marking VPC dependencies
         deleteBeforeReplace: true,
         // Add custom timeouts for faster cleanup and explicit dependency on VPC resources
@@ -192,9 +205,9 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
     })
 
     // CloudWatch Event Rule for ECS Task State Changes
-    const ecsTaskStateRule = new aws.cloudwatch.EventRule(`${formattedFunctionName}-rule`, {
+    const ecsTaskStateRule = new aws.cloudwatch.EventRule(`${functionName}-rule`, {
         description: 'Capture ECS task state changes for NATS service discovery',
-        eventPattern: ecsCluster.arn.apply(clusterArn => JSON.stringify({
+        eventPattern: ecsCluster.arn.apply((clusterArn: string) => JSON.stringify({
             source: ['aws.ecs'],
             'detail-type': ['ECS Task State Change'],
             detail: {
@@ -204,7 +217,7 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
     })
 
     // Permission for CloudWatch Events to invoke Lambda
-    const lambdaPermission = new aws.lambda.Permission(`${formattedFunctionName}-perm`, {
+    const lambdaPermission = new aws.lambda.Permission(`${functionName}-perm`, {
         action: 'lambda:InvokeFunction',
         function: lambdaFunction.name,
         principal: 'events.amazonaws.com',
@@ -212,7 +225,7 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
     })
 
     // CloudWatch Event Target - Lambda function
-    const ecsTaskStateTarget = new aws.cloudwatch.EventTarget(`${formattedFunctionName}-target`, {
+    const ecsTaskStateTarget = new aws.cloudwatch.EventTarget(`${functionName}-target`, {
         rule: ecsTaskStateRule.name,
         arn: lambdaFunction.arn,
     }, {

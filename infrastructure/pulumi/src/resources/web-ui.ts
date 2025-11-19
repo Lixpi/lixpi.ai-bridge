@@ -98,7 +98,7 @@ export const createWebUI = async (args: WebUIArgs) => {
 
 
     // Build web UI Docker image locally (no ECR push needed)
-    const { image: webUIBuildImage, imageTag } = buildDockerImage({
+    const { image: webUIBuildImage, imageTag: webUIImageTag } = buildDockerImage({
         imageName: `${formattedServiceName}-build`,
         dockerBuildContext,
         dockerfilePath,
@@ -132,7 +132,7 @@ export const createWebUI = async (args: WebUIArgs) => {
     const buildCommand = pulumi.interpolate`
         docker stop web-ui-builder >/dev/null 2>&1 || true && \
         docker rm web-ui-builder >/dev/null 2>&1 || true && \
-        docker run -d --name web-ui-builder ${envVars} ${imageTag} tail -f /dev/null && \
+        docker run -d --name web-ui-builder ${envVars} ${webUIImageTag} tail -f /dev/null && \
         docker exec web-ui-builder pnpm run build && \
         mkdir -p ./dist && \
         docker cp web-ui-builder:/usr/src/service/dist/. ./dist/ && \

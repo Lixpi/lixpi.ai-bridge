@@ -10,7 +10,7 @@ import { plInfo, plWarn, plError } from './pulumiLogger.ts'
 import { createSsmParameters } from './resources/SSM-parameters.ts'
 import { createDynamoDbTables } from './resources/db/DynamoDB-tables.ts'
 import { createNetworkInfrastructure } from './resources/network.ts'
-import { createEcsEc2Cluster } from './resources/ECS-EC2-cluster.ts'
+import { createEcsCluster } from './resources/ECS-cluster.ts'
 import { createNatsClusterService } from './resources/NATS-cluster/NATS-cluster.ts'
 import { createMainApiService } from './resources/main-api-service.ts'
 import { createCertificate } from './resources//certificate.ts'
@@ -160,16 +160,12 @@ export const createInfrastructure = async () => {
         description: `Private service discovery namespace for ${cloudMapNamespaceName}`,
     });
 
-    // Create ECS EC2 infrastructure
-    const ecsEc2Cluster = await createEcsEc2Cluster({
+    // Create ECS Cluster for Fargate tasks
+    const ecsCluster = await createEcsCluster({
         vpc: networkInfrastructure.vpc,
         publicSubnets: networkInfrastructure.publicSubnets,
         privateSubnets: networkInfrastructure.privateSubnets,
         clusterName: 'Shared-ECS-Cluster',
-        instanceType: 't3.small',  // Upgraded from t3.micro to t3.small (2GB RAM)
-        minCapacity: 1,     // Reverted back to 1
-        maxCapacity: 2,     // Reverted back to 2
-        desiredCapacity: 1, // Reverted back to 1
         tags: {
             Environment: ENVIRONMENT!,
             Project: 'Lixpi AI',
@@ -230,9 +226,9 @@ export const createInfrastructure = async () => {
         parentHostedZoneId: hostedZoneId, // Hosted zone we manage / created or existing
         natsRecordName: natsDomain, // e.g., "nats.shelby-dev.lixpi.dev"
         ecsCluster: {  // Add back ECS cluster - Fargate tasks run on the existing cluster
-            id: ecsEc2Cluster.outputs.clusterId,
-            arn: ecsEc2Cluster.outputs.clusterArn,
-            name: ecsEc2Cluster.outputs.clusterName,
+            id: ecsCluster.outputs.clusterId,
+            arn: ecsCluster.outputs.clusterArn,
+            name: ecsCluster.outputs.clusterName,
         },
         vpc: networkInfrastructure.vpc,
         publicSubnets: networkInfrastructure.publicSubnets,
@@ -269,9 +265,9 @@ export const createInfrastructure = async () => {
     // Deploy main API service on ECS infrastructure
     const mainApiService = await createMainApiService({
         ecsCluster: {
-            id: ecsEc2Cluster.outputs.clusterId,
-            arn: ecsEc2Cluster.outputs.clusterArn,
-            name: ecsEc2Cluster.outputs.clusterName,
+            id: ecsCluster.outputs.clusterId,
+            arn: ecsCluster.outputs.clusterArn,
+            name: ecsCluster.outputs.clusterName,
         },
         vpc: networkInfrastructure.vpc,
         publicSubnets: networkInfrastructure.publicSubnets,
@@ -407,7 +403,7 @@ export const createInfrastructure = async () => {
         ssmParameters,
         dynamoDBtables,
         networkInfrastructure,
-        ecsEc2Cluster,
+        ecsCluster,
         caddyCertManager,
         natsClusterService,
         mainApiService,
