@@ -4,25 +4,21 @@ import * as process from 'process'
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 
-// INFO
-// Provider	               Use cases
-// @pulumi/docker-build	   Anything related to building images with docker build.
-// @pulumi/docker	       Everything else – including running containers and creating networks.
-import * as dockerBuild from '@pulumi/docker-build'
-
-
-
 import {
     formatStageResourceName,
 } from '@lixpi/constants'
+
+import {
+    buildDockerImage,
+    type DockerImageBuildResult
+} from '../helpers/docker/build-helpers.ts'
 
 const {
     ORG_NAME,
     STAGE
 } = process.env
 
-// Configuration interface for the main API service
-export interface MainApiServiceArgs {
+export type MainApiServiceArgs = {
     // Infrastructure
     ecsCluster: {
         id: pulumi.Output<string>
@@ -124,45 +120,16 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
     const formattedServiceName = formatStageResourceName(serviceName, ORG_NAME, STAGE)
     // const loadBalancerName = formatStageResourceName(`${serviceName}-ALB`, ORG_NAME, STAGE)
 
-    // Create ECR Repository
-    const repository = new aws.ecr.Repository(`${formattedServiceName}-repo`, {
-        name: formattedServiceName.toLowerCase(),
-        imageScanningConfiguration: {
-            scanOnPush: true,
-        },
-        imageTagMutability: 'MUTABLE',
-        forceDelete: true,
-    })
-
-    // Create container image in ECR using Docker provider
-    // Use timestamp to ensure unique tags for each deployment
-    const imageTag = `${Date.now()}`;
-    const image = new dockerBuild.Image(`${formattedServiceName}-image-${imageTag}`, {
-        context: {
-            location: dockerBuildContext,
-        },
-        dockerfile: {
-            location: dockerfilePath,
-        },
+        // Build and push main-api Docker image to ECR
+    const { repository, image, imageRef } = buildDockerImage({
+        imageName: serviceName,
+        dockerBuildContext,
+        dockerfilePath,
         platforms: ['linux/amd64'],
-        tags: [
-            pulumi.interpolate`${repository.repositoryUrl}:${imageTag}`,
-            pulumi.interpolate`${repository.repositoryUrl}:latest`
-        ],
         push: true,
-        registries: [
-            {
-                address: repository.repositoryUrl,
-                username: aws.ecr.getAuthorizationTokenOutput({}).userName,
-                password: aws.ecr.getAuthorizationTokenOutput({}).password,
-            }
-        ],
         buildOnPreview: true,
         noCache: true,
-    }, {
-        replaceOnChanges: ['*'],
-        dependsOn: [repository],
-    });
+    }) as DockerImageBuildResult;
 
     // ECS Task Execution Role - used by ECS agent
     const executionRole = new aws.iam.Role(`${formattedServiceName}-execution-role`, {
@@ -331,11 +298,10 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
         taskRoleArn: taskRole.arn,
         containerDefinitions: pulumi.all([
             logGroup.name,
-            repository.repositoryUrl,
-            imageTag,
-        ]).apply(([logGroupName, repositoryUrl, tag]) => JSON.stringify([{
+            imageRef,
+        ]).apply(([logGroupName, imageReference]) => JSON.stringify([{
             name: formattedServiceName,
-            image: `${repositoryUrl}:${tag}`,
+            image: imageReference,
             cpu: cpu,
             memory: memory,
             essential: true,

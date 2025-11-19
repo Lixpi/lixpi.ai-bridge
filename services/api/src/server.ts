@@ -21,7 +21,7 @@ import { createServer } from 'http'
 import { jwtAuthMiddleware } from './NATS/middleware/nats-auth-middleware.ts'
 import { userSubjects } from './NATS/subscriptions/user-subjects.ts'
 import { aiModelSubjects } from './NATS/subscriptions/ai-model-subjects.ts'
-import { aiChatSubjects } from './NATS/subscriptions/ai-chat-subjects.ts'
+import { aiInteractionSubjects } from './NATS/subscriptions/ai-interaction-subjects.ts'
 import { documentSubjects } from './NATS/subscriptions/document-subjects.ts'
 import { subscriptionSubjects } from './NATS/subscriptions/subscription-subjects.ts'
 
@@ -84,7 +84,7 @@ const subscriptions = [
     ...userSubjects,
     ...subscriptionSubjects,
     ...aiModelSubjects,
-    ...aiChatSubjects,
+    ...aiInteractionSubjects,
     ...documentSubjects,
 ]
 
@@ -110,6 +110,28 @@ await startNatsAuthCalloutService({
     algorithms: ['RS256'],
     jwksUri: `${env.AUTH0_DOMAIN}/.well-known/jwks.json`,
     natsAuthAccount: env.NATS_AUTH_ACCOUNT,
+    // Configure internal services that use self-issued JWT authentication.
+    // Each service signs its own tokens with an NKey, we verify signatures using public keys.
+    serviceAuthConfigs: [
+        {
+            publicKey: env.NATS_LLM_SERVICE_NKEY_PUBLIC,
+            userId: 'svc:llm-service',
+            permissions: {
+                pub: {
+                    allow: [
+                        "ai.interaction.chat.error.>",           // Publish errors back to API
+                        "ai.interaction.chat.receiveMessage.>"     // Stream LLM responses to web-ui
+                    ]
+                },
+                sub: {
+                    allow: [
+                        "ai.interaction.chat.process",            // Subscribe to chat processing requests
+                        "ai.interaction.chat.stop.>"              // Subscribe to stop requests
+                    ]
+                }
+            }
+        }
+    ]
 })
 
 

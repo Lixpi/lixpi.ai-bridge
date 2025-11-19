@@ -40,7 +40,8 @@
         "uuid": "*",
         "@xyflow/system": "*",
         "d3-selection": "*",
-        "d3-ease": "*"
+        "d3-ease": "*",
+        "@lixpi/markdown-stream-parser": "^0.0.3-34"
     },
     "dependencies": {
         "@lixpi/constants": "workspace:*",
