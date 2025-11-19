@@ -1,64 +1,41 @@
 """
 Provider registry for managing LLM provider instances.
-Handles instance lifecycle, NATS subscriptions, and routing.
+Handles instance lifecycle and provider routing.
 """
 
 from typing import Dict, Optional
-from colorama import Fore, Style
 
-from lixpi_debug_tools import log, info, warn, err, info_str
-from lixpi_constants import NATS_SUBJECTS
+from lixpi_debug_tools import log, info, warn, err
 from lixpi_nats_service import NatsService
 from providers.openai.provider import OpenAIProvider
 from providers.anthropic.provider import AnthropicProvider
 from services.usage_reporter import UsageReporter
 
-# Extract AI interaction subjects
-AI_INTERACTION_SUBJECTS = NATS_SUBJECTS["AI_INTERACTION_SUBJECTS"]
-CHAT_PROCESS = AI_INTERACTION_SUBJECTS["CHAT_PROCESS"]
-CHAT_STOP = AI_INTERACTION_SUBJECTS["CHAT_STOP"]
-CHAT_ERROR = AI_INTERACTION_SUBJECTS["CHAT_ERROR"]
-
 
 class ProviderRegistry:
     """
-    Manages LLM provider instances and handles NATS message routing.
+    Manages LLM provider instances and handles provider routing.
     """
 
-    def __init__(self, nats_client: NatsService):
+    def __init__(self):
         """
         Initialize provider registry.
+        """
+        self.nats_client: Optional[NatsService] = None
+        self.usage_reporter: Optional[UsageReporter] = None
+
+        # Instance registry: {documentId:threadId -> Provider instance}
+        self.instances: Dict[str, any] = {}
+
+    def set_nats_client(self, nats_client: NatsService) -> None:
+        """
+        Set NATS client reference after initialization.
 
         Args:
             nats_client: NATS client instance
         """
         self.nats_client = nats_client
         self.usage_reporter = UsageReporter(nats_client)
-
-        # Instance registry: {documentId:threadId -> Provider instance}
-        self.instances: Dict[str, any] = {}
-
-    async def initialize(self) -> None:
-        """Initialize NATS subscriptions for LLM operations."""
-        info("Initializing provider registry...")
-
-        # Subscribe to chat processing requests
-        await self.nats_client.subscribe(
-            CHAT_PROCESS,
-            self._handle_chat_process,
-            {'queue': 'llm-workers'}
-        )
-        info_str([Fore.GREEN, "NATS -> ", Style.RESET_ALL, Fore.WHITE, "register: ", Fore.CYAN, "subscribe".ljust(10, ' '), Style.RESET_ALL, Fore.WHITE, ": ", Style.RESET_ALL, Fore.GREEN, CHAT_PROCESS, Style.RESET_ALL, Fore.WHITE, f" with queue: llm-workers", Style.RESET_ALL])
-
-        # Subscribe to stop requests (wildcard)
-        await self.nats_client.subscribe(
-            f"{CHAT_STOP}.>",
-            self._handle_chat_stop,
-            {}
-        )
-        info_str([Fore.GREEN, "NATS -> ", Style.RESET_ALL, Fore.WHITE, "register: ", Fore.CYAN, "subscribe".ljust(10, ' '), Style.RESET_ALL, Fore.WHITE, ": ", Style.RESET_ALL, Fore.GREEN, f"{CHAT_STOP}.>", Style.RESET_ALL])
-
-        info("Provider registry initialized")
 
     async def shutdown(self) -> None:
         """Shutdown all active provider instances."""
@@ -71,85 +48,6 @@ class ProviderRegistry:
 
         self.instances.clear()
         info("Provider registry shutdown complete")
-
-    async def _handle_chat_process(self, data: Dict, msg) -> None:
-        """
-        Handle incoming chat processing request from services/api.
-
-        Args:
-            data: Request payload containing messages, model info, etc.
-            msg: NATS message
-        """
-        try:
-            # Extract request data
-            document_id = data.get('documentId')
-            thread_id = data.get('threadId', '')
-            ai_model_meta_info = data.get('aiModelMetaInfo', {})
-            provider_name = ai_model_meta_info.get('provider')
-
-            if not document_id:
-                err("Missing documentId in request")
-                return
-
-            if not provider_name:
-                err("Missing provider in aiModelMetaInfo")
-                return
-
-            # Create instance key
-            instance_key = f"{document_id}:{thread_id}" if thread_id else document_id
-
-            info(f"Processing chat request for {instance_key} using {provider_name}")
-
-            # Get or create provider instance
-            provider = self._get_or_create_instance(instance_key, provider_name)
-
-            # Process the request through LangGraph workflow
-            await provider.process(data)
-
-            # Remove instance after completion
-            self._remove_instance(instance_key)
-
-        except Exception as e:
-            err(f"Error handling chat process: {e}")
-
-            # Publish error back to services/api
-            instance_key = data.get('documentId', 'unknown')
-            self.nats_client.publish(
-                f"{CHAT_ERROR}.{instance_key}",
-                {
-                    'error': str(e),
-                    'instanceKey': instance_key
-                }
-            )
-
-    async def _handle_chat_stop(self, data: Dict, msg) -> None:
-        """
-        Handle request to stop streaming.
-
-        Args:
-            data: Request payload
-            msg: NATS message
-        """
-        try:
-            # Extract instance key from subject (ai.interaction.chat.stop.{instanceKey})
-            subject_parts = msg.subject.split('.')
-            if len(subject_parts) >= 5:
-                instance_key = '.'.join(subject_parts[4:])
-            else:
-                instance_key = data.get('instanceKey', data.get('documentId', ''))
-
-            info(f"Received stop request for {instance_key}")
-
-            # Find and stop the instance
-            provider = self.instances.get(instance_key)
-            if provider:
-                await provider.stop()
-                info(f"Stopped instance: {instance_key}")
-            else:
-                warn(f"Instance not found: {instance_key}")
-
-        except Exception as e:
-            err(f"Error handling chat stop: {e}")
 
     def _get_or_create_instance(self, instance_key: str, provider_name: str):
         """

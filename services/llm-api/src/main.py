@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from lixpi_debug_tools import log, info, err, info_str
 from lixpi_nats_service import NatsService, NatsServiceConfig
 from providers.registry import ProviderRegistry
+from NATS.subscriptions.ai_interaction_subjects import get_ai_interaction_subjects
 
 
 @asynccontextmanager
@@ -24,6 +25,14 @@ async def lifespan(app: FastAPI):
     # Initialize NATS client with self-issued JWT
     from config import settings
 
+    # Initialize provider registry
+    provider_registry = ProviderRegistry()
+
+    # Get subscription definitions (TypeScript pattern)
+    subscriptions = [
+        *get_ai_interaction_subjects(provider_registry),
+    ]
+
     nats_config = NatsServiceConfig(
         servers=[s.strip() for s in settings.NATS_SERVERS.split(',')],
         name="llm-api-service",
@@ -31,15 +40,15 @@ async def lifespan(app: FastAPI):
         user_id="svc:llm-service",
         tls_ca_cert="/opt/nats/certs/ca.crt",
         max_reconnect_attempts=-1,
-        reconnect_time_wait=0.5
+        reconnect_time_wait=0.5,
+        subscriptions=subscriptions
     )
 
     nats_client = await NatsService.init(nats_config)
     app.state.nats_client = nats_client
 
-    # Initialize provider registry
-    provider_registry = ProviderRegistry(nats_client)
-    await provider_registry.initialize()
+    # Set NATS client reference in registry
+    provider_registry.set_nats_client(nats_client)
     app.state.provider_registry = provider_registry
 
     info("Lixpi LLM API Service started successfully")

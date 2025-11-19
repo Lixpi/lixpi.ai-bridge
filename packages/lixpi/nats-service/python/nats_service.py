@@ -182,6 +182,7 @@ class NatsService:
         self._is_monitoring = False
         self._reconnect_timer: Optional[asyncio.Task] = None
         self._subscriptions_initialized = False
+        self._reconnect_attempts = 0
 
     @classmethod
     def get_instance(cls) -> Optional['NatsService']:
@@ -204,15 +205,20 @@ class NatsService:
             await cls._instance.connect()
         return cls._instance
 
-    def _schedule_reconnect(self, delay: float = 0.5) -> None:
+    def _schedule_reconnect(self, delay: Optional[float] = None) -> None:
         """
-        Schedule reconnection attempt.
+        Schedule reconnection attempt with exponential backoff.
 
         Args:
-            delay: Delay in seconds before reconnection attempt
+            delay: Delay in seconds before reconnection attempt (defaults to exponential backoff)
         """
         if self._reconnect_timer:
             self._reconnect_timer.cancel()
+
+        # Exponential backoff: 0.5s, 1s, 2s, 4s, 8s, max 16s
+        if delay is None:
+            delay = min(0.5 * (2 ** self._reconnect_attempts), 16.0)
+            self._reconnect_attempts += 1
 
         async def reconnect_task():
             await asyncio.sleep(delay)
@@ -361,6 +367,9 @@ class NatsService:
             )
 
             info_str([Fore.GREEN, "NATS -> listening on: ", Style.RESET_ALL, Fore.BLUE, f"nats://{self.nc.connected_url.netloc}", Style.RESET_ALL])
+
+            # Reset reconnect attempts on successful connection
+            self._reconnect_attempts = 0
 
             # Initialize JetStream context
             self.js = self.nc.jetstream()
