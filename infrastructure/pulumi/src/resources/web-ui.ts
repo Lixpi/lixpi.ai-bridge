@@ -2,10 +2,6 @@
 
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-// import * as docker from '@pulumi/docker'
-import * as dockerBuild from '@pulumi/docker-build'
-import * as path from 'path'
-import * as fs from 'fs'
 import { Command } from '@pulumi/command/local/index.js'
 
 import { log, info, warn, err } from '@lixpi/debug-tools'
@@ -14,7 +10,12 @@ import {
     formatStageResourceName,
 } from '@lixpi/constants'
 
-export interface WebUIArgs {
+import {
+    buildDockerImage,
+    type DockerImageLocalResult
+} from '../helpers/docker/build-helpers.ts'
+
+export type WebUIArgs = {
     // Organization and environment
     orgName: string
     stage: string
@@ -96,16 +97,11 @@ export const createWebUI = async (args: WebUIArgs) => {
     })
 
 
-    // Set up Docker to build the web UI using the modern docker-build provider
-    const imageTag = `${formattedServiceName}-build:latest`.toLowerCase();
-
-    const webUIBuildImage = new dockerBuild.Image(imageTag, {
-        context: {
-            location: dockerBuildContext,
-        },
-        dockerfile: {
-            location: dockerfilePath
-        },
+    // Build web UI Docker image locally (no ECR push needed)
+    const { image: webUIBuildImage, imageTag } = buildDockerImage({
+        imageName: `${formattedServiceName}-build`,
+        dockerBuildContext,
+        dockerfilePath,
         platforms: ['linux/amd64'],
         buildArgs: Object.entries(environment).reduce((acc, [key, value]) => ({
             ...acc,
@@ -113,21 +109,17 @@ export const createWebUI = async (args: WebUIArgs) => {
         }), {
             VITE_NATS_SERVER: environment.VITE_NATS_SERVER
         }),
-        tags: [imageTag],
+        push: false,
         noCache: true,
         buildOnPreview: true,
-        push: false, // We don't need to push this image anywhere
         exports: [
             {
                 docker: {
-                    names: [imageTag],
+                    names: [`${formattedServiceName}-build:latest`.toLowerCase()],
                 }
             },
         ]
-    }, {
-        replaceOnChanges: ['*'],
-        dependsOn: []
-    });
+    }) as DockerImageLocalResult
 
     // Prepare environment variables for docker run only
     const envVars = pulumi.all(

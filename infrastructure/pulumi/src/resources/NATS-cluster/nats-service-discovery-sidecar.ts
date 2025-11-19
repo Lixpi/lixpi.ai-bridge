@@ -2,7 +2,11 @@
 
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-import * as dockerBuild from '@pulumi/docker-build'
+
+import {
+    buildDockerImage,
+    type DockerImageBuildResult
+} from '../../helpers/docker/build-helpers.ts'
 
 // Local helper function (avoiding import issues)
 const formatStageResourceName = (resourceName: string, orgName: string, stageName: string): string =>
@@ -52,44 +56,14 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
     // Format names consistently
     const formattedFunctionName = formatStageResourceName(functionName, ORG_NAME || 'lixpi', STAGE || 'dev')
 
-    // Create ECR Repository for Lambda
-    const repository = new aws.ecr.Repository(`${formattedFunctionName}-repo`, {
-        name: formattedFunctionName.toLowerCase(),
-        imageScanningConfiguration: {
-            scanOnPush: true,
-        },
-        imageTagMutability: 'MUTABLE',
-        forceDelete: true,
-    })
-
-    // Create container image in ECR using Docker provider
-    const imageTag = `${Date.now()}`;
-    const image = new dockerBuild.Image(`${formattedFunctionName}-image-${imageTag}`, {
-        context: {
-            location: dockerBuildContext,
-        },
-        dockerfile: {
-            location: dockerfilePath,
-        },
+    // Build and push Lambda Docker image to ECR
+    const { repository, image, imageRef } = buildDockerImage({
+        imageName: formattedFunctionName,
+        dockerBuildContext,
+        dockerfilePath,
         platforms: ['linux/amd64'],
-        tags: [
-            pulumi.interpolate`${repository.repositoryUrl}:${imageTag}`,
-            pulumi.interpolate`${repository.repositoryUrl}:latest`
-        ],
         push: true,
-        registries: [
-            {
-                address: repository.repositoryUrl,
-                username: aws.ecr.getAuthorizationTokenOutput({}).userName,
-                password: aws.ecr.getAuthorizationTokenOutput({}).password,
-            }
-        ],
-        buildOnPreview: true,
-        noCache: true,
-    }, {
-        replaceOnChanges: ['*'],
-        dependsOn: [repository],
-    });
+    }) as DockerImageBuildResult;
 
     // Lambda execution role
     const lambdaRole = new aws.iam.Role(`${formattedFunctionName}-role`, {
@@ -198,25 +172,10 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
     })
 
     // Lambda function using Container Image
-    const lambdaFunction = new aws.lambda.Function(`${formattedFunctionName}-func`, {
-        name: formattedFunctionName,
-        role: lambdaRole.arn,
+    // Create Lambda function
+    const lambdaFunction = new aws.lambda.Function(`${formattedFunctionName}-function`, {
         packageType: 'Image',
-        imageUri: pulumi.interpolate`${repository.repositoryUrl}:${imageTag}`,
-        timeout: timeout,
-        memorySize: memorySize,
-        environment: {
-            variables: {
-                ROUTE53_HOSTED_ZONE_ID: route53HostedZoneId,
-                NATS_RECORD_NAME: natsRecordName,
-                ECS_CLUSTER_ARN: ecsCluster.arn,
-            },
-        },
-        vpcConfig: {
-            subnetIds: privateSubnets.map(subnet => subnet.id),
-            securityGroupIds: [lambdaSecurityGroup.id],
-        },
-    }, {
+        imageUri: imageRef,
         dependsOn: [image, logGroup],
         // Ensure Lambda is deleted before VPC components by marking VPC dependencies
         deleteBeforeReplace: true,
@@ -274,7 +233,7 @@ export const createServiceDiscoverySidecar = async (args: ServiceDiscoverySideca
         outputs: {
             functionName: lambdaFunction.name,
             functionArn: lambdaFunction.arn,
-            imageUri: pulumi.interpolate`${repository.repositoryUrl}:${imageTag}`,
+            imageUri: imageRef,
         },
     }
 }
