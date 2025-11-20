@@ -3,14 +3,12 @@
 import * as process from 'process'
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
+import * as dockerBuild from '@pulumi/docker-build'
 
-import {
-    formatStageResourceName,
-} from '@lixpi/constants'
-
+import { formatStageResourceName } from '@lixpi/constants'
 import {
     buildDockerImage,
-    type DockerImageBuildResult
+    type DockerImageBuildResult,
 } from '../helpers/docker/build-helpers.ts'
 
 const {
@@ -18,7 +16,7 @@ const {
     STAGE
 } = process.env
 
-export type MainApiServiceArgs = {
+export type LlmApiServiceArgs = {
     // Infrastructure
     ecsCluster: {
         id: pulumi.Output<string>
@@ -36,25 +34,10 @@ export type MainApiServiceArgs = {
     memory?: number
     desiredCount?: number
 
-    // Resource bindings
-    resourceBindings: {
-        tables?: {
-            [key: string]: aws.dynamodb.Table
-        }
-        functions?: {
-            [key: string]: aws.lambda.Function
-        }
-        topics?: {
-            [key: string]: aws.sns.Topic
-        }
-        queues?: {
-            [key: string]: aws.sqs.Queue
-        }
-    }
-
     // App configuration
     environment: {
-        NODE_OPTIONS: string
+        SERVICE_NAME: string
+        LOG_LEVEL: string
 
         AWS_REGION: string
 
@@ -63,52 +46,46 @@ export type MainApiServiceArgs = {
         ENVIRONMENT: string
 
         NATS_SERVERS: string
-        NATS_AUTH_ACCOUNT: string
-        NATS_SYS_USER_PASSWORD: string
-        NATS_REGULAR_USER_PASSWORD: string
-        NATS_AUTH_NKEY_ISSUER_SEED: string
-        NATS_AUTH_NKEY_ISSUER_PUBLIC: string
-        NATS_AUTH_XKEY_ISSUER_SEED: string
-        NATS_AUTH_XKEY_ISSUER_PUBLIC: string
-        NATS_LLM_SERVICE_NKEY_PUBLIC: string
-
-        ORIGIN_HOST_URL: string
-        API_HOST_URL: string
+        NATS_NKEY_SEED: string
 
         AUTH0_DOMAIN: string
         AUTH0_API_IDENTIFIER: string
-        SAVE_LLM_RESPONSES_TO_DEBUG_DIR: string
 
         OPENAI_API_KEY: string
         ANTHROPIC_API_KEY: string
+
+        LLM_TIMEOUT_SECONDS: string
     }
 
     // Docker build context
     dockerBuildContext: string
     dockerfilePath: string
+
+    // Dependencies (e.g., NATS cluster must be running first)
+    dependencies?: pulumi.Resource[]
 }
 
-export const createMainApiService = async (args: MainApiServiceArgs) => {
+export const createLlmApiService = async (args: LlmApiServiceArgs) => {
     const {
         ecsCluster,
         vpc,
         publicSubnets,
         privateSubnets,
-        serviceName = 'api',
-        containerPort = 3000,
-        cpu = 512,        // 0.5 vCPU
-        memory = 512,    // 512 MiB
+        serviceName = 'llm-api',
+        containerPort = 8000,
+        cpu = 256,        // 0.25 vCPU
+        memory = 512,     // 512 MiB
         desiredCount = 1,
-        resourceBindings,
         environment,
         dockerBuildContext,
         dockerfilePath,
+        dependencies = [],
     } = args
 
     // Format names consistently
     const formattedServiceName = formatStageResourceName(serviceName, ORG_NAME, STAGE)
 
-        // Build and push main-api Docker image to ECR
+    // Build and push llm-api Docker image to ECR
     const { repository, image, imageRef } = buildDockerImage({
         imageName: serviceName,
         dockerBuildContext,
@@ -117,6 +94,7 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
         push: true,
         buildOnPreview: true,
         noCache: true,
+        dependencies,
     }) as DockerImageBuildResult;
 
     // ECS Task Execution Role - used by ECS agent
@@ -159,97 +137,10 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
         }),
     })
 
-    // Allow containers to access bound DynamoDB tables
-    resourceBindings.tables && Object.values(resourceBindings.tables).forEach((table, i) => {
-        const tablePolicy = new aws.iam.Policy(`${formattedServiceName}-dynamo-policy-${i}`, {
-            policy: table.arn.apply(arn => JSON.stringify({
-                Version: '2012-10-17',
-                Statement: [{
-                    Effect: 'Allow',
-                    Action: [
-                        'dynamodb:BatchGetItem',
-                        'dynamodb:GetItem',
-                        'dynamodb:Query',
-                        'dynamodb:Scan',
-                        'dynamodb:BatchWriteItem',
-                        'dynamodb:PutItem',
-                        'dynamodb:UpdateItem',
-                        'dynamodb:DeleteItem',
-                    ],
-                    Resource: [arn, `${arn}/index/*`],
-                }],
-            })),
-        })
+    // LLM API service doesn't need DynamoDB access - it's isolated in separate NATS account
+    // It only needs NATS connectivity and AI provider API keys
 
-        new aws.iam.RolePolicyAttachment(`${formattedServiceName}-dynamo-attachment-${i}`, {
-            role: taskRole.name,
-            policyArn: tablePolicy.arn,
-        })
-    })
-
-    // // Allow containers to access bound SQS queues
-    // resourceBindings.queues && Object.values(resourceBindings.queues).forEach((queue, i) => {
-    //     const sqsPolicy = new aws.iam.Policy(`${formattedServiceName}-sqs-policy-${i}`, {
-    //         policy: queue.arn.apply(arn => JSON.stringify({
-    //             Version: '2012-10-17',
-    //             Statement: [{
-    //                 Effect: 'Allow',
-    //                 Action: [
-    //                     'sqs:ReceiveMessage',
-    //                     'sqs:DeleteMessage',
-    //                     'sqs:GetQueueAttributes',
-    //                     'sqs:ChangeMessageVisibility',
-    //                 ],
-    //                 Resource: arn,
-    //             }],
-    //         })),
-    //     })
-
-    //     new aws.iam.RolePolicyAttachment(`${formattedServiceName}-sqs-attachment-${i}`, {
-    //         role: taskRole.name,
-    //         policyArn: sqsPolicy.arn,
-    //     })
-    // })
-
-    // // Allow containers to access SNS topics
-    // resourceBindings.topics && Object.values(resourceBindings.topics).forEach((topic, i) => {
-    //     const snsPolicy = new aws.iam.Policy(`${formattedServiceName}-sns-policy-${i}`, {
-    //         policy: topic.arn.apply(arn => JSON.stringify({
-    //             Version: '2012-10-17',
-    //             Statement: [{
-    //                 Effect: 'Allow',
-    //                 Action: ['sns:Publish'],
-    //                 Resource: arn,
-    //             }],
-    //         })),
-    //     })
-
-    //     new aws.iam.RolePolicyAttachment(`${formattedServiceName}-sns-attachment-${i}`, {
-    //         role: taskRole.name,
-    //         policyArn: snsPolicy.arn,
-    //     })
-    // })
-
-    // // Allow containers to invoke Lambda functions
-    // resourceBindings.functions && Object.values(resourceBindings.functions).forEach((func, i) => {
-    //     const lambdaPolicy = new aws.iam.Policy(`${formattedServiceName}-lambda-policy-${i}`, {
-    //         policy: func.arn.apply(arn => JSON.stringify({
-    //             Version: '2012-10-17',
-    //             Statement: [{
-    //                 Effect: 'Allow',
-    //                 Action: ['lambda:InvokeFunction'],
-    //                 Resource: arn,
-    //             }],
-    //         })),
-    //     })
-
-    //     new aws.iam.RolePolicyAttachment(`${formattedServiceName}-lambda-attachment-${i}`, {
-    //         role: taskRole.name,
-    //         policyArn: lambdaPolicy.arn,
-    //     })
-    // })
-
-    // Allow containers to access SSM parameters
+    // Allow containers to access SSM parameters (for config management)
     const ssmPolicy = new aws.iam.Policy(`${formattedServiceName}-ssm-policy`, {
         policy: JSON.stringify({
             Version: '2012-10-17',
@@ -311,21 +202,21 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
                 },
             },
             healthCheck: {
-                command: ['CMD-SHELL', `curl -f http://localhost:${containerPort}/health-check || exit 1`],
-                interval: 10,
-                timeout: 5,
-                retries: 2,
-                startPeriod: 5,
+                command: ['CMD-SHELL', `curl -f http://localhost:${containerPort}/health || exit 1`],
+                interval: 30,
+                timeout: 10,
+                retries: 3,
+                startPeriod: 40,
             },
         }])),
     }, {
-        dependsOn: [image],  // Ensure image is fully built and pushed before creating task definition
+        dependsOn: [image],
     })
 
     // Security group for the ECS tasks
     const taskSecurityGroup = new aws.ec2.SecurityGroup(`${formattedServiceName}-task-sg`, {
         vpcId: vpc.id,
-        description: 'Security group for the API ECS tasks',
+        description: `Security group for ${formattedServiceName} ECS tasks`,
         ingress: [],
         egress: [
             {
@@ -339,7 +230,7 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
         ],
     })
 
-    // Create ECS Service
+    // Create ECS Service (no load balancer - internal service only)
     const ecsService = new aws.ecs.Service(`${formattedServiceName}-service`, {
         cluster: ecsCluster.id,
         taskDefinition: taskDefinition.arn,
@@ -353,9 +244,9 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
             rollback: true
         },
         networkConfiguration: {
-            subnets: privateSubnets.map(subnet => subnet.id),  // Changed from publicSubnets to privateSubnets
+            subnets: privateSubnets.map(subnet => subnet.id),
             securityGroups: [taskSecurityGroup.id],
-            assignPublicIp: false,  // Changed from true to false since we're in private subnets
+            assignPublicIp: false,
         },
         forceNewDeployment: true,  // Ensure we deploy a fresh version on updates
         enableEcsManagedTags: true,
@@ -375,6 +266,7 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
     })
 
     return {
+        // Resources
         repository,
         image,
         taskDefinition,
@@ -386,9 +278,13 @@ export const createMainApiService = async (args: MainApiServiceArgs) => {
 
         // Outputs
         outputs: {
+            repositoryUrl: repository.repositoryUrl,
+            imageRef: imageRef,
             serviceName: ecsService.name,
             serviceArn: ecsService.id,
+            taskDefinitionArn: taskDefinition.arn,
+            securityGroupId: taskSecurityGroup.id,
             containerPort,
-        },
+        }
     }
 }

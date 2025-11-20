@@ -13,6 +13,7 @@ import { createNetworkInfrastructure } from './resources/network.ts'
 import { createEcsCluster } from './resources/ECS-cluster.ts'
 import { createNatsClusterService } from './resources/NATS-cluster/NATS-cluster.ts'
 import { createMainApiService } from './resources/main-api-service.ts'
+import { createLlmApiService } from './resources/llm-api-service.ts'
 import { createCertificate } from './resources//certificate.ts'
 import { createDnsRecords, createHostedZone, createDelegationRecord, getOrCreateHostedZone } from './resources/dns-records.ts'
 import { createWebUI } from './resources/web-ui.ts'
@@ -46,6 +47,8 @@ const {
     NATS_AUTH_NKEY_ISSUER_PUBLIC,
     NATS_AUTH_XKEY_ISSUER_SEED,
     NATS_AUTH_XKEY_ISSUER_PUBLIC,
+    NATS_LLM_SERVICE_NKEY_SEED,
+    NATS_LLM_SERVICE_NKEY_PUBLIC,
     NATS_SAME_ORIGIN,
     NATS_ALLOWED_ORIGINS,
     NATS_DEBUG_MODE,
@@ -249,6 +252,7 @@ export const createInfrastructure = async () => {
             NATS_REGULAR_USER_PASSWORD: NATS_REGULAR_USER_PASSWORD!,
             NATS_AUTH_NKEY_ISSUER_PUBLIC: NATS_AUTH_NKEY_ISSUER_PUBLIC!,
             NATS_AUTH_XKEY_ISSUER_PUBLIC: NATS_AUTH_XKEY_ISSUER_PUBLIC!,
+            NATS_LLM_SERVICE_NKEY_PUBLIC: NATS_LLM_SERVICE_NKEY_PUBLIC!,
             NATS_SAME_ORIGIN: NATS_SAME_ORIGIN!,
             NATS_ALLOWED_ORIGINS: NATS_ALLOWED_ORIGINS || "[]",
             NATS_DEBUG_MODE: NATS_DEBUG_MODE!,
@@ -277,7 +281,6 @@ export const createInfrastructure = async () => {
         cpu: 256,
         memory: 512,
         desiredCount: 1,
-        domainName: DOMAIN_NAME!,
         resourceBindings: {
             tables: {
                 usersTable: dynamoDBtables.usersTable,
@@ -318,6 +321,7 @@ export const createInfrastructure = async () => {
             NATS_AUTH_XKEY_ISSUER_PUBLIC: NATS_AUTH_XKEY_ISSUER_PUBLIC!,
             NATS_SYS_USER_PASSWORD: NATS_SYS_USER_PASSWORD!,
             NATS_REGULAR_USER_PASSWORD: NATS_REGULAR_USER_PASSWORD!,
+            NATS_LLM_SERVICE_NKEY_PUBLIC: NATS_LLM_SERVICE_NKEY_PUBLIC!,
             ORIGIN_HOST_URL: ORIGIN_HOST_URL!,
             API_HOST_URL: API_HOST_URL!,
             AUTH0_DOMAIN: AUTH0_DOMAIN!,
@@ -330,6 +334,48 @@ export const createInfrastructure = async () => {
         dockerfilePath: '/usr/src/service/services/api/Dockerfile',
     })
 
+    // Deploy LLM API service on ECS infrastructure
+    // This service is isolated in a separate NATS account and communicates exclusively via NATS
+    const llmApiService = await createLlmApiService({
+        ecsCluster: {
+            id: ecsCluster.outputs.clusterId,
+            arn: ecsCluster.outputs.clusterArn,
+            name: ecsCluster.outputs.clusterName,
+        },
+        vpc: networkInfrastructure.vpc,
+        publicSubnets: networkInfrastructure.publicSubnets,
+        privateSubnets: networkInfrastructure.privateSubnets,
+        serviceName: 'llm-api',
+        containerPort: 8000,
+        cpu: 256,
+        memory: 512,
+        desiredCount: 1,
+        environment: {
+            SERVICE_NAME: 'llm-api',
+            LOG_LEVEL: 'INFO',
+
+            AWS_REGION: AWS_REGION!,
+
+            STAGE: STAGE!,
+            ORG_NAME: ORG_NAME!,
+            ENVIRONMENT: ENVIRONMENT!,
+
+            NATS_SERVERS: NATS_SERVERS!,
+            NATS_NKEY_SEED: NATS_LLM_SERVICE_NKEY_SEED!,
+
+            AUTH0_DOMAIN: AUTH0_DOMAIN!,
+            AUTH0_API_IDENTIFIER: AUTH0_API_IDENTIFIER!,
+
+            OPENAI_API_KEY: OPENAI_API_KEY!,
+            ANTHROPIC_API_KEY: ANTHROPIC_API_KEY!,
+
+            LLM_TIMEOUT_SECONDS: '1200',
+        },
+        dockerBuildContext: '/usr/src/service',
+        dockerfilePath: '/usr/src/service/services/llm-api/Dockerfile',
+        dependencies: [natsClusterService.ecsService], // Must wait for NATS cluster to be ready
+    })
+
     // Deploy the web UI with CloudFront distribution
     const webUI = await createWebUI({
         orgName: ORG_NAME!,
@@ -338,7 +384,6 @@ export const createInfrastructure = async () => {
         hostedZoneId: hostedZoneId as unknown as string, // createWebUI currently expects string; cast Output
         hostedZoneName: HOSTED_ZONE_NAME || DOMAIN_NAME!,
         certificateArn: certificateResources.outputs.validatedCertificateArn,
-        apiUrl: 'mainApiService.outputs.apiUrl',
         environment: {
             VITE_API_URL: VITE_API_URL!,
             VITE_AUTH0_LOGIN_URL: VITE_AUTH0_LOGIN_URL!,
@@ -407,6 +452,7 @@ export const createInfrastructure = async () => {
         caddyCertManager,
         natsClusterService,
         mainApiService,
+        llmApiService,
         webUI,
         certificateResources,
         dnsRecords,

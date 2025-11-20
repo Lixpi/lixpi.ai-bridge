@@ -27,7 +27,6 @@ export type WebUIArgs = {
     certificateArn: pulumi.Input<string>
 
     // Web UI configuration
-    apiUrl: string
     environment: {
         VITE_API_URL: string
         VITE_AUTH0_LOGIN_URL: string
@@ -51,7 +50,6 @@ export const createWebUI = async (args: WebUIArgs) => {
         hostedZoneId,
         hostedZoneName,
         certificateArn,
-        apiUrl,
         environment,
         dockerBuildContext,
         dockerfilePath,

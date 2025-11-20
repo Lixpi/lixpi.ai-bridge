@@ -4,6 +4,7 @@ Python-based microservice for handling AI model interactions via NATS.
 """
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from colorama import Fore, Style
 import uvicorn
@@ -33,12 +34,16 @@ async def lifespan(app: FastAPI):
         *get_ai_interaction_subjects(provider_registry),
     ]
 
+    # Check if local CA cert exists (for self-signed certs in local development)
+    ca_cert_path = "/opt/nats/certs/ca.crt"
+    tls_ca_cert = ca_cert_path if os.path.exists(ca_cert_path) else None
+
     nats_config = NatsServiceConfig(
         servers=[s.strip() for s in settings.NATS_SERVERS.split(',')],
         name="llm-api-service",
         nkey_seed=settings.NATS_NKEY_SEED,
         user_id="svc:llm-service",
-        tls_ca_cert="/opt/nats/certs/ca.crt",
+        tls_ca_cert=tls_ca_cert,
         max_reconnect_attempts=-1,
         reconnect_time_wait=0.5,
         subscriptions=subscriptions
