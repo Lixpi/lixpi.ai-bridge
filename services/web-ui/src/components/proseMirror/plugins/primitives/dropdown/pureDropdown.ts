@@ -66,7 +66,6 @@ export function createPureDropdown(config: PureDropdownConfig) {
 
     // Handle option click
     const optionClickHandler = (e: Event, option: DropdownOption) => {
-        console.log('[AI_DBG][PURE_DROPDOWN.optionClick]', { id, option })
         e.preventDefault()
         e.stopPropagation()
         e.stopImmediatePropagation()
@@ -206,11 +205,9 @@ export function createPureDropdown(config: PureDropdownConfig) {
         bodyContent,
         visible: false,
         onOpen: () => {
-            console.log('[AI_DBG][PURE_DROPDOWN.opened]', { id })
             dom.classList.add('dropdown-open')
         },
         onClose: () => {
-            console.log('[AI_DBG][PURE_DROPDOWN.closed]', { id })
             dom.classList.remove('dropdown-open')
         }
     })
@@ -249,17 +246,10 @@ export function createPureDropdown(config: PureDropdownConfig) {
     return {
         dom,
         update: (newSelectedValue: DropdownOption) => {
-            console.log('[AI_DBG][PURE_DROPDOWN.update]', { id, newSelectedValue })
             currentSelectedValue = newSelectedValue
             updateSelectedDisplay()
         },
         setOptions: ({ options: newOptions, availableTags: newTags, selectedValue: newSelectedValue }: { options: DropdownOption[]; availableTags?: string[]; selectedValue?: DropdownOption }) => {
-            console.log('[AI_DBG][PURE_DROPDOWN.setOptions]', {
-                id,
-                newOptionsCount: newOptions.length,
-                newTagsCount: newTags?.length
-            })
-
             allOptions = [...newOptions]
 
             if (newTags) {
@@ -274,12 +264,10 @@ export function createPureDropdown(config: PureDropdownConfig) {
             updateSelectedDisplay()
         },
         rerender: () => {
-            console.log('[AI_DBG][PURE_DROPDOWN.rerender]', { id, optionsCount: allOptions.length })
             renderOptionsList()
             updateSelectedDisplay()
         },
         destroy: () => {
-            console.log('[AI_DBG][PURE_DROPDOWN.destroy]', { id })
             infoBubble?.destroy()
         }
     }

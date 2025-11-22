@@ -475,7 +475,6 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
     // Get initial AI models from store (might be empty if still loading)
     let aiModelsData = aiModelsStore.getData()
     const currentAiModel = node.attrs.aiModel || ''
-    console.log('[AI_DBG][THREAD.modelDropdown] creating dropdown', { threadId, currentAiModel, modelsCount: aiModelsData.length })
 
     // Helper function to transform models data to dropdown format
     const transformModelsToOptions = (models) => {
@@ -534,8 +533,6 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
         enableTagFilter: true,
         availableTags,
         onSelect: (option) => {
-            console.log('[AI_DBG][THREAD.modelDropdown] onSelect', { threadId, option })
-
             // Update thread node attrs via transaction
             const pos = getPos()
             if (pos !== undefined) {
@@ -553,9 +550,9 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
     let lastProcessedCount = aiModelsData.length
     const unsubscribe = aiModelsStore.subscribe((storeState) => {
         const newModelsData = storeState.data
-        
+
         if (newModelsData.length === 0 || newModelsData.length === lastProcessedCount) return
-        
+
         lastProcessedCount = newModelsData.length
         aiModelsData = newModelsData
 
@@ -575,9 +572,9 @@ function createAiModelSelectorDropdown(view, node, getPos, threadId) {
             const threadNode = view.state.doc.nodeAt(pos)
             if (threadNode) {
                 const firstModel = newModelsData[0]
-                const newAttrs = { 
-                    ...threadNode.attrs, 
-                    aiModel: `${firstModel.provider}:${firstModel.model}` 
+                const newAttrs = {
+                    ...threadNode.attrs,
+                    aiModel: `${firstModel.provider}:${firstModel.model}`
                 }
                 const tr = view.state.tr.setNodeMarkup(pos, undefined, newAttrs)
                 view.dispatch(tr)
