@@ -253,6 +253,31 @@ export function createPureDropdown(config: PureDropdownConfig) {
             currentSelectedValue = newSelectedValue
             updateSelectedDisplay()
         },
+        setOptions: ({ options: newOptions, availableTags: newTags, selectedValue: newSelectedValue }: { options: DropdownOption[]; availableTags?: string[]; selectedValue?: DropdownOption }) => {
+            console.log('[AI_DBG][PURE_DROPDOWN.setOptions]', {
+                id,
+                newOptionsCount: newOptions.length,
+                newTagsCount: newTags?.length
+            })
+
+            allOptions = [...newOptions]
+
+            if (newTags) {
+                availableTags = [...newTags]
+            }
+
+            if (newSelectedValue) {
+                currentSelectedValue = newSelectedValue
+            }
+
+            renderOptionsList()
+            updateSelectedDisplay()
+        },
+        rerender: () => {
+            console.log('[AI_DBG][PURE_DROPDOWN.rerender]', { id, optionsCount: allOptions.length })
+            renderOptionsList()
+            updateSelectedDisplay()
+        },
         destroy: () => {
             console.log('[AI_DBG][PURE_DROPDOWN.destroy]', { id })
             infoBubble?.destroy()
