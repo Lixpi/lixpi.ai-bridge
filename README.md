@@ -2,6 +2,19 @@
 
 Version:  0.0.2
 
+## Mock Authentication for Local Development
+
+LocalAuth0 provides zero-config Auth0 mocking for offline development.
+
+**Configuration:** Set `VITE_MOCK_AUTH=true` in your `.env` file (default in `.env.shelby-local`)
+
+**Default user:** `test@local.dev` / `local|test-user-001`
+
+See [`services/localauth0/README.md`](services/localauth0/README.md) for details.
+
+---
+
+## Running the Project
 
 To run the project:
 

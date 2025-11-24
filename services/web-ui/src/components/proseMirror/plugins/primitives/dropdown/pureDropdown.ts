@@ -48,10 +48,10 @@ export function createPureDropdown(config: PureDropdownConfig) {
         renderIconForOptions = true,
         renderTitleForSelectedValue = true,
         enableTagFilter = false,
-        availableTags = [],
         onSelect
     } = config
 
+    let availableTags = config.availableTags || []
     let currentSelectedValue = selectedValue
     let activeFilterTags: Set<string> = new Set()
     let allOptions = [...options]

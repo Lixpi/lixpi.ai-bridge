@@ -4,7 +4,7 @@ import { NATS_SUBJECTS, LoadingStatus } from '@lixpi/constants'
 
 const { USER_SUBJECTS } = NATS_SUBJECTS
 
-import AuthService from './auth0-service.ts'
+import AuthService from './auth-service.ts'
 
 import { servicesStore } from '$src/stores/servicesStore.ts'
 import { userStore } from '../stores/userStore.ts'
