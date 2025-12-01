@@ -2,6 +2,7 @@ services:
 
     lixpi-dynamodb:
         container_name: lixpi-dynamodb
+        profiles: ["main", "deploy"]
         image: amazon/dynamodb-local:latest
         user: "0:0"  # run as root so the volume is writable
         command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/data", "-cors", "*", "-delayTransientStatuses"]
@@ -11,9 +12,16 @@ services:
             - dynamodb-data:/data
         networks:
             - nats
+        healthcheck:
+            test: ["CMD-SHELL", "java -version || exit 1"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 5s
 
     lixpi-dynamodb-admin:
         container_name: lixpi-dynamodb-admin
+        profiles: ["dev"]
         image: aaronshaf/dynamodb-admin
         environment:
             DYNAMO_ENDPOINT: http://lixpi-dynamodb:8000
@@ -22,13 +30,57 @@ services:
             AWS_SECRET_ACCESS_KEY: test
         ports:
             - 8001:8001
-        depends_on:
-            - lixpi-dynamodb
         networks:
             - nats
+        depends_on:
+            lixpi-dynamodb:
+                condition: service_healthy
+                restart: true
+
+    lixpi-caddy:
+        container_name: lixpi-caddy
+        profiles: ["main"]
+        image: lixpi/caddy-cert-manager
+        build:
+            dockerfile: Dockerfile
+            context: infrastructure/pulumi/src/resources/certificate-manager
+        environment:
+            # Local development mode
+            CADDY_LOCAL_MODE: "true"
+            DOMAINS: "localhost"
+            CADDY_EMAIL: ${CERTIFICATE_VALIDATION_EMAIL}
+            STORAGE_TYPE: "local"
+        volumes:
+            - caddy-certs:/certificates
+        networks:
+            - nats
+        # Container exits after generating certificates - no ports needed
+        restart: "no"
+
+    lixpi-localauth0:
+        container_name: lixpi-localauth0
+        profiles: ["main"]
+        image: lixpi/localauth0
+        build:
+            context: services/localauth0
+            dockerfile: Dockerfile
+        ports:
+            - 3000:3000
+        volumes:
+            - localauth0-data:/data
+        networks:
+            - nats
+        healthcheck:
+            test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/.well-known/jwks.json"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 5s
+
 
     lixpi-nats-1:
         container_name: lixpi-nats-1
+        profiles: ["main"]
         image: lixpi/nats
         build:
             dockerfile: Dockerfile
@@ -67,11 +119,18 @@ services:
         ]
         networks:
             - nats
-
+        healthcheck:
+            test: ["CMD-SHELL", "wget -q --spider http://localhost:8222/healthz || exit 1"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 15s
 
     lixpi-nats-2:
         container_name: lixpi-nats-2
-        image: lixpi/nats
+        profiles: ["main"]
+        image: lixpi/nats-2
+        pull_policy: never
         build:
             dockerfile: Dockerfile
             context: services/nats
@@ -105,10 +164,18 @@ services:
         ]
         networks:
             - nats
+        healthcheck:
+            test: ["CMD-SHELL", "wget -q --spider http://localhost:8222/healthz || exit 1"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 15s
 
     lixpi-nats-3:
         container_name: lixpi-nats-3
-        image: lixpi/nats
+        profiles: ["main"]
+        image: lixpi/nats-3
+        pull_policy: never
         build:
             dockerfile: Dockerfile
             context: services/nats
@@ -142,9 +209,16 @@ services:
         ]
         networks:
             - nats
+        healthcheck:
+            test: ["CMD-SHELL", "wget -q --spider http://localhost:8222/healthz || exit 1"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 15s
 
     lixpi-nats-cli:
         container_name: lixpi-nats-cli
+        profiles: ["dev"]
         image: synadia/nats-box:latest
         command: >
             -c "sleep infinity"
@@ -152,9 +226,9 @@ services:
         networks:
             - nats
 
-
     lixpi-web-ui:
         container_name: lixpi-web-ui
+        profiles: ["main"]
         image: lixpi/web-ui
         build:
             dockerfile: services/web-ui/Dockerfile
@@ -215,9 +289,17 @@ services:
         stop_signal: SIGTERM
         ports:
             - 3001:5173
+        depends_on:
+            lixpi-api:
+                condition: service_healthy
+                restart: true
+            lixpi-llm-api:
+                condition: service_healthy
+                restart: true
 
     lixpi-api:
         container_name: lixpi-api
+        profiles: ["main"]
         restart: always
         image: lixpi/api
         build:
@@ -307,9 +389,35 @@ services:
         ports:
             - 3005:3000
             - 35795:35795
+        healthcheck:
+            test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/health-check || exit 1"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 30s
+        depends_on:
+            # lixpi-pulumi-init:
+            #     condition: service_completed_successfully
+            #     restart: true
+            lixpi-dynamodb:
+                condition: service_healthy
+                restart: true
+            lixpi-localauth0:
+                condition: service_healthy
+                restart: true
+            lixpi-nats-1:
+                condition: service_healthy
+                restart: true
+            lixpi-nats-2:
+                condition: service_healthy
+                restart: true
+            lixpi-nats-3:
+                condition: service_healthy
+                restart: true
 
     lixpi-llm-api:
         container_name: lixpi-llm-api
+        profiles: ["main"]
         restart: always
         image: lixpi/llm-api
         build:
@@ -337,7 +445,6 @@ services:
 
             # Logging
             LOG_LEVEL: INFO
-
         volumes:
             # Mount source for hot-reload during development
             - ./services/llm-api/src:/app/src:cached
@@ -351,9 +458,7 @@ services:
 
         networks:
             - nats
-
         working_dir: /app
-
         # Health check
         healthcheck:
             test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -361,9 +466,12 @@ services:
             timeout: 10s
             retries: 3
             start_period: 40s
-
         ports:
             - 8002:8000
+        depends_on:
+            lixpi-api:
+                condition: service_healthy
+                restart: true
 
     # SST container is deprecated and will be removed later in the future. DON'T USE IT !
     # lixpi-sst:
@@ -434,6 +542,7 @@ services:
 
     lixpi-pulumi:
         container_name: lixpi-pulumi
+        profiles: ["deploy"]
         restart: always
         image: lixpi/pulumi
         build:
@@ -526,80 +635,20 @@ services:
         networks:
             - nats
 
-    lixpi-caddy:
-        container_name: lixpi-caddy
-        image: lixpi/caddy-cert-manager
-        build:
-            dockerfile: Dockerfile
-            context: infrastructure/pulumi/src/resources/certificate-manager
-        environment:
-            # Local development mode
-            CADDY_LOCAL_MODE: "true"
-            DOMAINS: "localhost"
-            CADDY_EMAIL: ${CERTIFICATE_VALIDATION_EMAIL}
-            STORAGE_TYPE: "local"
-        volumes:
-            - caddy-certs:/certificates
-        networks:
-            - nats
-        # Container exits after generating certificates - no ports needed
+    lixpi-pulumi-init:
+        container_name: lixpi-pulumi-init
+        profiles: ["deploy"]
+        image: lixpi/pulumi-init
+        extends:
+            service: lixpi-pulumi
         restart: "no"
-
-    lixpi-ai-models-synchronization:
-        container_name: lixpi-ai-models-synchronization
-        image: lixpi/ai-models-synchronization
-        build:
-            dockerfile: lambda-functions/ai-models-synchronization/Dockerfile
-            context: .
-        environment:
-            # Force color output in the terminal, required for chalk.js to work
-            FORCE_COLOR: 1
-
-            # Node.js config (native TypeScript execution)
-            NODE_OPTIONS: '--trace-deprecation --abort-on-uncaught-exception --trace-warnings --disable-warning=ExperimentalWarning --experimental-transform-types'
-
-            # Environment
-            ENVIRONMENT: ${ENVIRONMENT}
-
-            # Lambda config
-            LAMBDA_NAME: ai-models-synchronization-local
-            ORG_NAME: ${ORG_NAME:-lixpi}
-            STAGE: ${STAGE:-dev}
-
-            # API keys
-            OPENAI_API_KEY: ${OPENAI_API_KEY}
-            ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-
-            # AWS config
-            AWS_REGION: ${AWS_REGION}
-            AWS_PROFILE: ${AWS_PROFILE}
-            DYNAMODB_ENDPOINT: ${DYNAMODB_ENDPOINT:-http://lixpi-dynamodb:8000}
-
-        volumes:
-            # AWS SSO credentials
-            - aws-config:/root/.aws:cached
-            - ./.aws/config:/root/.aws/config:cached
-
-            # Lambda function source (for live editing)
-            - ./lambda-functions/ai-models-synchronization/ai-models-synchronization.ts:/app/ai-models-synchronization.ts:cached
-        working_dir: /app
-        command: node handler.ts
-        networks:
-            - nats
-        restart: "no"  # Don't auto-restart, run on-demand
-
-    lixpi-localauth0:
-        container_name: lixpi-localauth0
-        image: lixpi/localauth0
-        build:
-            context: services/localauth0
-            dockerfile: Dockerfile
-        ports:
-            - 3000:3000
-        volumes:
-            - localauth0-data:/data
-        networks:
-            - nats
+        entrypoint: []
+        working_dir: /usr/src/service/infrastructure/pulumi
+        command: ["pnpm", "run", "deploy:local"]
+        depends_on:
+            lixpi-dynamodb:
+                condition: service_healthy
+                restart: true
 
 volumes:
     aws-config:    # AWS SSO credentials volume that's shared between multiple containers

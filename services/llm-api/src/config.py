@@ -23,10 +23,6 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 
-    # Auth0 configuration (for JWT verification)
-    AUTH0_DOMAIN: str
-    AUTH0_API_IDENTIFIER: str
-
     # Circuit breaker settings
     LLM_TIMEOUT_SECONDS: int = 1200  # 20 minutes
 

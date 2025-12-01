@@ -32,9 +32,7 @@ docker run -p 8000:8000 --env-file .env lixpi/llm-api
 ## Environment Variables
 
 - `NATS_SERVERS`: NATS server URLs (comma-separated)
-- `NATS_LLM_SERVICE_NKEY_SEED`: NKey seed for LLM_SERVICE account authentication
+- `NATS_NKEY_SEED`: NKey seed for service authentication
 - `OPENAI_API_KEY`: OpenAI API key
 - `ANTHROPIC_API_KEY`: Anthropic API key
-- `AUTH0_DOMAIN`: Auth0 domain for JWT verification
-- `AUTH0_API_IDENTIFIER`: Auth0 API identifier
 - `LLM_TIMEOUT_SECONDS`: Circuit breaker timeout (default: 1200s)

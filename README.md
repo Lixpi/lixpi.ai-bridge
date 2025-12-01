@@ -1,12 +1,52 @@
-# Lixpi-lists
+# lixpi
 
 Version:  0.0.2
+
+## Quick Start
+
+### 1. Environment Setup
+
+Run the interactive setup wizard to generate your `.env` file.
+
+```bash
+# macOS / Linux
+./init.sh
+
+# Windows
+init.bat
+```
+
+Or run Docker commands directly:
+
+```bash
+# macOS / Linux
+docker build -t lixpi/setup infrastructure/init-script && docker run -it --rm -v "$(pwd):/workspace" lixpi/setup
+
+# Windows (CMD: use %cd%, PowerShell: use ${PWD})
+docker build -t lixpi/setup infrastructure/init-script && docker run -it --rm -v "%cd%:/workspace" lixpi/setup
+```
+
+For CI/automation (non-interactive), see [`infrastructure/init-script/README.md`](infrastructure/init-script/README.md).
+
+### 2. Start the Application
+
+Run the startup script which will let you select an environment and optionally initialize the database:
+
+```bash
+# macOS / Linux
+./start.sh
+
+# Windows
+start.bat
+```
+
+---
 
 ## Mock Authentication for Local Development
 
 LocalAuth0 provides zero-config Auth0 mocking for offline development.
 
-**Configuration:** Set `VITE_MOCK_AUTH=true` in your `.env` file (default in `.env.shelby-local`)
+**Configuration:** Set `VITE_MOCK_AUTH=true` in your `.env` file (default in local environment)
 
 **Default user:** `test@local.dev` / `local|test-user-001`
 

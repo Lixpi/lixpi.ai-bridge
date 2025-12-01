@@ -3,7 +3,7 @@
 import c from 'chalk'
 import { wsconnect } from '@nats-io/nats-core'
 import { connect } from "@nats-io/transport-node"
-import { fromSeed } from 'nkeys.js'
+import { fromSeed } from '@nats-io/nkeys'
 
 import type {
     NatsConnection,

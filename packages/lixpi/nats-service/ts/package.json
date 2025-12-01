@@ -20,7 +20,7 @@
         "@lixpi/debug-tools": "workspace:*",
         "@nats-io/nats-core": "*",
         "@nats-io/transport-node": "*",
-        "chalk": "*",
-        "nkeys.js": "*"
+        "@nats-io/nkeys": "*",
+        "chalk": "*"
     }
 }
